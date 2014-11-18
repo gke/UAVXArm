@@ -9,5 +9,5 @@ Code has been relocated to gitHub as uploads to Google have been deprecated.
 
 http://google-opensource.blogspot.com.au/2013/05/a-change-to-google-code-download-service.html
 
-UAVXARM32F4.hex is for brushless motors and UAVXArm32F4_DC.hex is for brushed motors typically found on micro/nano multicopters.
+UAVXARM32F4.hex is for brushless motors and UAVXArm32F4_DC.hex is for brushed motors typicall used on micro/nano multicopters.
 
