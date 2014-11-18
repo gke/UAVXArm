@@ -1,7 +1,7 @@
 UAVXArm32F4
 ===========
 
-For the time being project documentation my be found at the Google Code site.  
+For the time being project documentation my be found at the Google Code site. Background for UAVXArm32F4 may be found at: 
 
 [http://code.google.com/p/uavp-mods/wiki/UAVXArm]
 
