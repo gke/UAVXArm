@@ -1,0 +1,737 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml">
+ 
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7" />
+<link rel="stylesheet" type="text/css" href="include.css" />
+<meta http-equiv="content-type" content="text/html; charset=iso-8859-1" />
+<meta name="author" content="HappyKillmore based on samples from Wolfgang Pichler" />
+<meta name="URL" content="http://diydrones.com" />
+  
+<title>Set Home GPS Location</title>
+<style type="text/css"> 
+
+#map { position: absolute;
+   top: 0px;
+   left: 0px;
+} 
+
+#descr { position:absolute;
+   top:5px;
+   left: 70px;
+   width: 210px;
+   background-color: #fff;
+   border: 1px solid #000;
+}
+ 
+ 
+.tooltip { text-align: center;
+   opacity: .70;
+   -moz-opacity:.70;
+   filter:Alpha(opacity=70);
+   white-space: nowrap;
+   margin: 0;
+   padding: 2px 0.5ex;
+   border: 1px solid #000;
+   font-weight: bold;
+   font-size: 8pt;
+   font-family: Tahoma;
+   background-color: #fff;
+}
+</style>
+ 
+<script src="http://maps.google.com/maps?file=api&amp;v=2&amp;sensor=false&amp;key=ABQIAAAA0Fr-33jU5znk3eeIujbO7BTJMCHS-jujuL6EC_OZAQIbzgaqGxSc7loBqiXeUNQ8d7DjBpAZtmBctg" type="text/javascript"> 
+</script>
+</head>
+<body onload="buildMap()" onunload="GUnload()">
+  
+   <form name="setHomeAddressForm">
+      <div id="map" style="width:100%; height:100%"> </div>
+      <input type="hidden" size="10" name="address" value="" >
+      <input type="hidden" size="10" name="index" value="" >
+      <input type="hidden" size="10" name="lat" value="" >
+      <input type="hidden" size="10" name="lng" value="" >
+      <input type="hidden" size="10" name="metersFeet" value="" >
+      <input type="hidden" size="10" name="heading" value="" >
+
+      <input name="setHomeAddressButton" type="button" onClick="setHomeAddress(); return false" value="Set Home Address" >
+      <input name="ClearButton" type="button" onClick="clearMap(); return false" value="Clear Map" >
+      <input name="ClearTravelButton" type="button" onClick="clearTravel(); return false" value="Clear Travel Lines" >
+      <input name="centerMapWaypointButton" type="button" onClick="centerMapWaypoint(); return false" value="Center On Waypoint" >
+      <input name="centerMapHomeButton" type="button" onClick="centerMapHome(); return false" value="Center On Home" >
+      <input name="centerTravelEndButton" type="button" onClick="centerTravelEnd(); return false" value="Center Travel End" >
+      <input name="refreshButton" type="button" onClick="refresh(); return false" value="Refresh" >
+      <input name="addWaypointLatLngButton" type="button" onClick="addWaypointLatLng(); return false" value="Add Waypoint by Lat/Long" >
+
+      <input type="hidden" size="10" name="segmentInterval" value="1" >
+      <input type="hidden" size="10" name="segmentLat" value="" >
+      <input type="hidden" size="10" name="segmentLng" value="" >
+      <input name="addSegmentButton" type="button" onClick="addSegment(); return false" value="Add Travel Segment" >
+
+      <input type="hidden" size="10" name="lockDragDrop" value="" >
+      <input type="hidden" size="10" name="zoomLevel" value="" >
+      <input name="setZoomButton" type="button" onClick="setZoom(); return false" value="Zoom" >
+
+      <input type="hidden" size="10" name="homeLat" value="" >
+      <input type="hidden" size="10" name="homeLng" value="" >
+      <input name="setHomeLatLngButton" type="button" onClick="setHomeLatLng(); return false" value="Set Home LatLng" >
+
+      <input type="hidden" size="10" name="wpAddress" value="" >
+      <input name="addWaypointButton" type="button" onClick="addWaypointAddress(); return false" value="Add Waypoint by Address" >
+
+      <input type="hidden" size="10" name="wpIndex" value="" >
+      <input type="hidden" size="10" name="wpLat" value="" >
+      <input type="hidden" size="10" name="wpLng" value="" >
+      <input name="moveWaypointButton" type="button" onClick="moveWaypoint(); return false" value="Move/Add Waypoint" >
+
+      <input type="hidden" size="10" name="dwIndex" value="" >
+      <input name="deleteWaypointButton" type="button" onClick="deleteWaypoint(); return false" value="Delete Waypoint" >
+      <BR>If you can read this, your browser is not compatible with Google Maps<BR>
+
+      <table hidden id="descr" border="0" cellspacing="10" cellpadding="1">
+         <tr><td id="status" style="height:20px">&nbsp; </td></tr>
+      </table>
+   </form>
+</body>
+</html>
+
+<script text/javascript>
+// Global variables
+var mapdiv = document.getElementById("map");
+var map;
+var poly;
+var travelPoly;
+var count = 0;
+var points = new Array();
+var markers = new Array();
+var icon_url ="http://labs.google.com/ridefinder/images/";
+var tooltip;
+var lineColor = "#0000ff";
+var lineOpacity = 1;
+var report= document.getElementById("status");
+var geocoder;
+var oMarker;
+var homeicon;
+var lineWeight = 1;
+var travelLine = new Array();
+var newSegment = new Array();
+var planeicon;
+var plane;
+var length;
+var unitConst;
+var unit;
+var icon;
+var maxTravelPoints = 2000; // 150
+var segmentColor = "#FF00FF";
+var segmentWeight = 2;
+var segmentOpacity = .6;
+var sMaxDistance;
+
+function buildMap()
+{
+if (GBrowserIsCompatible())
+{
+
+map = new GMap2(mapdiv, {draggableCursor:"auto", draggingCursor:"move"});
+geocoder = new GClientGeocoder();
+
+// Add a div element for toolips
+tooltip = document.createElement("div");
+tooltip.className="tooltip";
+map.getPane(G_MAP_MARKER_PANE).appendChild(tooltip);
+
+// Load initial map and a bunch of controls
+map.setCenter(new GLatLng(41.879483,-87.624335), 15);
+var givenmaptypes = map.getMapTypes();
+map.setMapType(givenmaptypes[0]);
+map.addControl(new GLargeMapControl()); // Zoom control
+map.addMapType(G_PHYSICAL_MAP);
+// Create a hierarchical map type control
+var hierarchy = new GHierarchicalMapTypeControl();
+// make Hybrid the Satellite default
+hierarchy.addRelationship(G_SATELLITE_MAP, G_HYBRID_MAP, "Labels", true);
+// add the control to the map
+map.addControl(hierarchy);
+
+map.addControl(new GScaleControl()); // Scale bar
+map.disableDoubleClickZoom();
+
+icon = new GIcon();
+icon.image = icon_url +"mm_20_blue.png";
+addIcon(icon);
+
+homeicon = new GIcon();
+homeicon.image = "http://www.google.com/mapfiles/markerH.png";
+addIcon(homeicon);
+
+planeicon = new GIcon();
+//planeicon.image = "http://google-maps-icons.googlecode.com/files/airport.png";
+//planeicon.image = "http://www.happykillmore.com/Software/RemzibiOSD/Waypoints/Plane_0.png";
+planeicon.image = "http://maps.google.com/mapfiles/kml/pal2/icon56.png"; // GKE
+addPlaneIcon(planeicon);
+
+var oMarkerLatLong = new GLatLng(-31.199144,136.824492);
+oMarker = new GMarker(oMarkerLatLong, {icon:homeicon, draggable:true, bouncy:false, dragCrossMove:true});
+map.addOverlay(oMarker);
+SetHomeMarker(map,oMarkerLatLong);
+drawOverlay();
+updateLengthText();
+
+// Add click listener
+GEvent.addListener(map,"click",leftClick);
+
+// Add Zoom listener
+GEvent.addListener(map,"zoomend",zoomLevel);
+}
+else
+{
+report.innerHTML = "Not Compatible";
+//window.location = "http://www.google.com/";
+}
+}
+
+function addIcon(icon)
+{
+if (GBrowserIsCompatible())
+{
+// Add icon attributes
+icon.shadow= icon_url + "mm_20_shadow.png";
+icon.iconSize = new GSize(12, 20);
+icon.shadowSize = new GSize(22, 20);
+icon.iconAnchor = new GPoint(6, 20);
+icon.infoWindowAnchor = new GPoint(5, 1);
+}
+}
+
+function addPlaneIcon(icon) 
+{
+  if (GBrowserIsCompatible()) 
+  {
+    // Add icon attributes
+    icon.iconSize = new GSize(18, 18);
+    icon.iconAnchor = new GPoint(9, 9);
+  }
+}
+
+function setHomeAddress()
+{
+if (geocoder && GBrowserIsCompatible()) 
+   {
+
+      geocoder.getLatLng(
+      document.getElementById('address').value,
+      function(point) 
+      {
+         if (!point) 
+         {
+            alert(address + " not found");
+         } 
+         else
+         {
+            map.setCenter(point);
+            //var marker = new GMarker(point);
+            //map.addOverlay(marker);
+            //marker.openInfoWindowHtml(address);
+            SetHomeMarker(map,point);
+	    drawOverlay();
+            updateLengthText();
+          }
+      });
+   }
+}
+
+function refresh() 
+{
+   if (GBrowserIsCompatible()) 
+   {
+     drawOverlay();
+     updateLengthText();
+   }
+}
+
+function centerMapWaypoint() 
+{
+   if (GBrowserIsCompatible()) 
+   {
+      var point = new GLatLng(document.getElementById('lat').value,document.getElementById('lng').value);
+      map.setCenter(point);
+      drawOverlay();
+      updateLengthText();
+   }
+}
+
+function centerMapHome() 
+{
+   if (GBrowserIsCompatible()) 
+   {
+      var point = new GLatLng(document.getElementById('homeLat').value,document.getElementById('HomeLng').value);
+      map.setCenter(point);
+      drawOverlay();
+      updateLengthText();
+   }
+}
+	
+function deleteWaypoint() 
+{
+   if (GBrowserIsCompatible()) 
+   {
+      var nDelIndex = parseInt(document.getElementById('dwIndex').value)-1;
+      map.removeOverlay(markers[nDelIndex]);
+      markers.splice(nDelIndex, 1);
+      document.getElementById('index').value = "Home";
+      document.getElementById('lat').value = oMarker.getPoint().lat()
+      document.getElementById('lng').value = oMarker.getPoint().lng()
+      for(var n = 1; n <= markers.length; n++) 
+      {
+         markers[n-1].tooltip = "Waypoint #" + n; 
+         markers[n-1].content = n; 
+         map.removeOverlay(markers[n-1]); 
+         map.addOverlay(markers[n-1]);
+      }
+      drawOverlay();
+      updateLengthText();
+   }
+}
+
+function setHomeLatLng() 
+{
+   if (GBrowserIsCompatible()) 
+   {
+      var point = new GLatLng(document.getElementById('homeLat').value,document.getElementById('homeLng').value);
+      SetHomeMarker(map,point);
+      //map.setCenter(point);
+      document.getElementById('index').value = "Home";
+      document.getElementById('lat').value = point.lat()
+      document.getElementById('lng').value = point.lng()
+      drawOverlay();
+      updateLengthText();
+   }
+}
+
+function setZoom() 
+{
+   if (GBrowserIsCompatible()) 
+   {
+      map.setZoom(parseInt(document.getElementById('zoomLevel').value));
+      //drawOverlay();
+      //updateLengthText();
+   }
+}
+
+function addSegment() 
+{
+   if (GBrowserIsCompatible()) 
+   {
+      var point;
+      point = new GLatLng(document.getElementById('segmentLat').value,document.getElementById('segmentLng').value);
+      if (travelLine.length == 0)
+      {
+         plane = new GMarker(point, {icon:planeicon, draggable:true, bouncy:false, dragCrossMove:true});
+         map.addOverlay(plane);
+      }
+      travelLine.push(point);
+   
+      newSegment.length=0;
+      newSegment.push(travelLine[travelLine.length-2])
+      newSegment.push(point);
+
+//      if (travelLine.length > maxTravelPoints)
+//      {
+//         travelLine.splice(0,1);
+//      }
+      //map.setCenter(point);
+      drawTravel();
+   }
+}
+
+function centerTravelEnd() 
+{
+   if (GBrowserIsCompatible()) 
+   {
+      map.setCenter(travelLine[travelLine.length-1]);
+      //drawOverlay();
+      //updateLengthText();
+   }
+}
+
+
+function addWaypointAddress() 
+{
+   if (geocoder && GBrowserIsCompatible()) 
+   {
+      geocoder.getLatLng(document.getElementById('wpAddress').value,function(point) 
+      {
+         if (!point) 
+            {
+               alert(address + " not found");
+            } 
+            else
+            {
+               map.setCenter(point);
+               leftClick(map, point);
+            }
+      });
+   }
+}
+
+function addWaypointLatLng() 
+{
+   if (GBrowserIsCompatible()) 
+   {
+      var point = new GLatLng(document.getElementById('wpLat').value,document.getElementById('wpLng').value);
+      var nIndex = parseInt(document.getElementById('wpIndex').value)-1;
+
+      if (document.getElementById('lockDragDrop').value != "Locked")
+      {
+         var marker = new GMarker(point, {icon:icon, draggable:true, bouncy:true, dragCrossMove:true});
+      }
+      else
+      {
+         var marker = new GMarker(point, {icon:icon, draggable:true, bouncy:true, dragCrossMove:true});
+      }
+      map.addOverlay(marker);
+      marker.content = markers.length+1;
+      markers.push(marker);
+      marker.tooltip = "Waypoint #" + markers.length;
+      addListeners(marker);
+   }
+}
+
+function moveWaypoint() 
+{
+   if (GBrowserIsCompatible()) 
+   {
+      var point = new GLatLng(document.getElementById('wpLat').value,document.getElementById('wpLng').value);
+      var nIndex = parseInt(document.getElementById('wpIndex').value)-1;
+      if (nIndex+1 > markers.length)
+      {
+         leftClick(map, point);
+      }
+      else
+      {
+         document.getElementById('index').value = document.getElementById('wpIndex').value;
+         document.getElementById('lat').value = document.getElementById('wpLat').value;
+         document.getElementById('lng').value = document.getElementById('wpLng').value;
+         markers[nIndex].setLatLng(point);
+         drawOverlay();
+         updateLengthText();
+      }
+   }
+}
+
+function showTooltip(marker) 
+{ // Display tooltips
+   if (GBrowserIsCompatible()) 
+   { 
+      tooltip.innerHTML = marker.tooltip;
+      tooltip.style.display = "block";
+ 
+      // Tooltip transparency specially for IE
+      if(typeof(tooltip.style.filter) == "string") 
+      {
+         tooltip.style.filter = "alpha(opacity:70)";
+      }
+ 
+      var currtype = map.getCurrentMapType().getProjection();
+      var point= currtype.fromLatLngToPixel(map.fromDivPixelToLatLng(new GPoint(0,0),true),map.getZoom());
+      var offset= currtype.fromLatLngToPixel(marker.getLatLng(),map.getZoom());
+      var anchor = marker.getIcon().iconAnchor;
+      var width = marker.getIcon().iconSize.width + 6;
+      //var height = tooltip.clientHeight +18;
+      var height = 5;
+      var pos = new GControlPosition(G_ANCHOR_TOP_LEFT, new GSize(offset.x - point.x - anchor.x + width, offset.y - point.y -anchor.y - height)); 
+      pos.apply(tooltip);
+   }
+}
+ 
+function zoomLevel(oldLevel, newLevel)
+{
+   if (GBrowserIsCompatible()) 
+   {
+      document.getElementById('zoomLevel').value = newLevel;
+   }
+}
+
+function moveHome() 
+{
+   if (GBrowserIsCompatible()) 
+   {
+      var oMarkerLatLong = new GLatLng(document.getElementById('lat').value,document.getElementById('lng').value);
+      SetHomeMarker(map, oMarkerLatLong);
+   }
+}
+
+function SetHomeMarker(overlay, point) 
+{
+   if (GBrowserIsCompatible()) 
+   {
+      oMarker.setLatLng(point);
+      oMarker.tooltip = "Home";
+      document.getElementById('index').value = 'Home';
+      document.getElementById('lat').value = oMarker.getPoint().lat()
+      document.getElementById('lng').value = oMarker.getPoint().lng()
+      //map.setCenter(point);
+ 
+      GEvent.addListener(oMarker, "mouseover", function() 
+      {
+         showTooltip(oMarker);
+      });
+ 
+      GEvent.addListener(oMarker, "mouseout", function() 
+      {
+         tooltip.style.display = "none";
+      });
+ 
+      // Drag listener
+      GEvent.addListener(oMarker, "drag", function() 
+      {
+         tooltip.style.display= "none";
+         map.removeOverlay(poly); 
+         //oMarker.Tooltip = "Home Position:" + oMarker.getLatLng();
+         //drawOverlay();
+      });
+      
+      // Drag listener
+      GEvent.addListener(oMarker, "dragend", function() 
+      {
+         document.getElementById('index').value = 'Home';
+         document.getElementById('lat').value = oMarker.getPoint().lat();
+         document.getElementById('lng').value = oMarker.getPoint().lng();
+         drawOverlay();
+         updateLengthText();
+      });
+   }
+}
+ 
+function clearMap() 
+{
+   if (GBrowserIsCompatible()) 
+   {
+      // Clear current map and reset arrays
+      map.clearOverlays();
+      points.length = 0;
+      markers.length = 0;
+      travelLine.length = 0;
+      count = 0;
+      report.innerHTML = "&nbsp;"; 
+      map.addOverlay(oMarker);
+      document.getElementById('index').value = 'Home';
+      document.getElementById('lat').value = oMarker.getPoint().lat()
+      document.getElementById('lng').value = oMarker.getPoint().lng()
+      SetHomeMarker(map,oMarker.getLatLng());
+      drawOverlay();
+      updateLengthText();
+   }
+}
+
+function clearTravel() 
+{
+   if (GBrowserIsCompatible()) 
+   {
+      // Clear current map and reset arrays
+      map.removeOverlay(travelPoly);
+      map.removeOverlay(plane);
+      travelLine.length = 0;
+      SetHomeMarker(map,oMarker.getLatLng());
+      drawOverlay();
+      updateLengthText();
+   }
+}
+
+function leftClick(overlay, point) 
+{
+   if (GBrowserIsCompatible()) 
+   {
+      if (document.getElementById('lockDragDrop').value == "Locked")
+      {
+         return;
+      }
+
+      if(point) 
+      {
+ 
+         // Make markers draggable
+         if ((document.getElementById('lockDragDrop').value != "Locked" && document.getElementById('lockDragDrop').value != "Loading"))
+         {
+            var marker = new GMarker(point, {icon:icon, draggable:true, bouncy:true, dragCrossMove:true});
+            marker.impoartance = 3;
+         }
+         else
+         {
+            var marker = new GMarker(point, {icon:icon, draggable:false, bouncy:true, dragCrossMove:true});
+         }
+         map.addOverlay(marker);
+         marker.content = markers.length+1;
+         markers.push(marker);
+         marker.tooltip = "Waypoint #" + markers.length;
+         document.getElementById('index').value = markers.length;
+         document.getElementById('lat').value = point.lat()
+         document.getElementById('lng').value = point.lng()
+ 
+         addListeners(marker);
+ 
+         drawOverlay();
+         updateLengthText();
+      }
+   }
+}
+
+function addListeners(marker) 
+{
+   if (GBrowserIsCompatible()) 
+   {
+      // Mouse Over Event
+      GEvent.addListener(marker, "mouseover", function() 
+      {
+         showTooltip(marker);
+      });
+
+      // Mouse Out Event
+      GEvent.addListener(marker, "mouseout", function() 
+      {
+         tooltip.style.display = "none";
+      });
+
+      if (document.getElementById('lockDragDrop').value != "Locked")
+      {
+         // Mouse Click Event
+         GEvent.addListener(marker, "click", function() 
+         {
+            document.getElementById('index').value = marker.content;
+            document.getElementById('lat').value = marker.getLatLng().lat();
+            document.getElementById('lng').value = marker.getLatLng().lng();
+         });
+  
+         // Drag listener
+         GEvent.addListener(marker, "drag", function() 
+         {
+            tooltip.style.display= "none";
+            document.getElementById('index').value = marker.content;
+            document.getElementById('lat').value = marker.getLatLng().lat();
+            document.getElementById('lng').value = marker.getLatLng().lng();
+            drawOverlay();
+         });
+
+         // Drag listener
+         GEvent.addListener(marker, "dragend", function() 
+         {
+            drawOverlay();
+            updateLengthText();
+         });
+      }
+   }
+}
+
+function drawOverlay()
+{
+   if (GBrowserIsCompatible()) 
+   {
+      if(poly) 
+      { 
+         map.removeOverlay(poly); 
+      }
+      points.length = 0;
+ 
+      points.push(oMarker.getLatLng());
+      for(i = 0; i < markers.length; i++) 
+      {
+         points.push(markers[i].getLatLng());
+      }
+      if (markers.length > 1)
+      {
+         points.push(oMarker.getLatLng());
+      }
+ 
+      // Polyline mode
+      poly = new GPolyline(points, lineColor, lineWeight, lineOpacity);
+      if (document.getElementById('metersFeet').value == "1") 
+      { 
+         unit = " km"; 
+//       unitConst = 1.609344;
+         unitConst = 1;
+      }
+      else
+      {
+         unit = " miles"; 
+//       unitConst = 1;
+         unitConst = 0.621371192;
+      }
+ 
+      if (markers.length > 1)
+      {
+         length = poly.getLength()/1000*unitConst;
+      }
+      else
+      {
+         length = poly.getLength()/1000*unitConst*2;
+      }
+   
+      map.addOverlay(poly);
+   }
+} 
+
+function getLongestDistance()
+{
+   if (GBrowserIsCompatible()) 
+   {
+      var nMax = 0;
+      var nWP = -1;
+      for(i = 0; i < markers.length; i++) 
+      {
+         if (markers[i].getLatLng().distanceFrom(oMarker.getLatLng()) > nMax)
+         {
+            nMax = markers[i].getLatLng().distanceFrom(oMarker.getLatLng());
+            nWP = i;
+         }
+      }
+      nMax = nMax / 1000 * unitConst;
+      if (markers.length > 0){
+         sMaxDistance = "<BR>Farthest Waypoint: #" + (nWP + 1) + " - " + nMax.toFixed(3) + unit;
+      }
+      else
+      {
+         sMaxDistance = "";
+      }
+   }
+}
+
+function updateLengthText()
+{
+   if (GBrowserIsCompatible()) 
+   {
+      //var nMission = length.toFixed(3) / unitConst
+      getLongestDistance();
+      report.innerHTML = "<FONT SIZE=1 FACE=Arial>Total Mission Distance: " + length.toFixed(3) + unit + sMaxDistance;
+   }
+}
+
+function drawTravel(){
+   if (GBrowserIsCompatible()) 
+   {
+     travelPoly = new GPolyline(travelLine, segmentColor, segmentWeight, segmentOpacity);
+      var segmentPoly = new GPolyline(newSegment, segmentColor, segmentWeight, segmentOpacity);
+
+      // Polyline mode
+      var nToPlane;
+      var travelLength = travelPoly.getLength()/1000*unitConst;
+      map.addOverlay(segmentPoly);
+      changeHeading(parseInt(document.getElementById('heading').value));
+      nToPlane = plane.getLatLng().distanceFrom(oMarker.getLatLng()) / 1000 * unitConst;
+      //report.innerHTML = "<FONT SIZE=1 FACE=Arial>Total Mission Distance: " + length.toFixed(3) + unit + "<BR>Travel Distance: " + travelLength.toFixed(3) + unit + "<BR>Plane to Home: " + nToPlane.toFixed(3) + unit + "<BR>Data Points: " + travelLine.length * parseInt(document.getElementById('segmentInterval').value);
+   }
+}  
+
+function changeHeading(heading) 
+{
+   if (GBrowserIsCompatible()) 
+   {
+      map.removeOverlay(plane);   
+      planeicon.image = "http://maps.google.com/mapfiles/dir_" + (heading) + ".png";
+      //report.innerHTML = "http://maps.google.com/mapfiles/dir_" + (heading) + ".png";
+      plane = new GMarker(travelLine[travelLine.length-1], {icon:planeicon, draggable:true, bouncy:false, dragCrossMove:true});
+      map.addOverlay(plane);
+      //plane.setLatLng(travelLine[travelLine.length-1]);
+   }
+}
+
+</script>
