@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <asmv1:assembly xsi:schemaLocation="urn:schemas-microsoft-com:asm.v1 assembly.adaptive.xsd" manifestVersion="1.0" xmlns:asmv1="urn:schemas-microsoft-com:asm.v1" xmlns="urn:schemas-microsoft-com:asm.v2" xmlns:asmv2="urn:schemas-microsoft-com:asm.v2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:co.v1="urn:schemas-microsoft-com:clickonce.v1" xmlns:asmv3="urn:schemas-microsoft-com:asm.v3" xmlns:dsig="http://www.w3.org/2000/09/xmldsig#" xmlns:co.v2="urn:schemas-microsoft-com:clickonce.v2">
-  <asmv1:assemblyIdentity name="UAVXSet.exe" version="9.0.0.4" publicKeyToken="0000000000000000" language="en" processorArchitecture="msil" type="win32" />
+  <asmv1:assemblyIdentity name="UAVXSet.exe" version="9.0.0.9" publicKeyToken="0000000000000000" language="en" processorArchitecture="msil" type="win32" />
   <description asmv2:iconFile="XSet.ico" xmlns="urn:schemas-microsoft-com:asm.v1" />
   <application />
   <entryPoint>
@@ -43,28 +43,13 @@
     </dependentAssembly>
   </dependency>
   <dependency>
-    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="UAVXSet.exe" size="1573888">
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="UAVXSet.exe" size="1529856">
       <assemblyIdentity name="UAVXSet" version="9.0.0.0" language="neutral" processorArchitecture="msil" />
-      <hash>
-        <dsig:Transforms>
-          <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
-        </dsig:Transforms>
-        <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" />
-        <dsig:DigestValue>tZMS0UhnanusaAtPsRfaW8qWOkE=</dsig:DigestValue>
-      </hash>
     </dependentAssembly>
   </dependency>
   <file name="Resources\info.jpg" size="20139" />
   <file name="Resources\uavp.ico" size="1406" />
   <file name="uavpset.ico" size="7406" />
-  <file name="UAVXSet.exe.config" size="8606">
-    <hash>
-      <dsig:Transforms>
-        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
-      </dsig:Transforms>
-      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" />
-      <dsig:DigestValue>dQD7hP+7jccyUP19iMxSfC1Ulg4=</dsig:DigestValue>
-    </hash>
-  </file>
+  <file name="UAVXSet.exe.config" size="8591" />
   <file name="XSet.ico" size="3774" />
 </asmv1:assembly>
