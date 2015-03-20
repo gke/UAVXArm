@@ -1,0 +1,102 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<asmv1:assembly xsi:schemaLocation="urn:schemas-microsoft-com:asm.v1 assembly.adaptive.xsd" manifestVersion="1.0" xmlns:asmv1="urn:schemas-microsoft-com:asm.v1" xmlns="urn:schemas-microsoft-com:asm.v2" xmlns:asmv2="urn:schemas-microsoft-com:asm.v2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:co.v1="urn:schemas-microsoft-com:clickonce.v1" xmlns:asmv3="urn:schemas-microsoft-com:asm.v3" xmlns:dsig="http://www.w3.org/2000/09/xmldsig#" xmlns:co.v2="urn:schemas-microsoft-com:clickonce.v2">
+  <asmv1:assemblyIdentity name="UAVXSet 9.2.exe" version="9.3.0.2" publicKeyToken="bd1ceca55ec5c755" language="en" processorArchitecture="msil" type="win32" />
+  <description asmv2:iconFile="XSet.ico" xmlns="urn:schemas-microsoft-com:asm.v1" />
+  <application />
+  <entryPoint>
+    <assemblyIdentity name="UAVXSet 9.2" version="9.2.0.0" language="neutral" processorArchitecture="msil" />
+    <commandLine file="UAVXSet 9.2.exe" parameters="" />
+  </entryPoint>
+  <trustInfo>
+    <security>
+      <applicationRequestMinimum>
+        <PermissionSet version="1" class="System.Security.NamedPermissionSet" Name="LocalIntranet" Description="Default rights given to applications on the local intranet" Unrestricted="true" ID="Custom" SameSite="site" />
+        <defaultAssemblyRequest permissionSetReference="Custom" />
+      </applicationRequestMinimum>
+      <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
+        <!--
+          UAC Manifest Options
+          If you want to change the Windows User Account Control level replace the 
+          requestedExecutionLevel node with one of the following.
+
+        <requestedExecutionLevel  level="asInvoker" uiAccess="false" />
+        <requestedExecutionLevel  level="requireAdministrator" uiAccess="false" />
+        <requestedExecutionLevel  level="highestAvailable" uiAccess="false" />
+
+         If you want to utilize File and Registry Virtualization for backward 
+         compatibility then delete the requestedExecutionLevel node.
+    -->
+        <requestedExecutionLevel level="asInvoker" uiAccess="false" />
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+  <dependency>
+    <dependentOS>
+      <osVersionInfo>
+        <os majorVersion="5" minorVersion="1" buildNumber="2600" servicePackMajor="0" />
+      </osVersionInfo>
+    </dependentOS>
+  </dependency>
+  <dependency>
+    <dependentAssembly dependencyType="preRequisite" allowDelayedBinding="true">
+      <assemblyIdentity name="Microsoft.Windows.CommonLanguageRuntime" version="4.0.30319.0" />
+    </dependentAssembly>
+  </dependency>
+  <dependency>
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="UAVXSet 9.2.exe" size="1573240">
+      <assemblyIdentity name="UAVXSet 9.2" version="9.2.0.0" language="neutral" processorArchitecture="msil" />
+      <hash>
+        <dsig:Transforms>
+          <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
+        </dsig:Transforms>
+        <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" />
+        <dsig:DigestValue>ftPvRR/gdZm8UtEWe36hHd0k1Lw=</dsig:DigestValue>
+      </hash>
+    </dependentAssembly>
+  </dependency>
+  <file name="Resources\info.jpg" size="20139">
+    <hash>
+      <dsig:Transforms>
+        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
+      </dsig:Transforms>
+      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" />
+      <dsig:DigestValue>xcxMNkrjPnTWna0+Oo9WrrTNNdE=</dsig:DigestValue>
+    </hash>
+  </file>
+  <file name="Resources\uavp.ico" size="1406">
+    <hash>
+      <dsig:Transforms>
+        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
+      </dsig:Transforms>
+      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" />
+      <dsig:DigestValue>jtx8SAi8BjZRyspMCOo9Bkzi390=</dsig:DigestValue>
+    </hash>
+  </file>
+  <file name="uavpset.ico" size="7406">
+    <hash>
+      <dsig:Transforms>
+        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
+      </dsig:Transforms>
+      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" />
+      <dsig:DigestValue>ZFKLFZ7XjEr2X1Rqp4DL+hm7Ueg=</dsig:DigestValue>
+    </hash>
+  </file>
+  <file name="UAVXSet 9.2.exe.config" size="8678">
+    <hash>
+      <dsig:Transforms>
+        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
+      </dsig:Transforms>
+      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" />
+      <dsig:DigestValue>/Es2nHXYZ+j6H/RIjx2iNdARNEQ=</dsig:DigestValue>
+    </hash>
+  </file>
+  <file name="XSet.ico" size="3774">
+    <hash>
+      <dsig:Transforms>
+        <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
+      </dsig:Transforms>
+      <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" />
+      <dsig:DigestValue>ygYXJ00uSUaT1mzvdftNv/2r8L0=</dsig:DigestValue>
+    </hash>
+  </file>
+<publisherIdentity name="CN=Merlin\gke" issuerKeyHash="7848074377b75a8eaac03e0dc23832ee363e7754" /><Signature Id="StrongNameSignature" xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1" /><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" /><DigestValue>JvTmFdck+WAb8jRIeN4JU0KhuOc=</DigestValue></Reference></SignedInfo><SignatureValue>wB3U+0n263IQUatesmhqxq/qdYLJUrarrVi7//y/cbFidVWVJMdEtnh5/8On1vT+ubgtgXfzs0FLny8yK82dqWm1jwGIWrCOfwx3KU0mmovzTX11aO8ICtimaDBNtxM1CawwW7HpYycjLy6f8dyFDi5RlVcXx/GUWW7dhpW9DLg=</SignatureValue><KeyInfo Id="StrongNameKeyInfo"><KeyValue><RSAKeyValue><Modulus>zdjBCviKzfWfhWnb+gSOIVKr4SOfFv6bSUd0NNVDHA8tZD4tFANJJIaPOB4f5Xs0KNX4ZCfAk8d3TvQn6xcrI0I/qTRmjZfIMWfNA5e6ghQ8cGSLsrQMfcaAq9EI7P7uvAqnT5uPBqx9/PJ+oO1yMz9jEjASr+FeI56JlUjQLxk=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue></KeyValue><msrel:RelData xmlns:msrel="http://schemas.microsoft.com/windows/rel/2005/reldata"><r:license xmlns:r="urn:mpeg:mpeg21:2003:01-REL-R-NS" xmlns:as="http://schemas.microsoft.com/windows/pki/2005/Authenticode"><r:grant><as:ManifestInformation Hash="e7b8a1425309de784834f21b60f924d715e6f426" Description="" Url=""><as:assemblyIdentity name="UAVXSet 9.2.exe" version="9.3.0.2" publicKeyToken="bd1ceca55ec5c755" language="en" processorArchitecture="msil" type="win32" /></as:ManifestInformation><as:SignedBy /><as:AuthenticodePublisher><as:X509SubjectName>CN=Merlin\gke</as:X509SubjectName></as:AuthenticodePublisher></r:grant><r:issuer><Signature Id="AuthenticodeSignature" xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1" /><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" /><DigestValue>bFKR42csWG54Bb3WnJl0E2yh+m8=</DigestValue></Reference></SignedInfo><SignatureValue>c3CcBlrXxPYlTIOrpAE5cP+ukjQH/pyss6/DxsLkGk5nAWu0h8Uk+CZ2kMNzCaX74ZsAbnxhUHWuaEHERH3XTEa7wWaf6Pp6DIS53Dy4D3zmjthBl8+VhHkuGGtk9Zcs+bkEzm5rjViywOlSJb9H5a5ZNZhEkjofNmfpUMAN1wc=</SignatureValue><KeyInfo><KeyValue><RSAKeyValue><Modulus>zdjBCviKzfWfhWnb+gSOIVKr4SOfFv6bSUd0NNVDHA8tZD4tFANJJIaPOB4f5Xs0KNX4ZCfAk8d3TvQn6xcrI0I/qTRmjZfIMWfNA5e6ghQ8cGSLsrQMfcaAq9EI7P7uvAqnT5uPBqx9/PJ+oO1yMz9jEjASr+FeI56JlUjQLxk=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue></KeyValue><X509Data><X509Certificate>MIIBwTCCASqgAwIBAgIQHN10JOX1RrRHaAIbRyA3KzANBgkqhkiG9w0BAQUFADAfMR0wGwYDVQQDHhQATQBlAHIAbABpAG4AXABnAGsAZTAeFw0xNDAzMjQwMjE4MDBaFw0xNTAzMjQwODE4MDBaMB8xHTAbBgNVBAMeFABNAGUAcgBsAGkAbgBcAGcAawBlMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDN2MEK+IrN9Z+Fadv6BI4hUqvhI58W/ptJR3Q01UMcDy1kPi0UA0kkho84Hh/lezQo1fhkJ8CTx3dO9CfrFysjQj+pNGaNl8gxZ80Dl7qCFDxwZIuytAx9xoCr0Qjs/u68CqdPm48GrH388n6g7XIzP2MSMBKv4V4jnomVSNAvGQIDAQABMA0GCSqGSIb3DQEBBQUAA4GBABwiMJ0BIORHxXC/sLTXAxLlbMHxFBErfIZt32MEYlE0ePXAL51PjH0tc+cUH4ldqGGkJLOlEb2Z4I6/BuuRMrwjcKJQ5yMDtGfMOq1pd4NskOfhem2rGcpv5aSuUvIA8Dd5hAsFqKbAVbavs5BLW7WLNBhVOIbvug0EYtZ2pWXl</X509Certificate></X509Data></KeyInfo></Signature></r:issuer></r:license></msrel:RelData></KeyInfo></Signature></asmv1:assembly>
