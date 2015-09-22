@@ -32,15 +32,15 @@ A minimum of 4 channels is required for basic flight control with 7 channels bei
 
 Up to 10 drives or servos:
 
-  * PWM (490Hz)
+  * FastPWM (490Hz)
   * SyncPWM (400Hz)
   * SyncPWM/8 OneShot 
   * I2C @ 400KHz
   * DCMotors (with optional 6 channel external adapter)
 
-We have SimonK and BLHeli ESC codes with FastPWM being the sensible minimum for good performance.
+We have used SimonK and BLHeli ESC codes with FastPWM being the sensible minimum for good performance.
 
-All the usual airframe types are supported including conventional. Use of UAVXArm32 for camera gimbal only control is possible.
+All the usual airframe types are supported including conventional fixed wing airframes. 
 
 Attitude Estimation Schemes:
 
