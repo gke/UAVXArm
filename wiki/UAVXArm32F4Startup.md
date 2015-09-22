@@ -2,21 +2,17 @@
 
 This is the evolving setup page for the Arm version of UAVX. We will try to keep explanations concise. If you have flown UAVX then most of this is familiar as we have deliberately scaled the parameters and kept the look and feel of UAVPSet and UAVXGS to those you are familiar with so you can concentrate on flying.
 
-UAVXStartup contains a wealth of information which you could take the time to read. You should pay particular attention to what the different patterns of LED behaviour mean (Lights and Sirens).
-
-UAVXArm32F4 supports many different airframe types from octocopters, through helis out to conventional aircraft. UAVX has done this for several years. Most of the multicopter configurations are shown in UAVXStartup. If you are flying a fixed wing aircraft you should read the UAVXArm32F4FixedWingStartup Wiki as well.
-
-If you are using UAVXArm32F4 board without sensors as an adapter for the old UAVP board you should read the associated Wiki. If you are doing this then you will be quite familiar with UAVX/UAVP but it is still worth reading the notes below.
+UAVXArm32F4 supports many different airframe types from octocopters, through helis out to conventional aircraft. UAVX has done this for several years. 
 
 #### UAVXArm32F4 Board ####
 
 ![https://github.com/gke/UAVXArm/blob/master/wiki/graphics/Uavx-nanoV4.png](https://github.com/gke/UAVXArm/blob/master/wiki/graphics/Uavx-nanoV4.png)
 
-You should receive your board loaded with firmware compatible with UAVXGUI. You definitely should look at the UAVXGUI before you go any further. You will be bale to load firmware updates later - see the UAVXArm32F4LoadingFirmware Wiki.
+You should receive your board loaded with firmware compatible with UAVXGUI. You definitely should look at the UAVXGUI before you go any further. You will be able to load firmware updates later - see the UAVXArm32F4LoadingFirmware Wiki.
 
 ### Step 1 ###
 
-Mount the board on your favourite frame oriented in the direction of forward flight. So if you are flying +Mode point the board along the K1 motor arm. If you are flying XMode point the board between the K1 and K3 motor arms. Select the desired configuration in UAVPSet using the airframe pulldown.
+Mount the board on your favourite frame oriented in the direction of forward flight. So if you are flying +Mode point the board along the K1 motor arm. If you are flying XMode point the board between the K1 and K3 motor arms. Select the desired configuration in UAVPSet using the airframe pulldown. We will assume from now that you are flying XMode which has become the most common.
 
 Take all the the shorting links (if any) off the board. Connect up an arming switch between the Arming pin and the adjacent Ground pin.
 
@@ -40,8 +36,6 @@ The default parameters were obtained from flights by Ken & Jim. These are a good
 
 ### Step 3 (Rx) ###
 
-Important - the black or ground pins of your Rx and Motor connections should be connected to the pins closest to the edge of the board. If in doubt double check with a multimeter.
-
 From now on any changes you make to parameters in UAVXGUI must be followed by selecting the **Write Config** icon. Some parameter changes involve an electrical reconfiguration of the board so you will occasionally see all LEDs flashing - cycle the power and this should allow the board to complete the reconfiguration.
 
 Connect the front motor control lead to M1. This will power your Rx as centre pins of all of the M and Rx pins are connected together.
@@ -58,9 +52,7 @@ You may re-assign the channels using the selectors in UAVXGUI. So if your thrott
 
 Go to the main UAVXGUI page and turn on your Tx. Stir the Tx sticks and adjust the endpoints and neutral values of those channels that turn orange.
 
-As well as adjusting the navigation sensitivity NavS or Channel 7 (normally a potentiometer/knob) is used to enable altitude hold.  Initially you should fly with altitude hold off. Altitude hold is switched OFF below 1.1mS and ON above 1.1mS. The knob does not control altitude hold sensitivity.
-
-In writing this an auto configure for the Rx has moved to the top of the development list but not for the first release!
+As well as adjusting the navigation sensitivity NavS or Channel 7 (normally a potentiometer/knob) is used to enable altitude hold.  Initially you should fly with altitude hold off. Altitude hold is switched OFF below 10% and ON above 10%. The knob does not control altitude hold sensitivity.
 
 The Green LED should be on and Yellow LED flashing every second.
 
@@ -94,17 +86,19 @@ If they are you are almost ready to fly but don't put the props on yet.
 
 Disconnect the centre leads of the rest of your ESC control leads and make sure they are taped back and insulated.
 
-Connect the other motors:
+We have assumed XMode so the K1 motor (ACW) is front left. Now connect the other motors:
 
-  * Left K2
-  * Right K3
-  * Back K4
+  * Rear Left K2 (CW)
+  * Front Right K3 (CW)
+  * Rear Right K4 (ACW)
+ 
+If you choose to have your motors rotating in the opposite direction you can select this in the Parameters.
 
 Note: If you plan to run camera gimbals then it is worth considering buying a high current UBEC and connecting that to an unused Rx or M connector. In that case disconnect all of the BEC centre leads and connect the UBEC to an unused M/Rx connector.
 
-Put the aircraft on the ground. Leave the props OFF and switch the arming switch on.
+Put the aircraft on the ground. Leave the props OFF and arm the flight controller using the method chosen in the parameters (switch, roll stick, yaw stick).
 
-You will see a dancing pattern of Yellow and Blue LEDs while the Black Box memory is cleared; this takes several seconds followed by a single beep. You should hear three starting beeps with the Red LED flashing briefly. At the end you should have Green and Red LEDs on. The Red LED means that no GPS signals are being received.
+You will see a dancing pattern of Yellow and Blue LEDs while the Black Box memory is cleared; this takes several seconds followed by a single beep. You should hear three starting beeps with the Red LED flashing briefly. At the end you should have Green and Red LEDs on. The Red LED means that no GPS signals are being received. UAVXGUI will speak any alarms outstanding if arming fails - button top centre of GS window.
 
 Advance the throttle and all motors should start. Run the motors more very slowly as you can damage them if you run at high speed without props. Listening carefully move your controls and verify that if you move the aileron right that the left motor increases speed and the right motor slows down. The same for elevator. Rudder left should slow down the front/back motors and speed up the left/right motors by the same amount.
 
