@@ -59,4 +59,7 @@ Ken has a good collection at:
 
 https://www.youtube.com/user/kb6mcc
 
-<a href='http://www.youtube.com/watch?feature=player_embedded&v=fUZlUUwVRLw' target='_blank'><img src='http://img.youtube.com/vi/fUZlUUwVRLw/0.jpg' width='425' height=344 /></a>
+https://www.youtube.com/watch?v=uYsW6lu7lSA
+
+
+<a href='http://www.youtube.com/watch?feature=player_embedded&v=uYsW6lu7lSA' target='_blank'><img src='http://img.youtube.com/vi/uYsW6lu7lSA/0.jpg' width='425' height=344 /></a>
