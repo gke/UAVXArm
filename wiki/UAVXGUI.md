@@ -1,11 +1,5 @@
 # Introduction #
 
-The original UAVPSet used an ad hoc serial communication protocol whilst UAVXGS and UAVXNav have used packet based communications from the outset. UAVXGUI replaces UAVXSet and binds the three tools into one.
-
-To use UAVXGUI you must use flight code with a **P** in the version e.g. UAVXArm32F4\_V3P.
-
-UAVXSet and UAVXGS will be maintained for a while but not too long ... UAVXNav has been retired.
-
 Full telemetry is available at all times regardless of whether the aircraft is armed or not except where you use the main COM port for GPS - see below.
 
 You should also refer to the Wikis for the old separate tools.
@@ -22,7 +16,7 @@ Selectable voice feedback is available for those who like to look at the aircraf
 
 # Groundstation #
 
-https://github.com/gke/uavp-mods/blob/uavx_graphics/UAVXGUIMain.JPG
+![https://github.com/gke/UAVXArm/blob/master/wiki/graphics/UAVXGUIMain.JPG](https://github.com/gke/UAVXArm/blob/master/wiki/graphics/UAVXGUIMain.JPG)
 
 The main Ground Station window has the main instrumentation and replaces the test functions of UAVXSet.
 
@@ -30,7 +24,7 @@ The buttons to the top right select the Parameter and navigation windows. Magnet
 
 # Parameters #
 
-https://github.com/gke/uavp-mods/blob/uavx_graphics/UAVXGUIParams.JPG
+![https://github.com/gke/UAVXArm/blob/master/wiki/graphics/UAVXGUIParams.JPG](https://github.com/gke/UAVXArm/blob/master/wiki/graphics/UAVXGUIParams.JPG)
 
 Open this page using the button top right of the Ground Station page. You may close and reopen this page as you desire.
 
@@ -54,7 +48,7 @@ Low battery and sticks not moving are ignored. If your Tx has failed the aircraf
 
 # Navigation #
 
-https://github.com/gke/uavp-mods/blob/uavx_graphics/UAVXGUINav.JPG
+![https://github.com/gke/UAVXArm/blob/master/wiki/graphics/UAVXGUINav.JPG](https://github.com/gke/UAVXArm/blob/master/wiki/graphics/UAVXGUINav.JPG)
 
 Open this page using the button top right of the Ground Station page. You may close and reopen this page as you desire.
 
