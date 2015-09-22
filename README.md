@@ -6,7 +6,7 @@ The UAVXArm32F4 Board has been available since December 2012 from QuadroUFO and 
 
 ### General Specifications ###
 
-UAVXArm32 processor is an F4 and it spends most of its time twiddling its thumbs (doing nothing). Control loop and motor updates are at ~500Hz with 2KHz possible. 
+UAVXArm32F4 spends most of its time twiddling its thumbs (doing nothing). Control loop and motor updates are at ~500Hz with 2KHz possible.
 
 Standalone mode:
 
