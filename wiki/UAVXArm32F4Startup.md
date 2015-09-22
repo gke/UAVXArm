@@ -12,7 +12,7 @@ You should receive your board loaded with firmware compatible with UAVXGUI. You 
 
 ### Step 1 ###
 
-Mount the board on your favourite frame oriented in the direction of forward flight. So if you are flying +Mode point the board along the K1 motor arm. If you are flying XMode point the board between the K1 and K3 motor arms. Select the desired configuration in UAVPSet using the airframe pulldown.
+Mount the board on your favourite frame oriented in the direction of forward flight. So if you are flying +Mode point the board along the K1 motor arm. If you are flying XMode point the board between the K1 and K3 motor arms. Select the desired configuration in UAVPSet using the airframe pulldown. We will assume from now that you are flying XMode which has become the most common.
 
 Take all the the shorting links (if any) off the board. Connect up an arming switch between the Arming pin and the adjacent Ground pin.
 
@@ -86,11 +86,13 @@ If they are you are almost ready to fly but don't put the props on yet.
 
 Disconnect the centre leads of the rest of your ESC control leads and make sure they are taped back and insulated.
 
-Connect the other motors:
+We have assumed XMode so the K1 motor (ACW) is front left. Now connect the other motors:
 
-  * Left K2
-  * Right K3
-  * Back K4
+  * Rear Left K2 (CW)
+  * Front Right K3 (CW)
+  * Rear Right K4 (ACW)
+ 
+If you choose to have your motors rotating in the opposite direction you can select this in the Parameters.
 
 Note: If you plan to run camera gimbals then it is worth considering buying a high current UBEC and connecting that to an unused Rx or M connector. In that case disconnect all of the BEC centre leads and connect the UBEC to an unused M/Rx connector.
 
