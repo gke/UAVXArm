@@ -8,18 +8,18 @@ First before connecting power put a link on the **Boot0** pins. This places the 
 
 Set the baud rate to 115K and the COM port as necessary.
 
-![https://github.com/gke/UAVXArm/blob/master/wiki/graphics/STM1.JPG](https://github.com/gke/UAVXArm/blob/master/wiki/graphics/STM1.JPG)
+http://uavp-mods.googlecode.com/svn/branches/uavx_graphics/STM1.JPG
 
-![https://github.com/gke/UAVXArm/blob/master/wiki/graphics/STM2.JPG](https://github.com/gke/UAVXArm/blob/master/wiki/graphics/STM2.JPG)
+http://uavp-mods.googlecode.com/svn/branches/uavx_graphics/STM2.JPG
 
 Select the STM32F4-1024K.
 
-![https://github.com/gke/UAVXArm/blob/master/wiki/graphics/STM3.JPG](https://github.com/gke/UAVXArm/blob/master/wiki/graphics/STM3.JPG)
+http://uavp-mods.googlecode.com/svn/branches/uavx_graphics/STM3.JPG
 
 Select the hex file you wish to load. Set the radio button to "necessary pages".
 
-![https://github.com/gke/UAVXArm/blob/master/wiki/graphics/STM4.JPG](https://github.com/gke/UAVXArm/blob/master/wiki/graphics/STM4.JPG)
+http://uavp-mods.googlecode.com/svn/branches/uavx_graphics/STM4.JPG
 
-![https://github.com/gke/UAVXArm/blob/master/wiki/graphics/STM5.JPG](https://github.com/gke/UAVXArm/blob/master/wiki/graphics/STM5.JPG)
+http://uavp-mods.googlecode.com/svn/branches/uavx_graphics/STM5.JPG
 
-Wait until the verify is complete. Remove power and then remove the Boot0 link. Verify that the new firmware responds using UAVXGUI.
+Wait until the verify is complete. Remove power and then remove the Boot0 link. Verify that the new firmware responds using UAVPSet.

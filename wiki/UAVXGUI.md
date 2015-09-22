@@ -8,7 +8,7 @@ You should also refer to the Wikis for the old separate tools.
 
 If you have GPS connected to the COM port Rx pin then you will have full downlink telemetry but you will not be able to change any parameters in flight including navigation missions. You arming switch needs to switch the between the Tx line from the GPS and the Tx line from your PC or RF link. UAVXGUI assumes this will be the case and will be looking for GPS packets when the aircraft is armed.
 
-If your Rx uses CPPM you should definitely be using RC3&4 for your GPS connection. In this case you will have full bi-directional telemetry and can change mission and most other parameters in flight providing you have an appropriate wireless link of course. V4 boards may use the "I2C" connection which is currently configured as serial port. 
+If your Rx uses CPPM you should definitely be using RC3&4 for your GPS connection. In this case you will have full bi-directional telemetry and can change mission and most other parameters in flight providing you have an appropriate wireless link of course.
 
 ## Voice Feedback ##
 
