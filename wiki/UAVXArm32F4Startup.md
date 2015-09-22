@@ -54,9 +54,7 @@ You may re-assign the channels using the selectors in UAVXGUI. So if your thrott
 
 Go to the main UAVXGUI page and turn on your Tx. Stir the Tx sticks and adjust the endpoints and neutral values of those channels that turn orange.
 
-As well as adjusting the navigation sensitivity NavS or Channel 7 (normally a potentiometer/knob) is used to enable altitude hold.  Initially you should fly with altitude hold off. Altitude hold is switched OFF below 1.1mS and ON above 1.1mS. The knob does not control altitude hold sensitivity.
-
-In writing this an auto configure for the Rx has moved to the top of the development list but not for the first release!
+As well as adjusting the navigation sensitivity NavS or Channel 7 (normally a potentiometer/knob) is used to enable altitude hold.  Initially you should fly with altitude hold off. Altitude hold is switched OFF below 10% and ON above 10%. The knob does not control altitude hold sensitivity.
 
 The Green LED should be on and Yellow LED flashing every second.
 
