@@ -22,4 +22,4 @@ Select the hex file you wish to load. Set the radio button to "necessary pages".
 
 ![https://github.com/gke/UAVXArm/blob/master/wiki/graphics/STM5.JPG](https://github.com/gke/UAVXArm/blob/master/wiki/graphics/STM5.JPG)
 
-Wait until the verify is complete. Remove power and then remove the Boot0 link. Verify that the new firmware responds using UAVPSet.
+Wait until the verify is complete. Remove power and then remove the Boot0 link. Verify that the new firmware responds using UAVXGUI.
