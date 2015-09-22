@@ -8,8 +8,6 @@ The UAVXArm32F4 Board has been available since December 2012 from QuadroUFO and 
 
 UAVXArm32F4 spends most of its time twiddling its thumbs (doing nothing) as it has so much computational capacity. Control loop and motor updates are at ~500Hz with 2KHz possible.
 
-Standalone mode:
-
   * STM32F405RG6 with FPU 168MHz (1024Kb Flash/32Kb RAM)
   * 64MBit External Flash (Black Box recorder)
   * MPU6000 Gyro/Accelerometer
