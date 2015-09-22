@@ -62,7 +62,9 @@ http://www.rcgroups.com/forums/showthread.php?t=1093510&page=635#post31446892
 Ken the main Alpha tester has a good collection at https://www.youtube.com/user/kb6mccincluding
 
 https://www.youtube.com/watch?v=uYsW6lu7lSA&feature=youtu.be
+
 https://www.youtube.com/watch?v=w_9torIeAb8&feature=youtu.be
+
 https://www.youtube.com/watch?v=faXzluGCzVo&feature=youtu.be
 
 
