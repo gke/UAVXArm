@@ -149,10 +149,10 @@ You should never need yaw trim.
 
 The "K" output pin assignments which you should test with care are currently:
 
-https://github.com/gke/uavp-mods/blob/uavx_graphics/UAVXArm32F4_Outputs.JPG
+https://github.com/gke/UAVXArm/blob/master/wiki/graphics/UAVXArm32F4_Outputs.JPG
 
 ### Pin Allocations ###
 
 These are the Arm processor pin assignments.
 
-https://github.com/gke/uavp-mods/blob/uavx_graphics/UAVXArm32F4_V4Pinouts.JPG
+https://github.com/gke/UAVXArm/blob/master/wiki/graphics/UAVXArm32F4_V4Pinouts.JPG
