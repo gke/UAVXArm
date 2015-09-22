@@ -36,8 +36,6 @@ The default parameters were obtained from flights by Ken & Jim. These are a good
 
 ### Step 3 (Rx) ###
 
-Important - the black or ground pins of your Rx and Motor connections should be connected to the pins closest to the edge of the board. If in doubt double check with a multimeter.
-
 From now on any changes you make to parameters in UAVXGUI must be followed by selecting the **Write Config** icon. Some parameter changes involve an electrical reconfiguration of the board so you will occasionally see all LEDs flashing - cycle the power and this should allow the board to complete the reconfiguration.
 
 Connect the front motor control lead to M1. This will power your Rx as centre pins of all of the M and Rx pins are connected together.
