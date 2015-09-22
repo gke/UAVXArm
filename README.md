@@ -11,9 +11,9 @@ UAVXArm32 processor is an F4 and it spends most of its time twiddling its thumbs
 Standalone mode:
 
   * STM32F405RG6 with FPU 168MHz (1024Kb Flash/32Kb RAM)
-  * 64MBit EEPROM
+  * 64MBit External Flash (Black Box recorder)
   * MPU6000 Gyro/Accelerometer
-  * HMC5883L Magnetometer
+  * HMC5983 Magnetometer
   * MS5611 Barometer
   * SPI communications for all sensors
   * Ultrasonic Rangefinder
