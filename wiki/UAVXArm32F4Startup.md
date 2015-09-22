@@ -2,17 +2,13 @@
 
 This is the evolving setup page for the Arm version of UAVX. We will try to keep explanations concise. If you have flown UAVX then most of this is familiar as we have deliberately scaled the parameters and kept the look and feel of UAVPSet and UAVXGS to those you are familiar with so you can concentrate on flying.
 
-UAVXStartup contains a wealth of information which you could take the time to read. You should pay particular attention to what the different patterns of LED behaviour mean (Lights and Sirens).
-
-UAVXArm32F4 supports many different airframe types from octocopters, through helis out to conventional aircraft. UAVX has done this for several years. Most of the multicopter configurations are shown in UAVXStartup. If you are flying a fixed wing aircraft you should read the UAVXArm32F4FixedWingStartup Wiki as well.
-
-If you are using UAVXArm32F4 board without sensors as an adapter for the old UAVP board you should read the associated Wiki. If you are doing this then you will be quite familiar with UAVX/UAVP but it is still worth reading the notes below.
+UAVXArm32F4 supports many different airframe types from octocopters, through helis out to conventional aircraft. UAVX has done this for several years. 
 
 #### UAVXArm32F4 Board ####
 
 ![https://github.com/gke/UAVXArm/blob/master/wiki/graphics/Uavx-nanoV4.png](https://github.com/gke/UAVXArm/blob/master/wiki/graphics/Uavx-nanoV4.png)
 
-You should receive your board loaded with firmware compatible with UAVXGUI. You definitely should look at the UAVXGUI before you go any further. You will be bale to load firmware updates later - see the UAVXArm32F4LoadingFirmware Wiki.
+You should receive your board loaded with firmware compatible with UAVXGUI. You definitely should look at the UAVXGUI before you go any further. You will be able to load firmware updates later - see the UAVXArm32F4LoadingFirmware Wiki.
 
 ### Step 1 ###
 
