@@ -57,5 +57,6 @@ Attitude Control:
 
 Ken has a good collection at:
 
+<a href='https://www.youtube.com/user/kb6mcc'</a>
 
 <a href='http://www.youtube.com/watch?feature=player_embedded&v=fUZlUUwVRLw' target='_blank'><img src='http://img.youtube.com/vi/fUZlUUwVRLw/0.jpg' width='425' height=344 /></a>
