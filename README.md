@@ -72,7 +72,7 @@ Attitude Control:
 
 There are many many many videos of UAVX on our RCG thread:
 
-http://www.rcgroups.com/forums/showthread.php?t=1093510&page=635#post31446892
+http://www.rcgroups.com/forums/showthread.php?t=1093510
 
 Ken the main Alpha tester has a collection at https://www.youtube.com/user/kb6mcc including:
 
