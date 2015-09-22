@@ -10,7 +10,7 @@ If you are using UAVXArm32F4 board without sensors as an adapter for the old UAV
 
 #### UAVXArm32F4 Board ####
 
-![https://github.com/gke/uavp-mods/blob/uavx_graphics/Uavx-nanoV4.png](https://github.com/gke/uavp-mods/blob/uavx_graphics/Uavx-nanoV4.png)
+![https://github.com/gke/UAVXArm/wiki/graphics/Uavx-nanoV4.png](https://github.com/gke/UAVXArm/wiki/graphics/Uavx-nanoV4.png)
 
 You should receive your board loaded with firmware compatible with UAVXGUI. You definitely should look at the UAVXGUI before you go any further. You will be bale to load firmware updates later - see the UAVXArm32F4LoadingFirmware Wiki.
 
