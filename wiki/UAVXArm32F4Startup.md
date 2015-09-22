@@ -96,9 +96,9 @@ If you choose to have your motors rotating in the opposite direction you can sel
 
 Note: If you plan to run camera gimbals then it is worth considering buying a high current UBEC and connecting that to an unused Rx or M connector. In that case disconnect all of the BEC centre leads and connect the UBEC to an unused M/Rx connector.
 
-Put the aircraft on the ground. Leave the props OFF and switch the arming switch on.
+Put the aircraft on the ground. Leave the props OFF and arm the flight controller using the method chosen in the parameters (switch, roll stick, yaw stick).
 
-You will see a dancing pattern of Yellow and Blue LEDs while the Black Box memory is cleared; this takes several seconds followed by a single beep. You should hear three starting beeps with the Red LED flashing briefly. At the end you should have Green and Red LEDs on. The Red LED means that no GPS signals are being received.
+You will see a dancing pattern of Yellow and Blue LEDs while the Black Box memory is cleared; this takes several seconds followed by a single beep. You should hear three starting beeps with the Red LED flashing briefly. At the end you should have Green and Red LEDs on. The Red LED means that no GPS signals are being received. UAVXGUI will speak any alarms outstanding if arming fails - button top centre of GS window.
 
 Advance the throttle and all motors should start. Run the motors more very slowly as you can damage them if you run at high speed without props. Listening carefully move your controls and verify that if you move the aileron right that the left motor increases speed and the right motor slows down. The same for elevator. Rudder left should slow down the front/back motors and speed up the left/right motors by the same amount.
 
