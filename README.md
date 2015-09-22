@@ -52,10 +52,8 @@ Attitude Control:
   * Angle (default - also called attitude or stable)
   * Rate (commonly called gyro mode)
   * a mix of the above
- 
-![https://github.com/gke/UAVXArm/blob/master/wiki/graphics/Uavx-nanoV4.png](https://github.com/gke/UAVXArm/blob/master/wiki/graphics/Uavx-nanoV4.png)
 
-##Videos and Builds##
+###Videos and Builds###
 
 There are many many many videos of UAVX on our thread:
 
