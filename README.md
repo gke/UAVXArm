@@ -55,11 +55,22 @@ Attitude Control:
 
 ##Videos and Builds##
 
+There are many many many videos of UAVX on our thread:
+
+http://www.rcgroups.com/forums/showthread.php?t=1093510&page=635#post31446892
+
 Ken has a good collection at:
 
 https://www.youtube.com/user/kb6mcc
 
-https://www.youtube.com/watch?v=uYsW6lu7lSA
-
-
 <a href='http://www.youtube.com/watch?feature=player_embedded&v=uYsW6lu7lSA' target='_blank'><img src='http://img.youtube.com/vi/uYsW6lu7lSA/0.jpg' width='425' height=344 /></a>
+
+Ken's Flight Kit: http://www.rcgroups.com/forums/showpost.php?p=31446892&postcount=9511
+
+<a href='http://www.youtube.com/watch?feature=player_embedded&v=w_9torIeAb8' target='_blank'><img src='http://img.youtube.com/vi/w_9torIeAb8/0.jpg' width='425' height=344 /></a>
+
+<a href='http://www.youtube.com/watch?feature=player_embedded&v=faXzluGCzVo' target='_blank'><img src='http://img.youtube.com/vi/faXzluGCzVo/0.jpg' width='425' height=344 /></a>
+
+
+
+
