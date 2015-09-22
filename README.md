@@ -63,7 +63,7 @@ Ken has a good collection at:
 
 https://www.youtube.com/user/kb6mcc
 
-[url]https://www.youtube.com/watch?v=uYsW6lu7lSA&feature=youtu.be[/url]
+https://www.youtube.com/watch?v=uYsW6lu7lSA&feature=youtu.be
 
 Ken's Flight Kit: http://www.rcgroups.com/forums/showpost.php?p=31446892&postcount=9511
 
