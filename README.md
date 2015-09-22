@@ -6,8 +6,6 @@ The UAVXArm32F4 Board has been available since December 2012 from QuadroUFO and 
 
 UAVXArm32 processor is an F4 and it spends most of its time twiddling its thumbs (doing nothing). Control loop and motor updates are at ~500Hz with 2KHz possible. 
 
-![http://uavp-mods.googlecode.com/svn/branches/uavx_graphics/UAVXArmF4.jpg](http://uavp-mods.googlecode.com/svn/branches/uavx_graphics/UAVXArmF4.jpg)
-
 Standalone mode:
 
   * STM32F405RG6 with FPU 168MHz (1024Kb Flash/32Kb RAM)
@@ -52,5 +50,7 @@ Attitude Control:
   * Angle (default - also called attitude or stable)
   * Rate (commonly called gyro mode)
   * a mix of the above
+ 
+![https://github.com/gke/UAVXArm/blob/master/wiki/graphics/Uavx-nanoV4.png](https://github.com/gke/UAVXArm/blob/master/wiki/graphics/Uavx-nanoV4.png)
 
 ##Videos and Builds##
