@@ -55,7 +55,7 @@ Attitude Control:
 
 ###Videos and Builds###
 
-There are many many many videos of UAVX on our thread:
+There are many many many videos of UAVX on our RCG thread:
 
 http://www.rcgroups.com/forums/showthread.php?t=1093510&page=635#post31446892
 
