@@ -30,7 +30,7 @@ UAVXArm32F4 spends most of its time twiddling its thumbs (doing nothing) as it h
   * MPU6000 Gyro/Accelerometer
   * HMC5983 Magnetometer
   * MS5611 Barometer
-  * SPI communications for all sensors
+  * SPI communications for primary sensors
   * Ultrasonic Rangefinder
   * Optional external battery voltage and current monitor
   * Analog and I2C ports for alternative sensors
@@ -70,7 +70,7 @@ Attitude Control:
 
 ###Videos and Builds###
 
-There are many many many videos of UAVX on our RCG thread:
+There are many many many videos of UAVX on our RCG thread and elsewhere:
 
 http://www.rcgroups.com/forums/showthread.php?t=1093510
 
