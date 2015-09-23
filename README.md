@@ -4,7 +4,7 @@ The UAVXArm32F4 Board has been available since December 2012 from QuadroUFO and 
 
 ![https://github.com/gke/UAVXArm/blob/master/wiki/graphics/v4.jpg](https://github.com/gke/UAVXArm/blob/master/wiki/graphics/v4.jpg)
 
-The V4 is probably the smallest full-house F4 board out there and has been flown on regular 600 scale hexacopters down to nano quads. In the latter case a daughter board also available from QuadroUFO provides1/2S support for up to 6 brushed motors.
+The V4 is probably the smallest full-house F4 board out there and has been flown on regular 600 scale octocopters down to nano quads. In the latter case a daughter board also available from QuadroUFO provides1/2S support for up to 6 brushed motors.
 
 While designed for UAVX the V4 board is a simple porting target for other flight codes which have now adopted, or support, the same sensor package.
 
