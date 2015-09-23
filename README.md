@@ -1,8 +1,25 @@
 ## UAVXArm ##
 
-The UAVXArm32F4 Board has been available since December 2012 from QuadroUFO and is now at Version 4.
+The UAVXArm32F4 Board has been available since December 2012 from QuadroUFO and is now at V4.
 
 ![https://github.com/gke/UAVXArm/blob/master/wiki/graphics/v4.jpg](https://github.com/gke/UAVXArm/blob/master/wiki/graphics/v4.jpg)
+
+The V4 is probably the smallest full-house F4 board out there and has been flown on regular 600 scale hexacopters down to nano quads. In the latter case a daughter board also available from QuadroUFO provides1/2S support for up to 6 brushed motors.
+
+While designed for UAVX the V4 board is a simple porting target for other flight codes which have now adopted, or support, the same sensor package.
+
+### UAVX Functionality ###
+
+UAVX continues to support the functions and failsafe features it has had for almost a decade including return to home and waypoint navigation. Recent additions include:
+
+  * VRS avoidance
+  * Inflight vibration monitoring using using DFTs.
+  * Bad motor/ESC diagnostics.
+  * SyncPWM and oneShot although some/many remain unconvinced.
+  * FrSky and MAVLink telemetry intended principally for minimOSD.
+  * Representative physics for emulation mode.
+  * Single UAVXGUI groundstation application.
+  * WS2812 LED support for pretty lights.
 
 ### General Specifications ###
 
@@ -55,7 +72,7 @@ Attitude Control:
 
 There are many many many videos of UAVX on our RCG thread:
 
-http://www.rcgroups.com/forums/showthread.php?t=1093510&page=635#post31446892
+http://www.rcgroups.com/forums/showthread.php?t=1093510
 
 Ken the main Alpha tester has a collection at https://www.youtube.com/user/kb6mcc including:
 
