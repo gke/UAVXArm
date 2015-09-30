@@ -4,7 +4,7 @@ The UAVXArm32F4 Board has been available since December 2012 from QuadroUFO and 
 
 ![https://github.com/gke/UAVXArm/blob/master/wiki/graphics/v4.jpg](https://github.com/gke/UAVXArm/blob/master/wiki/graphics/v4.jpg)
 
-The V4 is probably the smallest full-house F4 board out there and has been flown on regular 600 scale hexacopters down to nano quads. In the latter case a daughter board also available from QuadroUFO provides1/2S support for up to 6 brushed motors.
+The V4 is probably the smallest full-house F4 board out there and has been flown on regular 600 scale octocopters down to nano quads. In the latter case a daughter board also available from QuadroUFO provides1/2S support for up to 6 brushed motors.
 
 While designed for UAVX the V4 board is a simple porting target for other flight codes which have now adopted, or support, the same sensor package.
 
@@ -30,7 +30,7 @@ UAVXArm32F4 spends most of its time twiddling its thumbs (doing nothing) as it h
   * MPU6000 Gyro/Accelerometer
   * HMC5983 Magnetometer
   * MS5611 Barometer
-  * SPI communications for all sensors
+  * SPI communications for primary sensors
   * Ultrasonic Rangefinder
   * Optional external battery voltage and current monitor
   * Analog and I2C ports for alternative sensors
@@ -70,7 +70,7 @@ Attitude Control:
 
 ###Videos and Builds###
 
-There are many many many videos of UAVX on our RCG thread:
+There are many many many videos of UAVX on our RCG thread and elsewhere:
 
 http://www.rcgroups.com/forums/showthread.php?t=1093510
 
