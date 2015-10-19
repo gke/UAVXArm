@@ -74,13 +74,10 @@ There are many many many videos of UAVX on our RCG thread and elsewhere:
 
 http://www.rcgroups.com/forums/showthread.php?t=1093510
 
-Ken the main Alpha tester has a collection at https://www.youtube.com/user/kb6mcc including:
+Ken the main Alpha tester has a collection at https://www.youtube.com/user/kb6mcc.
 
-https://www.youtube.com/watch?v=uYsW6lu7lSA&feature=youtu.be (China)
+https://www.youtube.com/watch?v=faXzluGCzVo&feature=youtu.be (Indoors DC Motors)
 
-https://www.youtube.com/watch?v=w_9torIeAb8&feature=youtu.be (DC motors)
-
-https://www.youtube.com/watch?v=faXzluGCzVo&feature=youtu.be (Indoors)
 
 
 
