@@ -51,7 +51,7 @@ Up to 10 drives or servos:
   * SyncPWM (400Hz)
   * SyncPWM/8 OneShot 
   * I2C @ 400KHz
-  * DCMotors (with optional 6 channel external adapter)
+  * DC Motors (with optional 6 channel external adapter)
 
 We have used SimonK and BLHeli ESC codes with FastPWM being the sensible minimum for good performance.
 
@@ -74,13 +74,10 @@ There are many many many videos of UAVX on our RCG thread and elsewhere:
 
 http://www.rcgroups.com/forums/showthread.php?t=1093510
 
-Ken the main Alpha tester has a collection at https://www.youtube.com/user/kb6mcc including:
+Ken the main Alpha tester has a collection at https://www.youtube.com/user/kb6mcc.
 
-https://www.youtube.com/watch?v=uYsW6lu7lSA&feature=youtu.be (China)
+https://www.youtube.com/watch?v=faXzluGCzVo&feature=youtu.be (Indoors DC Motors)
 
-https://www.youtube.com/watch?v=w_9torIeAb8&feature=youtu.be (DC motors)
-
-https://www.youtube.com/watch?v=faXzluGCzVo&feature=youtu.be (Indoors)
 
 
 
