@@ -78,6 +78,8 @@ Ken the main Alpha tester has a collection at https://www.youtube.com/user/kb6mc
 
 https://www.youtube.com/watch?v=faXzluGCzVo&feature=youtu.be (Indoors DC Motors)
 
+https://www.youtube.com/watch?v=uYsW6lu7lSA (Western China)
+
 
 
 
