@@ -1,6 +1,6 @@
 # UAVX Telemetry Only for OpenTx #
 
-This version generates V2 FrSky telemetry for transmitters with OpenTx V2.1 onwards.
+This version generates V2 FrSky telemetry for transmitters with OpenTx V2.1 onwards. A Smart Port version may follow.
 
 ## Frsky Protocol ##
 
