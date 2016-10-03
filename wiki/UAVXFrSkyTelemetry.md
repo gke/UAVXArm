@@ -86,14 +86,14 @@ The full packet protocol is described elsewhere but suffice it to say each senso
 
 ### UAVX Setup ###
 
-Load the telemetry version of the firmaware using the normal procedure. UAVX is then configured using UAVXGUI with only the telemetry port connected. You will need to calibrate the IMU and Magnetometer as usual. Configuration is as normal selecting FrSky telemetry and arming by switch. Note: The arming switch needs to set to disarmed otherwise the board will switch to FrSky telemetry at 9600baud and not communicate with the GUI.
+Load the telemetry version of the firmaware using the normal procedure. UAVX is then configured using UAVXGUI with only the telemetry port connected. You will need to calibrate the IMU and Magnetometer as usual. Configuration is as normal selecting UAVX telemetry (NOT FrSky) and arming by switch. Note: The arming switch needs to set to disarmed otherwise the board will switch to FrSky telemetry at 9600baud and not communicate with the GUI.
 
 ### Hardware Setup ###
 
 Either V3 or V4 boards will work but the V3 board requires an external inverter on the Telemetry Tx line. A GPS is required!
 
-The only signal connections to the board are the GPS, Telemetry Tx wire the Rx telemetry port providing ground and 5V (needed for the GPS). The RC inputs and the PWM outputs are not used. An optional current sensor may be connected. Power connections are flight battery to the board as usual. An Arming Switch us not needed and may be wired and the input can be simply left open.
+The only signal connections to the board are the GPS, Telemetry Tx wire the Rx telemetry port providing ground and 5V (needed for the GPS). The RC inputs and the PWM outputs are not used. An optional current sensor may be connected. Power connections are flight battery to the board as usual. An Arming Switch is not needed and the input can be simply left open.
 
 ### Operation ###
 
-Power up with the aircraft not moving - it does not need to be level. The UAVX initialisation proceeds as usual with the normal beeps etc (assuming you have a beeper connected) if all is well. Because the board is already armed it will attempt to obtain GPS lock. UAVX will not generate any telemetry at all until a good GPS signal is obtained. This can be detected as having occured when GPS data starts appearing at the Tx. You can have the GUI connected when commisioning the system with a temporary Arming Switch. You do not need to have the Arming Switch but bear in mind telemetry to the GUI will stop at the point that the GPS obtains lock and UAVX switches to FrSky telemetry.
+Power up with the aircraft not moving - it does not need to be level. The UAVX initialisation proceeds as usual with the normal beeps etc (assuming you have a beeper connected) if all is well. Because the board is already armed it will attempt to obtain GPS lock. UAVX will not generate any telemetry at all until a good GPS signal is obtained. This can be detected as having occured when GPS data starts appearing at the Tx. You can have the GUI connected when commisioning the system with a temporary Arming Switch. You do not need to have the Arming Switch but bear in mind telemetry to the GUI will stop at the point that the GPS obtains lock and UAVX switches to FrSky telemetry and will stay there disarmed or power cycled.
