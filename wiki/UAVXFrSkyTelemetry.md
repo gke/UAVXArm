@@ -6,7 +6,7 @@ This version generates V2 FrSky telemetry for transmitters with OpenTx V2.1 onwa
 
 FrSky "D" typereceivers transmit RSSI and up to two voltages with no external sensors. This version of UAVX generates telemetry packets in a similar way to the sensor hub (now superseded) did. 
 
-The full packet protocol is described elsewhere but suffice it to say each sensor has a unique ID which appears on the Tx. Many of the allowable sensor IDs are already defined for FrSky sensors and will be displayed on the Tx when using "discover new sensors". UAVX has several other sensors and values which use unassigned IDs. The sensor menu on the Tx may be used to assign names to these new IDs. leaving the unassigned ones for .
+The full packet protocol is described elsewhere but suffice it to say each sensor has a unique ID which appears on the Tx. Many of the allowable sensor IDs are already defined for FrSky sensors and will be displayed on the Tx when using "discover new sensors". UAVX has several other sensors and values which use unassigned IDs. The sensor menu on the Tx may be used to assign names to these new IDs.
 
 	FS_ID_GPS_ALT_BP = 0x01,
 	FS_ID_TEMP1 = 0x02, // Barometer temperature deg C
