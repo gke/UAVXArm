@@ -6,7 +6,8 @@ This version generates V2 FrSky telemetry for transmitters with OpenTx V2.1 onwa
 
 FrSky "D" type receivers transmit RSSI and up to two voltages with no external sensors. This version of UAVX generates telemetry packets in a similar way to the sensor hub (now superseded) did allowing the connection of a UAVXArm board as a multi sensor device. 
 
-The full packet protocol is described elsewhere but suffice it to say each sensor has a unique ID which appears on the Tx. Many of the allowable sensor IDs are already defined for FrSky sensors and will be displayed on the Tx when using "discover new sensors". UAVX has several other sensors and values which use unassigned IDs. The sensor menu on the Tx may be used to assign names to these new IDs.
+The full packet protocol is described elsewhere but suffice it to say each sensor has a unique ID which appears on the Tx. Many of the allowable sensor IDs are already defined for FrSky sensors and will be displayed on the Tx when using "discover new sensors". 
+UAVX has several other sensors and values which use unassigned IDs. The sensor menu on the Tx may be used to assign names to these new IDs. Not all of the assigned IDs are active because of a FrSky limit on the number of active sensors (or packet traffic) through the Rx. 
 
 	FS_ID_GPS_ALT_BP = 0x01,
 	FS_ID_TEMP1 = 0x02, // Barometer temperature deg C
@@ -19,6 +20,14 @@ The full packet protocol is described elsewhere but suffice it to say each senso
 	// 0x08
 
 	FS_ID_GPS_ALT_AP = 0x09,
+	
+	// 0x0A
+	// 0x0B
+	// 0x0C
+	// 0x0D
+	// 0x0E
+	// 0x0F // seems to be emitted when there is a buffer overrun in the Rx.
+	
 	FS_ID_BARO_ALT_BP = 0x10,
 
 	FS_ID_GPS_SPEED_BP = 0x11,
@@ -36,7 +45,7 @@ The full packet protocol is described elsewhere but suffice it to say each senso
 	FS_ID_GPS_LAT_AP = 0x1B,
 	FS_ID_GPS_COURS_AP = 0x1C,
 
-	// 0x1d
+	UAVX_ID_GPS_STAT = 0x1d,
 	// 0x1e
 	// 0x1f
 	// 0x20
