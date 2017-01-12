@@ -10,6 +10,8 @@ https://blhelisuite.wordpress.com/
 
 REMOVE ALL PROPELLORS.
 
+Consider using a current limited power supply if you have one instead of a battery.
+
 Connect your multicopter as you would for UAVXGUI but do NOT launch UAVXGUI. Instead launch the BLHeliSuite application.
 
 Power up UAVX which should first display a Blue LED accompanied by beeps from the ESCs. This is then followed by a Green LED for 5 seconds. During these 5 seconds it will listen for connect messages from BLHeli 
