@@ -10,7 +10,7 @@ REMOVE ALL PROPELLORS.
 
 Connect your multicopter as you would for UAVXGUI but do NOT launch UAVXGUI. Instead launch the BLHeliSuite application.
 
-Power up UAVX which should first display a Blue LED accompanied by beeps from the ESCs. This then followed by a Green LED for 5 seconds. During thses 5 seconds it will listen for connect messages from BLHeli 
+Power up UAVX which should first display a Blue LED accompanied by beeps from the ESCs. This then followed by a Green LED for 5 seconds. During these 5 seconds it will listen for connect messages from BLHeli 
 and so you need to hit the connect button within those 5 seconds. 
 
 Consult the BLHeliSuite documentation (which you should have done already) and proceed as it instructs.
