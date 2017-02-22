@@ -25,13 +25,13 @@ UAVX continues to support the functions and failsafe features it has had for alm
 
 UAVXArm32F4 spends most of its time twiddling its thumbs (doing nothing) as it has so much computational capacity. Control loop and motor updates are at ~500Hz with 2KHz possible.
 
-  * STM32F405RG6 with FPU 168MHz (1024Kb Flash/32Kb RAM)
-  * 64MBit External Flash (Black Box recorder)
+  * STM32F407RG with FPU 168MHz (1024Kb Flash/32Kb RAM)
+  * AT45DB641E 64Mbit FLASH for logs + Arm (Black Box recorder)
   * MPU6000 Gyro/Accelerometer
   * HMC5983 Magnetometer
   * MS5611 Barometer
   * SPI communications for primary sensors
-  * Ultrasonic Rangefinder
+  * Ultrasonic and IR Rangefinders
   * Optional external battery voltage and current monitor
   * Analog and I2C ports for alternative sensors
 
