@@ -92,7 +92,45 @@ UAVX has several other sensors and values which use unassigned IDs. The sensor m
 	FS_ID_VOLTS_AP = 0x3B,
 	FS_ID_FRSKY_LAST = 0x3F,
 	
+Rather than do a blow by blow of what is (@December 2016) sent and when, here is the telemetry routine:
 
+	void SendFrSkyTelemetry(uint8 s) {
+	static uint8 FrameCount = 0;
+
+	if (++FrameCount == 40) { // FRAME 3 every 8 seconds
+		TxFrSkyTime(s);
+		TxFrSkyTemperature1(s);
+		TxChar(s, FS_SENTINEL);
+
+		FrameCount = 0;
+
+	} else if ((FrameCount % 5) == 0) { // FRAME 2 every second
+		if (F.GPSValid) {
+			if (F.OriginValid)
+				TxFrSkyWhere(s);
+			TxFrSkyGPSSpeed(s);
+			TxFrSkyGPSAlt(s);
+			TxFrSkyGPSHeading(s);
+			TxFrSkyGPSCoords(s);
+			TxChar(s, FS_SENTINEL);
+		}
+		TxFrSkyGPSStat(s); // 1
+		//TxFrSkyCompassHeading(s);
+	} else { // FRAME 1 every 200mS
+		TxFrSkyBaro(s); 
+		TxFrSkyVario(s); 
+		TxFrSkyVoltage(s);
+		TxFrSkyCellVoltages(s);
+		TxFrSkyCurrent(s);
+		TxFrSkymAH(s); 
+		TxFrSkyGyro(s);
+		// TxFrSkyAcc(s); // could add to check coordinated turns
+		TxFrSkyAttitude(s);
+		TxChar(s, FS_SENTINEL);
+	}
+
+	} // TxFrSkyTelemetry
+	
 ### UAVX Setup ###
 
 Load the telemetry version of the firmaware using the normal procedure. UAVX is then configured using UAVXGUI with only the telemetry port connected. You will need to calibrate the IMU and Magnetometer as usual. Configuration is as normal selecting UAVX telemetry (NOT FrSky) and arming by switch. Note: The arming switch needs to set to disarmed otherwise the board will switch to FrSky telemetry at 9600baud and not communicate with the GUI.
