@@ -12,7 +12,7 @@ UAVX has several other sensors and values which use unassigned IDs. The sensor m
 	FS_ID_GPS_ALT_BP = 0x01,
 	FS_ID_TEMP1 = 0x02, // Barometer temperature deg C
 	FS_ID_RPM = 0x03,
-	FS_ID_FUEL = 0x04, // % battery used (nominal capacity set in using GUI
+	FS_ID_FUEL = 0x04, // % battery used (nominal capacity set using GUI)
 	FS_ID_TEMP2 = 0x05,
 	FS_ID_VOLTS = 0x06,
 
@@ -105,4 +105,4 @@ The only signal connections to the board are the GPS, Telemetry Tx wire the Rx t
 
 ### Operation ###
 
-Power up with the aircraft not moving - it does not need to be level. The UAVX initialisation proceeds as usual with the normal beeps etc (assuming you have a beeper connected) if all is well. Because the board is already armed it will attempt to obtain GPS lock. UAVX will not generate any telemetry at all until a good GPS signal is obtained. This can be detected as having occured when GPS data starts appearing at the Tx. You can have the GUI connected when commisioning the system with a temporary Arming Switch. You do not need to have the Arming Switch but bear in mind telemetry to the GUI will stop at the point that the GPS obtains lock and UAVX switches to FrSky telemetry and will stay there disarmed or power cycled.
+Power up with the aircraft not moving - it does not need to be level. The UAVX initialisation proceeds as usual with the normal beeps etc (assuming you have a beeper connected) if all is well. Because the board is already armed it will attempt to obtain GPS lock. UAVX will not generate any telemetry at all until a good GPS signal is obtained. This can be detected as having occured when GPS data starts appearing at the Tx. You can have the GUI connected when commisioning the system with a temporary Arming Switch. You do not need to have the Arming Switch but bear in mind telemetry to the GUI will stop at the point that the GPS obtains lock and UAVX switches to FrSky telemetry and will stay there until disarmed or power cycled.
