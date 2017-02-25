@@ -28,7 +28,7 @@ that your aircraft matches the one selected.
 The gains for the inner pitch/roll/yaw and altitude rate loops will be much lower than for multicopters. 
 Typically half for Pi and Di. The Di parameter can cause a lot of servo jitter so reducing these further may help if you are not flying an unstable flying wing that is.
 
-The gains for the outer setpoint loops (Po)will be similar to those used for multicopters.
+The gains for the outer setpoint loops (Po) will be similar to those used for multicopters.
 
 ### Mixing ###
 
@@ -40,7 +40,7 @@ UAVX uses a consistent internal represention for roll/pitch and yaw. It is impor
 If the servo sense/direction is incorrect you may reverse it using the boxes in the RC parameter group in the GUI Parameters Window. The help window will tell you which of the six "servos" you are changing. 
 The order of the boxes is Throttle, Right Aileron, Left Aileron, Elevator, Rudder, Flap. The Throttle is inactive. 
 
-Parameters on the aircraft do not directly track, or match, any changes in the GUI. You must select WRITE for this to happen.
+Remember parameters on the aircraft do not directly track, or match, any changes in the GUI. You must select WRITE for this to happen.
 
 So for a conventional aileron aircraft this is all pretty much obvious so what about a pure Elevon Flying Wing model with no rudder or elevator. In this case there is no servo to reverse for either the rudder or elevator. Nonetheless the process is the same as reversing the elevator "servo" just tells the UAVX mixing to reverse the sign of the elevator value before adding it to the elevon value to get the total deflection. Straightfowrard.
 
