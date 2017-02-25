@@ -47,10 +47,9 @@ So for a conventional aileron aircraft this is all pretty much obvious so what a
        
 ## TODOS ##
 
-Yes it is not as sophisticated/complicated as some but works in most cases. 
+Yes it is not as sophisticated/complicated as some but works in most cases. ToDos: 
 
-The current mixing is not general and could be improved to allow custom mixing formulae but maybe later.
-
-For those with 7 Channel Rx I should have Bypass default to off or inactive. 
+ * The current mixing is not general and could be improved to allow custom mixing formulae but maybe later.
+ * For those with 7 Channel Rx I should have Bypass default to off or inactive. 
 
 
