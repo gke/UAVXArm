@@ -7,7 +7,7 @@ and rate stabilisation and a failsafe return to home (RTH) capability using GPS.
 
 It is assumed you have read the UAVXGUI wiki.
 
-The most important function is the ability to **bypass** almost all of the UAVX functionality except the final mixing. By default this is assigned to Rx channel 8 but may be reassigned using the GUI. 
+The most important function is the ability to **bypass** almost all of the UAVX functionality except the final mixing. By default **bypass** is assigned to Rx channel 8 but may be reassigned using the GUI. 
 
 There only a few parameters specific to non-multicopter aircraft including fixed wing aircraft.
 
