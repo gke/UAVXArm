@@ -4,6 +4,8 @@ Full telemetry is available at all times regardless of whether the aircraft is a
 
 You should also refer to the Wikis for the old separate tools.
 
+The actual layout of the windows changes over time and will not match those used as examples here.
+
 ## GPS Connected to COM or Telemetry Port ##
 
 If you have GPS connected to the COM port Rx pin then you will have full downlink telemetry but you will not be able to change any parameters in flight including navigation missions. You arming switch needs to switch the between the Tx line from the GPS and the Tx line from your PC or RF link. UAVXGUI assumes this will be the case and will be looking for GPS packets when the aircraft is armed.
@@ -32,7 +34,11 @@ There is now only one page for parameters with the parameter set number being ch
 
 Parameter sets may also be saved or loaded from file as required.
 
-IMPORTANT: Some changes to the aircraft type, Rx type/mode or Emulation mode etc. may require a reset so that the hardware can be reconfigured SAFELY. If there is no response to UAVXGUI commands then check the LEDs to see if they are all flashing. If they are then power cycle the board. You will appreciate the safety aspects of switching say from a fixed wing aircraft to a multicopter where the previous midpoint servo setting will be interpreted by a multicopter as half throttle.
+IMPORTANT: By now you should know that any programming of aircraft should be done with props OFF. Some changes to the aircraft type, Rx type/mode or Emulation mode etc. may require a reset so that the hardware can be reconfigured SAFELY. 
+Take great care not to select any of the non-multicopter airframe types when programming parameters for multicopters. The default state, or setting, 
+for servos when powering up is mid position which is **HALF THROTTLE** on motors.
+If there is no response to UAVXGUI commands then check the LEDs to see if they are all flashing. If they are then power cycle the board only after you have checked 
+that your aircraft matches the one selected. 
 
 ## A Reminder on Failsafes ##
 
