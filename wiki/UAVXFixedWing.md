@@ -38,11 +38,11 @@ Any throws and exponential settings on the Tx are used however and need in some 
 UAVX uses a consistent internal represention for roll/pitch and yaw. It is important to check that the control surfaces react correctly to UAVX first then reverse the control sense of Tx channels where necessary.
 
 If the servo sense/direction is incorrect you may reverse it using the boxes in the RC parameter group in the GUI Parameters Window. The help window will tell you which of the six "servos" you are changing. 
-The order of the boxes is Throttle, Right Aileron, Left Aileron, Elevator, Rudder, Flap. The Throttle is inactive. 
+The order of the boxes is Throttle, Right Aileron/Elevon, Left Aileron/Elevon, Elevator, Rudder, Flap. The Throttle reverse is inactive. 
 
 Remember parameters on the aircraft do not directly track, or match, any changes in the GUI. You must select WRITE for this to happen.
 
-So for a conventional aileron aircraft this is all pretty much obvious so what about a pure Elevon Flying Wing model with no rudder or elevator. In this case there is no servo to reverse for either the rudder or elevator. Nonetheless the process is the same as reversing the elevator "servo" just tells the UAVX mixing to reverse the sign of the elevator value before adding it to the elevon value to get the total deflection. Straightfowrard.
+So for a conventional aileron aircraft this is all pretty much obvious so what about a pure Elevon Flying Wing model with no rudder or elevator. In this case there is no servo to reverse for either the rudder or elevator. Nonetheless the process is the same, as reversing the elevator "servo" just tells the UAVX mixing to reverse the sign of the elevator value before adding it to the elevon value to get the total deflection. Straightfowrard.
 
        
 ## TODOS ##
