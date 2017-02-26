@@ -58,9 +58,7 @@ The Green LED should be on and Yellow LED flashing every second.
 
 ### Step 4 (Acc/Gyro Temperature Calibration) ###
 
-This is the most critical step in the setup and you usually only need to do it once or until you next bend the aircraft.
-
-**YOU MUST CALIBRATE ACCELEROMETERS OTHERWISE THE ATTITUDE ESTIMATES (PITCH/ROLL ANGLES) WILL BE INCORRECT LEADING TO UNPREDICTABLE BEHAVIOUR.**
+This is the most critical step in the setup and UAVX will not arm until it is done. You usually only need to do it once or until you next bend the aircraft so take your time.
 
 Put the aircraft on a level surface. If it is on the slightest of angles then this is the way it will fly when you centralise the sticks. Bear in mind the floors of your house will not be level, your best table will not be level nor will your average workbench. Eyeballing it is no good at all.
 
@@ -139,7 +137,7 @@ You should never need yaw trim.
 
 ## Appendices ##
 
-### Motor/Servo Connector Assignments ###
+### Motor/Servo Connector Assignments BEING REVISED ###
 
 The "K" output pin assignments which you should test with care are currently:
 
@@ -147,6 +145,6 @@ The "K" output pin assignments which you should test with care are currently:
 
 ### Pin Allocations ###
 
-These are the Arm processor pin assignments.
+These are the Arm processor pin assignments for the V4 Board.
 
 ![https://github.com/gke/UAVXArm/blob/master/wiki/graphics/UAVXArm32F4_V4Pinouts.JPG](https://github.com/gke/UAVXArm/blob/master/wiki/graphics/UAVXArm32F4_V4Pinouts.JPG)
