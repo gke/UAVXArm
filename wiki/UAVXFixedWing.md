@@ -18,19 +18,17 @@ rate control mode is selected. This could be reduced to say 5%.
 
 The default RTH Alt parameter is probably too low and could be doubled. When RTH is engaged the aircraft will return and **orbit** at this altitude, not hover obviously, so it needs to be clear of obstacles like trees, flag poles and buildings.
  
-IMPORTANT: By now you should know that any programming of aircraft should be done with props OFF. Some changes to the aircraft type, Rx type/mode or Emulation mode etc. may require a reset so that the hardware can be reconfigured SAFELY. 
-Take great care not to select any of the non-multicopter airframe types when programming parameters for multicopters. The default state, or setting, for servos when powering up is mid position which is **HALF THROTTLE** on motors.
-If there is no response to UAVXGUI commands then check the LEDs to see if they are all flashing. If they are then power cycle the board only after you have checked 
+**IMPORTANT**: By now you should know that any programming of flight controllers should be done with props OFF. Some changes to the aircraft type, Rx type/mode or Emulation mode etc. may require a reset so that the hardware can be reconfigured SAFELY. If there is no response to UAVXGUI commands then check the LEDs to see if they are all flashing. If they are then power cycle the board only after you have checked 
 that your aircraft matches the one selected. 
 
-### PID Parameters###
+### PID Parameters
 
 The gains for the inner pitch/roll/yaw and altitude rate loops will be much lower than for multicopters. 
 Typically half for Pi and Di. The Di parameter can cause a lot of servo jitter so reducing these further may help if you are not flying an unstable flying wing that is.
 
 The gains for the outer setpoint loops (Po) will be similar to those used for multicopters.
 
-### Arming and Accelerometer Trim ###
+### Arming and Accelerometer Trim
 
 When calibrating it is best to orient the aircraft in approximately the pose for best glide which in most cases be slightly nose up. 
 
@@ -42,7 +40,7 @@ Accelerometer trim using sticks is available only when armed and after landing. 
 
 As trimming is only required when commissioning a new aircraft this should not be a major inconvenience.
 
-### Mixing ###
+### Mixing
 
 You should use Tx setting with no mixing and **no trims** as for multicopters. 
 Any throws and exponential settings on the Tx are used however and need in some cases to have sufficient throw for stick based arming and accelerometer trim tuning. This may be achieved by using full throws and increased exponential in most cases of where dual rates are available use those.
@@ -57,7 +55,7 @@ Remember parameters on the aircraft do not directly track, or match, any changes
 So for a conventional aileron aircraft this is all pretty much obvious so what about a pure Elevon Flying Wing model with no rudder or elevator. In this case there is no servo to reverse for either the rudder or elevator. Nonetheless the process is the same, as reversing the elevator "servo" just tells the UAVX mixing to reverse the sign of the elevator value before adding it to the elevon value to get the total deflection. Straightfowrard.
 
        
-## TODOS ##
+## TODOS
 
 Yes it is not as sophisticated/complicated as some but works in most cases. ToDos: 
 
