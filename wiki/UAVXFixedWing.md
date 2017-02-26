@@ -3,7 +3,7 @@
 UAVX supports aircraft other than pure multicopters. It is not currently as sophisticated as some in that it does not claim autoland or full aerobatic capabilities. It does however provide both angle 
 and rate stabilisation and a failsafe return to home (RTH) capability using GPS. Where regulations permit it also supports waypoint navigation.
 
-##Parameters##
+## Introduction
 
 It is assumed you have read the UAVXGUI and UAVXArm32F4Startup wikis.
 
