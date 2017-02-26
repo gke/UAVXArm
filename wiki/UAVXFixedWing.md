@@ -50,7 +50,7 @@ Any throws and exponential settings on the Tx are used however and need in some 
 UAVX uses a consistent internal represention for roll/pitch and yaw. It is important to check that the control surfaces react correctly to UAVX first then reverse the control sense of Tx channels where necessary.
 
 If the servo sense/direction is incorrect you may reverse it using the boxes in the RC parameter group in the GUI Parameters Window. The help window will tell you which of the six "servos" you are changing. 
-The order of the boxes is Throttle, Right Aileron/Elevon, Left Aileron/Elevon, Elevator, Rudder, Flap. The Throttle reverse is inactive. 
+The order of the boxes is Right Aileron/Elevon, Left Aileron/Elevon, Elevator, Rudder, Right Flap, Left Flap. 
 
 Remember parameters on the aircraft do not directly track, or match, any changes in the GUI. You must select WRITE for this to happen.
 
