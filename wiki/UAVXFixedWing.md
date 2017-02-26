@@ -3,7 +3,7 @@
 UAVX supports aircraft other than pure multicopters. It is not currently as sophisticated as some in that it does not claim autoland or full aerobatic capabilities. It does however provide both angle 
 and rate stabilisation and a failsafe return to home (RTH) capability using GPS. Where regulations permit it also supports waypoint navigation.
 
-## Parameters ##
+##Parameters##
 
 It is assumed you have read the UAVXGUI and UAVXArm32F4Startup wikis.
 
@@ -23,7 +23,7 @@ Take great care not to select any of the non-multicopter airframe types when pro
 If there is no response to UAVXGUI commands then check the LEDs to see if they are all flashing. If they are then power cycle the board only after you have checked 
 that your aircraft matches the one selected. 
 
-### PID Parameters ### 
+### PID Parameters###
 
 The gains for the inner pitch/roll/yaw and altitude rate loops will be much lower than for multicopters. 
 Typically half for Pi and Di. The Di parameter can cause a lot of servo jitter so reducing these further may help if you are not flying an unstable flying wing that is.
