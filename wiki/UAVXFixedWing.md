@@ -54,6 +54,24 @@ Remember parameters on the aircraft do not directly track, or match, any changes
 
 So for a conventional aileron aircraft this is all pretty much obvious so what about a pure Elevon Flying Wing model with no rudder or elevator. In this case there is no servo to reverse for either the rudder or elevator. Nonetheless the process is the same, as reversing the elevator "servo" just tells the UAVX mixing to reverse the sign of the elevator value before adding it to the elevon value to get the total deflection. Straightfowrard.
 
+### Output Channel Assignment
+
+The order of the output channel assignments is generally:
+
+* Throttle
+* Right Aileron/Elevon
+* Left Aileron/Elevon
+* Elevator
+* Rudder
+* Right Flap
+* Left Flap
+
+UAVX may not compute values for all outputs depending on the aircraft and the aircraft may not necessarily use all that are computed. Examples include:
+
+* Flying Wing: Throttle, Right Elevon, Left Elevon
+* Delta: Throttle, Right & Left Elevon, Rudder and optionaly Right and Left Flap
+
+If a parallel Rx connection is used then M7..M10 are unavailable. as RX8..RX5 uses the same pins as M7..M10. Note the order.
        
 ## TODOS
 
