@@ -73,7 +73,7 @@ UAVX may not compute values for all outputs depending on the aircraft and the ai
 * Wing: Throttle, Right Elevon, Left Elevon
 * Delta: Throttle, Right & Left Elevon, Rudder and optionaly Right and Left Flap
 
-UAVX computes roll/pitch and yaw commands and these are mixed into the control surface motions as you would expect logically :). If you use a Delta as a Wing and do not connect a rudder then there is no yaw control so it if it looks like a Delta but has no rudder on the fin then it is a Wing. Yes looks can be deceiving ;).
+UAVX computes roll/pitch and yaw commands and these are mixed into the control surface motions as you would expect logically :). If you use a Delta as a Flying Wing and do not connect a rudder then there is no yaw control so it if it looks like a Delta but has no rudder on the fin then it is a Flying Wing. Yes looks can be deceiving ;).
        
 ## TODOS
 
