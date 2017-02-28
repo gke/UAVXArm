@@ -66,7 +66,7 @@ The order of the output channel assignments is generally:
 * M6 Right Flap
 * M7 Left Flap (this is the reversed value of M6)
 
-If a parallel Rx connection is used then M7..M10 are unavailable as RX8..RX5 uses the same pins as M7..M10. Note the order. This means that to use Left Flap directly you may need to have a servo reverser as usually the flap servos are opposite handed like the ailerons. If the flaps are driven from a simple torque rod then you only need one servo channel.
+If a parallel Rx connection is used then M7..M10 are unavailable as RX8..RX5 uses the same pins as M7..M10; note the order. This means that to use Left Flap directly you may need to have a servo reverser as usually the flap servos are opposite handed like the ailerons. If the flaps are driven from a simple torque rod then you only need one servo channel.
 
 UAVX may not compute values for all outputs depending on the aircraft and the aircraft may not necessarily use all that are computed. Examples include:
 
