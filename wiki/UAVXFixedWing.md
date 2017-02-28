@@ -63,7 +63,7 @@ The order of the output channel assignments is generally:
 * M3 Left Aileron/Elevon
 * M4 Elevator
 * M5 Rudder
-* M6 Right Flap
+M6 Right Flap
 
 * M7 Left Flap (this is the reversed value of M6)
 
