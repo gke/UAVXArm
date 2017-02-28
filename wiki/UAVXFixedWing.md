@@ -32,7 +32,7 @@ The gains for the outer setpoint loops (Po) will be similar to those used for mu
 
 When calibrating it is best to orient the aircraft in approximately the pose for best glide which in most cases be slightly nose up. 
 
-Arming is in the normal way but you will not have **stick** based **disarming available**. The reason is that in flight, unlike multicopters, you may well have zero throttle at times when gliding for example. It is therefore possible to accidentally disarm the aircraft accidentally. It will be necessary to power recycle the aircraft if you wish to disarm.
+Arming is in the normal way but you will not have **stick** based **disarming available**. The reason is that in flight, unlike multicopters, you may well have zero throttle at times when gliding for example. It is therefore possible to disarm the aircraft accidentally. It will be necessary therefore to power recycle the aircraft if you wish to disarm.
 
 With **switch** based arming you can disarm on landing using the switch in the normal way.
 
@@ -70,11 +70,10 @@ If a parallel Rx connection is used then M7..M10 are unavailable as RX8..RX5 use
 
 UAVX may not compute values for all outputs depending on the aircraft and the aircraft may not necessarily use all that are computed. Examples include:
 
-* Flying Wing: Throttle, Right Elevon, Left Elevon
+* Wing: Throttle, Right Elevon, Left Elevon
 * Delta: Throttle, Right & Left Elevon, Rudder and optionaly Right and Left Flap
 
-The roll/pitch and yaw commands are mixed into the control surface motions as you would expect logically :).
-
+UAVX computes roll/pitch and yaw commands and these are mixed into the control surface motions as you would expect logically :). If you use a Delta as a Wing and do not connect a rudder then there is no yaw control so it if it looks like a Delta but has no rudder on the fin then it is a Wing. Yes looks can be deceiving ;).
        
 ## TODOS
 
