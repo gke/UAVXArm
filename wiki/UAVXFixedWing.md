@@ -58,26 +58,29 @@ So for a conventional aileron aircraft this is all pretty much obvious so what a
 
 The order of the output channel assignments is generally:
 
-* Throttle
-* Right Aileron/Elevon
-* Left Aileron/Elevon
-* Elevator
-* Rudder
-* Right Flap
-* Left Flap
+* M1 Throttle
+* M2 Right Aileron/Elevon
+* M3 Left Aileron/Elevon
+* M4 Elevator
+* M5 Rudder
+* M6 Right Flap
+
+* M7 Left Flap (this is the reversed value of M6)
 
 UAVX may not compute values for all outputs depending on the aircraft and the aircraft may not necessarily use all that are computed. Examples include:
 
 * Flying Wing: Throttle, Right Elevon, Left Elevon
 * Delta: Throttle, Right & Left Elevon, Rudder and optionaly Right and Left Flap
 
-If a parallel Rx connection is used then M7..M10 are unavailable. as RX8..RX5 uses the same pins as M7..M10. Note the order.
+If a parallel Rx connection is used then M7..M10 are unavailable as RX8..RX5 uses the same pins as M7..M10. Note the order. This means that to use Left Flap directly you may need to have a servo reverser as usually the flap servos are opposite handed like the ailerons. If the flaps are driven from a simple torque rod then you only need one servo channel.
        
 ## TODOS
 
 Yes it is not as sophisticated/complicated as some but works in most cases. ToDos: 
 
  * The current mixing is not general and could be improved to allow custom mixing formulae but maybe later.
+ * Although aileron differential is in the code, and camber etc associated with gliders may be added, the number of parameters will have to be increased from the UAVP legacy 64.
+
 
 I have added configurations for Delta (right and left elevons, right and left flaps & rudder), RudderElevator, AileronSpoilerons (spoilers mixed to ailerons), AileronFlaps (right and left ailerons, rudder, elevator, right and left flaps). If you are using a parallel Rx connection you will not have the left flap available to you as it is used by the Rx.
 
