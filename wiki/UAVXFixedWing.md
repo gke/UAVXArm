@@ -1,4 +1,4 @@
-# UAVX Fixed Wing Operation DRAFT @ February 2017 #
+# UAVX Fixed Wing Operation #
 
 UAVX supports aircraft other than pure multicopters. It is not currently as sophisticated as some in that it does not claim autoland or full aerobatic capabilities. It does however provide both angle 
 and rate stabilisation and a failsafe return to home (RTH) capability using GPS. Where regulations permit it also supports waypoint navigation.
@@ -64,7 +64,6 @@ The order of the output channel assignments is generally:
 * M4 Elevator
 * M5 Rudder
 * M6 Right Flap
-
 * M7 Left Flap (this is the reversed value of M6)
 
 If a parallel Rx connection is used then M7..M10 are unavailable as RX8..RX5 uses the same pins as M7..M10. Note the order. This means that to use Left Flap directly you may need to have a servo reverser as usually the flap servos are opposite handed like the ailerons. If the flaps are driven from a simple torque rod then you only need one servo channel.
