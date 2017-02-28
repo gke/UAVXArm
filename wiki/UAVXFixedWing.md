@@ -83,8 +83,3 @@ Yes it is not as sophisticated/complicated as some but works in most cases. ToDo
 
  * The current mixing is not general and could be improved to allow custom mixing formulae but maybe later.
  * Although aileron differential is in the code, and camber etc associated with gliders may be added, the number of parameters will have to be increased from the UAVP legacy 64.
-
-
-I have added configurations for Delta (right and left elevons, right and left flaps & rudder), RudderElevator, AileronSpoilerons (spoilers mixed to ailerons), AileronFlaps (right and left ailerons, rudder, elevator, right and left flaps). If you are using a parallel Rx connection you will not have the left flap available to you as it is used by the Rx.
-
-
