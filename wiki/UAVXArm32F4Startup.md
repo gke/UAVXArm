@@ -70,6 +70,10 @@ Power up with UAVGUI connected.  Select the CalIMU button which will be Red. You
 
 Once again you only need to do this once or when loading the defaults or if you change the gyro selection pulldown - it should be on UAVXArm32 unless you are using analog gyros.
 
+#### Analog Gyros ####
+
+There is no temperature measurement available should you choose to use external analog gyros. The calibration described above in Step 4 is still required but the analog gyros obtain their offset biases each flight after arming. The aircraft needs to be motionless but there is no requirement for it to be level. You may freely switch between analog gyros and the MPU6xxx gyros.
+
 The Green LED and Yellow LEDs should be on.
 
 _Note: See Accelerometer Neutral Fine Tuning below._
@@ -136,12 +140,6 @@ You should do this when there is no wind and you only need to do it once. It is 
 You should never need yaw trim.
 
 ## Appendices ##
-
-### Motor/Servo Connector Assignments BEING REVISED ###
-
-The "K" output pin assignments which you should test with care are currently:
-
-![https://github.com/gke/UAVXArm/blob/master/wiki/graphics/UAVXArm32F4_Outputs.JPG](https://github.com/gke/UAVXArm/blob/master/wiki/graphics/UAVXArm32F4_Outputs.JPG)
 
 ### Pin Allocations ###
 
