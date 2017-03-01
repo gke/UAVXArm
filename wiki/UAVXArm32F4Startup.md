@@ -2,7 +2,7 @@
 
 This is the evolving setup page for the Arm version of UAVX. We will try to keep explanations concise. If you have flown UAVX then most of this is familiar as we have deliberately scaled the parameters and kept the look and feel of UAVPSet and UAVXGS to those you are familiar with so you can concentrate on flying.
 
-UAVXArm32F4 supports many different airframe types from octocopters, through helis out to conventional aircraft. UAVX has done this for several years. 
+UAVXArm32F4 supports many different airframe types from octocopters, through helis out to conventional aircraft. UAVX has done this for several years. For fixed wing aircraft see the UAVXArm32F4FixedWing supplemental wiki after reading this.
 
 #### UAVXArm32F4 Board ####
 
@@ -70,13 +70,13 @@ Power up with UAVGUI connected.  Select the CalIMU button which will be Red. You
 
 Once again you only need to do this once or when loading the defaults or if you change the gyro selection pulldown - it should be on UAVXArm32 unless you are using analog gyros.
 
-#### Analog Gyros ####
-
-There is no temperature measurement available should you choose to use external analog gyros. The calibration described above in Step 4 is still required but the analog gyros obtain their offset biases each flight after arming. The aircraft needs to be motionless but there is no requirement for it to be level. You may freely switch between analog gyros and the MPU6xxx gyros.
-
 The Green LED and Yellow LEDs should be on.
 
 _Note: See Accelerometer Neutral Fine Tuning below._
+
+** Note: Use of Analog Gyros **
+
+There is no temperature measurement available should you choose to use external analog gyros say from your original UAVP Board. The calibration described above in Step 4 is still required but the analog gyros obtain their offset biases each flight after arming. The aircraft needs to be motionless but there is no requirement for it to be level. You may freely switch between analog gyros and the MPU6xxx gyros.
 
 ### Step 5 (Magnetometer Calibration) ###
 
