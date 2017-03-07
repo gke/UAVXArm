@@ -2,7 +2,7 @@
 
 This is the evolving setup page for the Arm version of UAVX. We will try to keep explanations concise. If you have flown UAVX then most of this is familiar as we have deliberately scaled the parameters and kept the look and feel of UAVPSet and UAVXGS to those you are familiar with so you can concentrate on flying.
 
-UAVXArm32F4 supports many different airframe types from octocopters, through helis out to conventional aircraft. UAVX has done this for several years. 
+UAVXArm32F4 supports many different airframe types from octocopters, through helis out to conventional aircraft. UAVX has done this for several years. For fixed wing aircraft see the UAVXFixedWing supplemental wiki after reading this.
 
 #### UAVXArm32F4 Board ####
 
@@ -12,7 +12,7 @@ You should receive your board loaded with firmware compatible with UAVXGUI. You 
 
 ### Step 1 ###
 
-Mount the board on your favourite frame oriented in the direction of forward flight. So if you are flying +Mode point the board along the K1 motor arm. If you are flying XMode point the board between the K1 and K3 motor arms. Select the desired configuration in UAVPSet using the airframe pulldown. We will assume from now that you are flying XMode which has become the most common.
+Mount the board on your favourite frame oriented in the direction of forward flight. So if you are flying +Mode point the board along the K1 motor arm. If you are flying XMode point the board between the K1 and K3 motor arms. Select the desired configuration in UAVPSet using the airframe pulldown. We will assume from now that you are flying X-Mode which has become the most common as it allows cameras a clear forward view.
 
 Take all the the shorting links (if any) off the board. Connect up an arming switch between the Arming pin and the adjacent Ground pin.
 
@@ -73,6 +73,10 @@ Once again you only need to do this once or when loading the defaults or if you 
 The Green LED and Yellow LEDs should be on.
 
 _Note: See Accelerometer Neutral Fine Tuning below._
+
+** Note: Use of Analog Gyros **
+
+There is no temperature measurement available should you choose to use external analog gyros say from your original UAVP Board. The calibration described above in Step 4 is still required but the analog gyros obtain their offset biases each flight after arming. The aircraft needs to be motionless but there is no requirement for it to be level. You may freely switch between analog gyros and the MPU6xxx gyros.
 
 ### Step 5 (Magnetometer Calibration) ###
 
@@ -136,12 +140,6 @@ You should do this when there is no wind and you only need to do it once. It is 
 You should never need yaw trim.
 
 ## Appendices ##
-
-### Motor/Servo Connector Assignments BEING REVISED ###
-
-The "K" output pin assignments which you should test with care are currently:
-
-![https://github.com/gke/UAVXArm/blob/master/wiki/graphics/UAVXArm32F4_Outputs.JPG](https://github.com/gke/UAVXArm/blob/master/wiki/graphics/UAVXArm32F4_Outputs.JPG)
 
 ### Pin Allocations ###
 
