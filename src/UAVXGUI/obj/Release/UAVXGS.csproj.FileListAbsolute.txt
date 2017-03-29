@@ -1,0 +1,57 @@
+C:\Documents and Settings\GKE\Desktop\SimpleSerialCS\SimpleSerial\obj\Release\ResolveAssemblyReference.cache
+C:\Documents and Settings\GKE\Desktop\SimpleSerialCS\SimpleSerial\obj\Release\SimpleSerial.Form1.resources
+C:\Documents and Settings\GKE\Desktop\SimpleSerialCS\SimpleSerial\obj\Release\UAVXGS.csproj.GenerateResource.Cache
+C:\Documents and Settings\GKE\Desktop\SimpleSerialCS\SimpleSerial\bin\Release\UAVXGS.exe.manifest
+C:\Documents and Settings\GKE\Desktop\SimpleSerialCS\SimpleSerial\bin\Release\UAVXGS.application
+C:\Documents and Settings\GKE\Desktop\SimpleSerialCS\SimpleSerial\bin\Release\UAVXGS.exe
+C:\Documents and Settings\GKE\Desktop\SimpleSerialCS\SimpleSerial\bin\Release\UAVXGS.pdb
+C:\Documents and Settings\GKE\Desktop\SimpleSerialCS\SimpleSerial\obj\Release\UAVXGS.AvionicsInstrumentsControls.AvionicsInstrumentsControlsResources.resources
+C:\Documents and Settings\GKE\Desktop\SimpleSerialCS\SimpleSerial\obj\Release\UAVXGS.Properties.Resources.resources
+C:\Documents and Settings\GKE\Desktop\SimpleSerialCS\SimpleSerial\obj\Release\UAVXGS.TrustInfo.xml
+C:\Documents and Settings\GKE\Desktop\SimpleSerialCS\SimpleSerial\obj\Release\UAVXGS.exe.manifest
+C:\Documents and Settings\GKE\Desktop\SimpleSerialCS\SimpleSerial\obj\Release\UAVXGS.application
+C:\Documents and Settings\GKE\Desktop\SimpleSerialCS\SimpleSerial\obj\Release\UAVXGS.exe
+C:\Documents and Settings\GKE\Desktop\SimpleSerialCS\SimpleSerial\obj\Release\UAVXGS.pdb
+C:\Flight\Code\UAVXGS\obj\Release\UAVXGS.AvionicsInstrumentsControls.AvionicsInstrumentsControlsResources.resources
+C:\Flight\Code\UAVXGS\obj\Release\UAVXGS.Properties.Resources.resources
+C:\Flight\Code\UAVXGS\obj\Release\UAVXGS.FormMain.resources
+C:\Flight\Code\UAVXGS\obj\Release\UAVXGS.csproj.GenerateResource.Cache
+C:\Flight\Code\UAVXGS\obj\Release\Interop.EARTHLib.dll
+C:\Flight\Code\UAVXGS\obj\Release\UAVXGS.csproj.ResolveComReference.cache
+C:\Flight\Code\UAVXGS\bin\Release\Interop.EARTHLib.dll
+C:\Flight\Code\UAVXGS\obj\Release\UAVXGS.csprojResolveAssemblyReference.cache
+C:\Flight\Code\UAVXGS\bin\Release\UAVXGS 2.2.exe.config
+C:\Flight\Code\UAVXGS\bin\Release\UAVXGS 2.2.exe.manifest
+C:\Flight\Code\UAVXGS\bin\Release\UAVXGS 2.2.application
+C:\Flight\Code\UAVXGS\bin\Release\UAVXGS 2.2.exe
+C:\Flight\Code\UAVXGS\bin\Release\UAVXGS 2.2.pdb
+C:\Flight\Code\UAVXGS\obj\Release\UAVXGS 2.2.TrustInfo.xml
+C:\Flight\Code\UAVXGS\obj\Release\UAVXGS 2.2.exe.manifest
+C:\Flight\Code\UAVXGS\obj\Release\UAVXGS 2.2.application
+C:\Flight\Code\UAVXGS\obj\Release\UAVXGS 2.2.exe
+C:\Flight\Code\UAVXGS\obj\Release\UAVXGS 2.2.pdb
+C:\Flight\Code\UAVXGS_PacketComms\bin\Release\UAVXGS 2.2.exe.config
+C:\Flight\Code\UAVXGS_PacketComms\bin\Release\UAVXGS 2.2.exe.manifest
+C:\Flight\Code\UAVXGS_PacketComms\bin\Release\UAVXGS 2.2.application
+C:\Flight\Code\UAVXGS_PacketComms\bin\Release\UAVXGS 2.2.exe
+C:\Flight\Code\UAVXGS_PacketComms\bin\Release\UAVXGS 2.2.pdb
+C:\Flight\Code\UAVXGS_PacketComms\bin\Release\GMap.NET.Core.dll
+C:\Flight\Code\UAVXGS_PacketComms\bin\Release\GMap.NET.WindowsForms.dll
+C:\Flight\Code\UAVXGS_PacketComms\bin\Release\Interop.EARTHLib.dll
+C:\Flight\Code\UAVXGS_PacketComms\obj\Release\Interop.EARTHLib.dll
+C:\Flight\Code\UAVXGS_PacketComms\obj\Release\UAVXGS.csproj.ResolveComReference.cache
+C:\Flight\Code\UAVXGS_PacketComms\obj\Release\UAVXGS.AvionicsInstrumentsControls.AvionicsInstrumentsControlsResources.resources
+C:\Flight\Code\UAVXGS_PacketComms\obj\Release\UAVXGS.FormMain.resources
+C:\Flight\Code\UAVXGS_PacketComms\obj\Release\UAVXGS.NavForm.resources
+C:\Flight\Code\UAVXGS_PacketComms\obj\Release\UAVXGS.ParameterForm.resources
+C:\Flight\Code\UAVXGS_PacketComms\obj\Release\UAVXGS.Properties.Resources.resources
+C:\Flight\Code\UAVXGS_PacketComms\obj\Release\UAVXGS.csproj.GenerateResource.Cache
+C:\Flight\Code\UAVXGS_PacketComms\obj\Release\UAVXGS 2.2.TrustInfo.xml
+C:\Flight\Code\UAVXGS_PacketComms\obj\Release\UAVXGS 2.2.exe.manifest
+C:\Flight\Code\UAVXGS_PacketComms\obj\Release\UAVXGS 2.2.application
+C:\Flight\Code\UAVXGS_PacketComms\obj\Release\UAVXGS 2.2.exe
+C:\Flight\Code\UAVXGS_PacketComms\obj\Release\UAVXGS 2.2.pdb
+C:\Flight\Code\UAVXGS_PacketComms\obj\Release\UAVXGS.csprojResolveAssemblyReference.cache
+C:\Flight\Code\UAVXGUI\bin\Release\UAVXGS 2.2.exe.config
+C:\Flight\Code\UAVXGUI\obj\Release\Interop.EARTHLib.dll
+C:\Flight\Code\UAVXGUI\obj\Release\UAVXGS.csproj.ResolveComReference.cache

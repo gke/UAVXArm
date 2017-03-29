@@ -1,0 +1,1473 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Text;
+using System.Windows.Forms;
+using System.Resources;
+using System.Configuration;
+using System.Reflection;
+using System.Globalization;
+using System.Threading;
+using System.IO;
+
+namespace UAVXGUI
+{
+    public partial class ParameterForm : Form
+    {
+
+        public enum Farbe { black, green, orange, red };
+
+        const byte MAX_PARAM_SETS = 2;
+        const byte MAX_PARAMS = 64;
+
+        public struct ParameterSetsStruc
+        {
+            public string Command;
+            public string Value;
+            public string Comment;
+            public string Chapter;
+        }
+
+        private System.Windows.Forms.OpenFileDialog parameterOpenFileDialog = new System.Windows.Forms.OpenFileDialog();
+        private System.Windows.Forms.SaveFileDialog parameterSaveFileDialog = new System.Windows.Forms.SaveFileDialog();
+
+        public ParameterSetsStruc[,] parameterSet = new ParameterSetsStruc[MAX_PARAM_SETS, MAX_PARAMS];
+        public ParameterSetsStruc[,] parameterPic = new ParameterSetsStruc[MAX_PARAM_SETS, MAX_PARAMS]; 
+
+        public Cursor cursor = Cursor.Current;
+        public ResourceManager help;
+        ResourceManager labels;
+ 
+        public bool writeUpdate = false;
+        public string pfad;
+        public bool picBootModus = false;
+
+        public static bool[] SenseButton = new bool[8];
+        public static byte CurrPS = 0;
+
+        public ParameterForm()
+        {
+            InitializeComponent();
+
+            help = new ResourceManager("UAVXGUI.Resources.Help", this.GetType().Assembly);
+            labels = new ResourceManager("UAVXGUI.Resources.Language", this.GetType().Assembly);
+
+            for (int p = 0; p < MAX_PARAM_SETS; p++)
+                for (int i = 0; i < MAX_PARAMS; i++)
+                {
+                    parameterSet[p, i].Chapter = "";
+                    parameterPic[p, i].Chapter = "";
+
+                    switch (i)
+                    {
+                        case 3:
+                        case 4:
+                        case 8:
+                        case 9:
+                        case 13:
+                        case 14:
+                        case 16:
+                            parameterSet[p, i].Value = "1";
+                            parameterPic[p, i].Value = "1";
+                            break;
+                        case 22:
+                            parameterSet[p, i].Value = "5";
+                            parameterPic[p, i].Value = "5";
+                            break;
+                        default:
+                            parameterSet[p, i].Value = "0";
+                            parameterPic[p, i].Value = "0";
+                            break;
+
+                    }
+                    parameterSet[p, i].Command = "Register " + (i + 1).ToString();
+                    parameterPic[p, i].Command = "Register " + (i + 1).ToString();
+
+                }
+        }
+
+
+        private void bitTextChange(Object changeBoxObject)
+        {
+            CheckBox changeBox = (CheckBox)changeBoxObject;
+            if (changeBox.Checked == false)
+            {
+                switch (changeBox.Name.Substring(0, 4))
+                {
+                    case "bit0":
+                        changeBox.Text = labels.GetString("bit0");
+                        break;
+                    case "bit1":
+                        changeBox.Text = labels.GetString("bit1");
+                        break;
+                    case "bit2":
+                        changeBox.Text = labels.GetString("bit2");
+                        break;
+                    case "bit3":
+                        changeBox.Text = labels.GetString("bit3");
+                        break;
+                    case "bit4":
+                        changeBox.Text = labels.GetString("bit4");
+                        break;
+                    case "bit5":
+                        changeBox.Text = labels.GetString("bit5");
+                        break;
+                    case "bit6":
+                        changeBox.Text = labels.GetString("bit6");
+                        break;
+                    case "bit7":
+                        changeBox.Text = labels.GetString("bit7");
+                        break;
+                }
+            }
+            else
+            {
+                switch (changeBox.Name.Substring(0, 4))
+                {
+                    case "bit0":
+                        changeBox.Text = labels.GetString("bit01");
+                        break;
+                    case "bit1":
+                        changeBox.Text = labels.GetString("bit11");
+                        break;
+                    case "bit2":
+                        changeBox.Text = labels.GetString("bit21");
+                        break;
+                    case "bit3":
+                        changeBox.Text = labels.GetString("bit31");
+                        break;
+                    case "bit4":
+                        changeBox.Text = labels.GetString("bit41");
+                        break;
+                    case "bit5":
+                        changeBox.Text = labels.GetString("bit51");
+                        break;
+                    case "bit6":
+                        changeBox.Text = labels.GetString("bit61");
+                        break;
+                }
+            }
+        }
+
+        private void bitCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            bitTextChange(sender);
+        }
+
+
+        //_____________________________________________________
+
+
+        private void cOMPortToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            //  Configuration configwindow = new Configuration(this);
+          //  configwindow.ShowDialog();
+        }
+
+        private void LoadParamsButton_Click(object sender, EventArgs e)
+        {
+
+           parameterOpenFileDialog.Filter = "auv - Setupdateien (*.auv)|*.auv|alle Dateien (*.*)|*.*";
+
+            parameterOpenFileDialog.InitialDirectory = Properties.Settings.Default.openFolder;
+           if (parameterOpenFileDialog.ShowDialog() == DialogResult.OK)
+            {
+        //        parameterSets.laden(parameterOpenFileDialog.FileName, this);
+
+              Properties.Settings.Default.openFolder = parameterOpenFileDialog.InitialDirectory;
+
+
+
+               //
+
+            //  updateForm(parameterPic[CurrPS, 0]);
+            }
+        }
+
+
+        public void ParamUpdate_Click_KeyDown(object sender, EventArgs e)
+        {
+           ParamUpdate(sender);
+            BatteryValueLabel.Text = (Decimal.Round(BatteryNumericUpDown.Value * 0.2m, 1)).ToString(); // 0.2V units
+        }
+
+        public void ParamUpdate_KeyDown(object sender, KeyEventArgs e)
+        {
+            ParamUpdate(sender);
+            BatteryValueLabel.Text = (Decimal.Round(BatteryNumericUpDown.Value * 0.2m, 1)).ToString(); // 0.2V units
+        }
+
+        private void SaveParamsButton_Click(object sender, EventArgs e)
+        {
+             parameterSaveFileDialog.Filter = "auv - parameters (*.auv)|*.auv";
+             parameterSaveFileDialog.InitialDirectory = Properties.Settings.Default.ParamDirectory;
+
+             parameterSaveFileDialog.FileName = "Params_S" +
+               ( CurrPS + 1).ToString() + "_" +
+               DateTime.Now.Year + "_" +
+               DateTime.Now.Month + "_" +
+               DateTime.Now.Day + "_" +
+               DateTime.Now.Hour + "_" +
+               DateTime.Now.Minute +
+               ".auv";
+
+               if (parameterSaveFileDialog.ShowDialog() == DialogResult.OK)
+               {
+                  // parameterSets.speichern(parameterSaveFileDialog.FileName, this);
+                   //speichern des Pfades
+                   Properties.Settings.Default.ParamDirectory = parameterSaveFileDialog.InitialDirectory;
+
+                  // parameterSaveFileDialog.Flush();
+
+                   updateForm();
+               }
+          
+        }
+
+        /*
+        public void readParameters(FormMain mainForm, ParameterSets parameter)
+        {
+            // Cursor auf wait setzen
+            mainForm.Cursor = Cursors.WaitCursor;
+
+            // Abfrage der Prameter mit L und speichern in array
+           // ArrayList para = askPic(mainForm, "L");
+
+
+                 // mainForm.tabPageParameterSet1.Text = labels.GetString("paraSetAktiv1");
+                 //   mainForm.tabPageParameterSet2.Text = labels.GetString("paraSet2");
+                  //  Log.write(mainForm, "Markieren Tab 1", 1);
+
+                    // alle Chapter löschen
+                //    Log.write(mainForm, "beginne löschen Chapter ...", 1);
+                    for (int i = 0; i < parameter.parameterPic1.Length; i++)
+                    {
+                      //  Log.write(mainForm, "alle Chapter löschen [" + i.ToString() + "]", 1);
+                        parameter.parameterPic1[i].Chapter = "";
+                    }
+
+                    // durchgehen des arrays und in Prameter Struc speichern
+                  //  Log.write(mainForm, "beginne Para struc speichern ...", 1);
+                    for (int i = 0; i < para.Count - 2; i++)
+                    {
+                      //  Log.write(mainForm, "alle Para struc speichern [" + i.ToString() + "]", 1);
+                        //Log.write(mainForm, para[i].ToString(), 0);
+                        // + in den Parametern ausschneiden
+                        if (para[i + 2].ToString().Substring(15, 1) == "+")
+                            para[i + 2] = Convert.ToInt16(para[i + 2].ToString().Substring(16, 3));
+                        else
+                            para[i + 2] = Convert.ToInt16(para[i + 2].ToString().Substring(15, 4));
+
+                        parameter.parameterPic1[i].Command = "Register " + (i + 1).ToString();
+                        parameter.parameterPic1[i].Value = para[i + 2].ToString();
+                        parameter.parameterPic1[i].Chapter = "ChannelSet";
+
+                    }
+                    // ganzes Form mit den Daten updaten
+                    parameter.updateForm(parameter.parameterPic1, mainForm);
+               
+            // else dialog from UAVX has a Z command in it!
+
+            // Cursor auf default setzen
+            mainForm.Cursor = Cursors.Default;
+        }
+
+        public void writeParameters()
+        {
+            int noofparams = 64;
+            bool err = true;
+            //mainForm.writeUpdate = true;
+
+         //   if (!sp.IsOpen)
+          //      err = connect(mainForm, false, true);
+
+            // wenn fehler
+            if (err == false)
+                return;
+
+                // alle Parameter schreiben
+                foreach (ParameterSets.ParameterSetsStruc value in parameter.parameterForm1)
+                    // wenn fehler beim schreiben dann aussteigen
+                    if (Convert.ToInt16(value.Command.Substring(9)) <= noofparams)
+                        if (err = parameterWrite(mainForm, value) == false)
+                            break;
+           
+            Enabled = true;
+
+           // infoText.Text = "writeOk"), 0);
+
+            //nochmals alle parameter lesen und prüfen ob mit werten gleich
+            writeUpdate = true;
+           // mainForm.writeUpdate = false;
+
+
+        }
+         * */
+
+        private void saveBlackBoxToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            //  blackboxSaveFileDialog.Filter = "Black Box (*.log)|*.log";
+            //  blackboxSaveFileDialog.InitialDirectory = Properties.Settings.Default.LogFileDirectory;
+
+            //        blackboxSaveFileDialog.Filter = "log - black box (*.log)|*.log";
+            //        blackboxSaveFileDialog.InitialDirectory = Properties.Settings.Default.LogFileDirectory;
+
+            /*      blackboxSaveFileDialog.FileName = "UAVX_Black_Box_" +
+            DateTime.Now.Year + "_" +
+            DateTime.Now.Month + "_" +
+            DateTime.Now.Day + "_" +
+            DateTime.Now.Hour + "_" +
+            DateTime.Now.Minute +
+            ".log";
+
+            //Properties.Settings.Default.LogFileDirectory + 
+
+            //      blackboxSaveFileDialog.Filter = "log - black box (*.log)|*.log";
+            //      blackboxSaveFileDialog.InitialDirectory = Properties.Settings.Default.LogFileDirectory;
+            /*
+                        if (blackboxSaveFileDialog.ShowDialog() == DialogResult.OK)
+                        {
+                            picConnect.readBlackBox(blackboxSaveFileDialog.FileName, this);
+                            Properties.Settings.Default.LogFileDirectory = blackboxSaveFileDialog.InitialDirectory;
+                        }
+             * */
+        }
+
+
+        private void infoGetFocus(object sender, EventArgs e)
+        {
+            infoTextBox.Text = info();
+            if (sender.GetType().Name == "NumericUpDown")
+            {
+                NumericUpDown temp = (NumericUpDown)sender;
+                temp.Select(0, 3);
+            }
+        }
+
+
+
+        /// <summary>
+ 
+
+        private void BurnPICToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (Properties.Settings.Default.AskBurnPIC == true)
+            {
+            //    if (MessageBox.Show(labels.GetString("savePICBurn"), "Flash PIC?", MessageBoxButtons.OKCancel) ==
+            //        DialogResult.OK)
+                    burn();
+            }
+            else
+                burn();
+        }
+
+        void burn()
+
+        {
+            /*
+            //Hex laden
+            hexOpenFileDialog.Filter = "hex - Firmware (*.hex)|*.hex|alle Dateien (*.*)|*.*";
+            //letzten Pfad aus Settings holen
+            hexOpenFileDialog.InitialDirectory = Properties.Settings.Default.pathHex;
+            if (hexOpenFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                picConnect.BurnPIC(this, hexOpenFileDialog.FileName);
+                //Pfad für nächstes mal speichern
+                Properties.Settings.Default.pathHex = hexOpenFileDialog.InitialDirectory;
+            }
+             * */
+        }
+
+        private void miscellaneousToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            //        Configuration configwindow = new Configuration(this);
+            //Configurationswindow im richtigen Tab öffnen
+         //   configwindow.configurationTabControl.SelectedIndex = 2;
+         //   configwindow.ShowDialog();
+        }
+
+        private void comPortToolStripComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            //neuen Comport den settings zuweisen und abspeichern
+            //       Properties.Settings.Default.comPort = comPortToolStripComboBox.Text;
+            Properties.Settings.Default.Save();
+        }
+
+
+        private void testsoftwareToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            //        picConnect.testSoftware(this);
+        }
+
+        private void splitContainer2_SplitterMoved(object sender, SplitterEventArgs e)
+        {
+
+        }
+
+
+        private void set1Set2ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+           // parameterSets.copySet1ToSet2(this);
+        }
+
+        private void set2Set1ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            //parameterSets.copySet2ToSet1(this);
+        }
+
+        private void FormMain_Leave(object sender, EventArgs e)
+        {
+
+        }
+
+        private void ESCComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            ParamUpdate(sender);
+        }
+
+        private void RangefinderComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            ParamUpdate(sender);
+        }
+
+        private void InertialSchemeComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            ParamUpdate(sender);
+        }
+
+        private void RxTypeComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (RxTypeComboBox.SelectedIndex >= 5)
+                RxTypeComboBox.BackColor = Color.Orange;
+            else
+                RxTypeComboBox.BackColor = Color.White;
+            ParamUpdate(sender);
+        }
+
+
+        private void GyroComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (GyroComboBox.SelectedIndex >= 6)
+                GyroComboBox.BackColor = Color.Red;
+            else
+                GyroComboBox.BackColor = Color.White;
+            ParamUpdate(sender);
+        }
+
+        private void AFTypeComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (AFTypeComboBox.SelectedIndex >= 17)
+                AFTypeComboBox.BackColor = Color.Red;
+            else
+                if ((AFTypeComboBox.SelectedIndex == 0) ||
+                    (AFTypeComboBox.SelectedIndex >= 11))
+                    AFTypeComboBox.BackColor = Color.Orange;
+                else
+                    AFTypeComboBox.BackColor = Color.White;
+            ParamUpdate(sender);
+        }
+
+        private void TxModeComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (TxModeComboBox.SelectedIndex >= 2)
+                TxModeComboBox.BackColor = Color.Orange;
+            else
+                TxModeComboBox.BackColor = Color.White;
+            ParamUpdate(sender);
+        }
+
+
+        private void GPSTypeComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            ParamUpdate(sender);
+        }
+
+        private void GyroLPFComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            ParamUpdate(sender);
+        }
+
+        private void TxRxComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            ParamUpdate(sender);
+        }
+
+        private void TelemetryComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            ParamUpdate(sender);
+        }
+
+        private void tabControlParameter_SelectedIndexChanged(object sender, EventArgs e)
+        {
+           // picConnect.setparamset(this);
+        }
+
+        private void SenseButton0_Click(object sender, EventArgs e)
+        {
+            SenseButton[0] = !SenseButton[0];
+           // infoTextBox.Text = "Throttle sense - INACTIVE.";
+            ParamUpdate(sender);
+        }
+
+        private void SenseButton1_Click(object sender, EventArgs e)
+        {
+            SenseButton[1] = !SenseButton[1];
+            //infoTextBox.Text = "Right Aileron/Elevon servo sense - not for multicopter use - grey is reversed.";
+            ParamUpdate(sender);
+        }
+
+        private void SenseButton2_Click(object sender, EventArgs e)
+        {
+            SenseButton[2] = !SenseButton[2];
+            infoTextBox.Text = "Left Aileron/Elevon servo sense - not for multicopter use - grey is reversed.";
+            ParamUpdate(sender);
+        }
+
+        private void SenseButton3_Click(object sender, EventArgs e)
+        {
+            SenseButton[3] = !SenseButton[3];
+            infoTextBox.Text = "Elevator servo sense - not for multicopter use - grey is reversed.";
+            ParamUpdate(sender);
+        }
+
+        private void SenseButton4_Click(object sender, EventArgs e)
+        {
+            SenseButton[4] = !SenseButton[4];
+            infoTextBox.Text = "Rudder or Camera roll servo sense - grey is reversed.";
+            ParamUpdate(sender);
+        }
+
+        private void SenseButton5_Click(object sender, EventArgs e)
+        {
+            SenseButton[5] = !SenseButton[5];
+            infoTextBox.Text = "Flaps or Camera pitch servo sense -  grey is reversed.";
+            ParamUpdate(sender);
+        }
+
+        private void Magic1Button_Click(object sender, EventArgs e)
+        {
+            SenseButton[6] = !SenseButton[6];
+            infoTextBox.Text = "Blue for MAGIC applied";
+            ParamUpdate(sender);
+        }
+
+        private void ColourButton_Click(object sender, System.EventArgs e)
+        {
+            ColorDialog MyDialog = new ColorDialog();
+
+            MyDialog.ShowHelp = true;
+       //     MyDialog.Color = tabPageParameterSet1.BackColor;
+
+            if (MyDialog.ShowDialog() == DialogResult.OK)
+            {
+             //   tabPageParameterSet1.BackColor = MyDialog.Color;
+             //   tabPageParameterSet2.BackColor = MyDialog.Color;
+                Properties.Settings.Default.Colour = MyDialog.Color;
+            }
+        }
+
+        private void RefreshRxChannels()
+        {
+
+            ChNumericUpDown.BackColor = System.Drawing.Color.White;
+            Ch2NumericUpDown.BackColor = System.Drawing.Color.White;
+            Ch3NumericUpDown.BackColor = System.Drawing.Color.White;
+            Ch4NumericUpDown.BackColor = System.Drawing.Color.White;
+
+            if (Ch5NumericUpDown.Value <= RxChannelsNumericUpDown.Value)
+                Ch5NumericUpDown.BackColor = System.Drawing.Color.White;
+            else
+                Ch5NumericUpDown.BackColor = System.Drawing.Color.Orange;
+
+            if (Ch6NumericUpDown.Value <= RxChannelsNumericUpDown.Value)
+                Ch6NumericUpDown.BackColor = System.Drawing.Color.White;
+            else
+                Ch6NumericUpDown.BackColor = System.Drawing.Color.Orange;
+
+            if (Ch7NumericUpDown.Value <= RxChannelsNumericUpDown.Value)
+                Ch7NumericUpDown.BackColor = System.Drawing.Color.White;
+            else
+                Ch7NumericUpDown.BackColor = System.Drawing.Color.Orange;
+
+            if (Ch8NumericUpDown.Value <= RxChannelsNumericUpDown.Value)
+                Ch8NumericUpDown.BackColor = System.Drawing.Color.White;
+            else
+                Ch8NumericUpDown.BackColor = System.Drawing.Color.Orange;
+
+            if (Ch9NumericUpDown.Value <= RxChannelsNumericUpDown.Value)
+                Ch9NumericUpDown.BackColor = System.Drawing.Color.White;
+            else
+                Ch9NumericUpDown.BackColor = System.Drawing.Color.Orange;
+        }
+
+        private void RxChannels_Changed(object sender, System.EventArgs e)
+        {
+            ParamUpdate(sender);
+            RefreshRxChannels();
+        }
+
+
+        public void ParamUpdate(Object Object)
+        {
+
+            if (Object.GetType().Name == "NumericUpDown")
+            {
+                NumericUpDown feld = (NumericUpDown)Object;
+
+                    parameterSet[CurrPS, Convert.ToInt16(feld.Tag) - 1].Value = feld.Value.ToString();
+
+
+                    if (parameterPic[CurrPS, Convert.ToInt16(feld.Tag) - 1].Chapter == "ChannelSet")
+                        if (parameterSet[CurrPS, Convert.ToInt16(feld.Tag) - 1].Value ==
+                            parameterPic[CurrPS, Convert.ToInt16(feld.Tag) - 1].Value)
+                            feld.ForeColor = Color.Green;
+                        else
+                            if (writeUpdate == true)
+                                feld.ForeColor = Color.Red;
+                            else
+                                feld.ForeColor = Color.Orange;
+                    else
+                        feld.ForeColor = Color.Black;
+            }
+            else
+                if (Object.GetType().Name == "Button")
+                {
+                    Button feld = (Button)Object;
+
+                    switch (feld.Name)
+                    {
+                        case "Sense01Button": // Throttle
+                            if (writeUpdate == false)
+                                if (ParameterForm.SenseButton[0])
+                                {
+                                    parameterSet[CurrPS, 51].Value = (Convert.ToInt16(parameterSet[CurrPS, 51].Value) | 1).ToString();
+                                    feld.BackColor = Color.LightGray;
+                                }
+                                else
+                                {
+                                    parameterSet[CurrPS, 51].Value = (Convert.ToInt16(parameterSet[CurrPS, 51].Value) & 254).ToString();
+                                    feld.BackColor = Color.White;
+                                }
+
+                            if (parameterPic[CurrPS, 51].Chapter == "ChannelSet")
+                                if ((Convert.ToInt16(parameterSet[CurrPS, 51].Value) & 1) ==
+                                    (Convert.ToInt16(parameterPic[CurrPS, 51].Value) & 1))
+                                    feld.ForeColor = Color.Green;
+                                else
+                                    if (writeUpdate == true)
+                                        feld.ForeColor = Color.Red;
+                                    else
+                                        feld.ForeColor = Color.Orange;
+                            else
+                                feld.ForeColor = Color.Black;
+
+                            break;
+                        case "Sense11Button":
+                            if (writeUpdate == false)
+                                if (ParameterForm.SenseButton[1])
+                                {
+                                    parameterSet[CurrPS, 51].Value = (Convert.ToInt16(parameterSet[CurrPS, 51].Value) | 2).ToString();
+                                    feld.BackColor = Color.LightGray;
+                                }
+                                else
+                                {
+                                    parameterSet[CurrPS, 51].Value = (Convert.ToInt16(parameterSet[CurrPS, 51].Value) & 253).ToString();
+                                    feld.BackColor = Color.White;
+                                }
+                            if (parameterPic[CurrPS, 51].Chapter == "ChannelSet")
+                                if ((Convert.ToInt16(parameterSet[CurrPS, 51].Value) & 2) ==
+                                    (Convert.ToInt16(parameterPic[CurrPS, 51].Value) & 2))
+                                    feld.ForeColor = Color.Green;
+                                else
+                                    if (writeUpdate == true)
+                                        feld.ForeColor = Color.Red;
+                                    else
+                                        feld.ForeColor = Color.Orange;
+                            else
+                                feld.ForeColor = Color.Black;
+
+                            break;
+                        case "Sense21Button":
+                            if (writeUpdate == false)
+                                if (ParameterForm.SenseButton[2])
+                                {
+                                    parameterSet[CurrPS, 51].Value = (Convert.ToInt16(parameterSet[CurrPS, 51].Value) | 4).ToString();
+                                    feld.BackColor = Color.LightGray;
+                                }
+                                else
+                                {
+                                    parameterSet[CurrPS, 51].Value = (Convert.ToInt16(parameterSet[CurrPS, 51].Value) & 251).ToString();
+                                    feld.BackColor = Color.White;
+                                }
+                            if (parameterPic[CurrPS, 51].Chapter == "ChannelSet")
+                                if ((Convert.ToInt16(parameterSet[CurrPS, 51].Value) & 4) ==
+                                    (Convert.ToInt16(parameterPic[CurrPS, 51].Value) & 4))
+                                    feld.ForeColor = Color.Green;
+                                else
+                                    if (writeUpdate == true)
+                                        feld.ForeColor = Color.Red;
+                                    else
+                                        feld.ForeColor = Color.Orange;
+                            else
+                                feld.ForeColor = Color.Black;
+
+                            break;
+                        case "Sense31Button":
+                            if (writeUpdate == false)
+                                if (ParameterForm.SenseButton[3])
+                                {
+                                    parameterSet[CurrPS, 51].Value = (Convert.ToInt16(parameterSet[CurrPS, 51].Value) | 8).ToString();
+                                    feld.BackColor = Color.LightGray;
+                                }
+                                else
+                                {
+                                    parameterSet[CurrPS, 51].Value = (Convert.ToInt16(parameterSet[CurrPS, 51].Value) & 247).ToString();
+                                    feld.BackColor = Color.White;
+                                }
+
+                            if (parameterPic[CurrPS, 51].Chapter == "ChannelSet")
+                                if ((Convert.ToInt16(parameterSet[CurrPS, 51].Value) & 8) ==
+                                    (Convert.ToInt16(parameterPic[CurrPS, 51].Value) & 8))
+                                    feld.ForeColor = Color.Green;
+                                else
+                                    if (writeUpdate == true)
+                                        feld.ForeColor = Color.Red;
+                                    else
+                                        feld.ForeColor = Color.Orange;
+                            else
+                                feld.ForeColor = Color.Black;
+
+                            break;
+
+                        case "Sense41Button":
+                            if (writeUpdate == false)
+                                if (ParameterForm.SenseButton[4])
+                                {
+                                    parameterSet[CurrPS, 51].Value = (Convert.ToInt16(parameterSet[CurrPS, 51].Value) | 16).ToString();
+                                    feld.BackColor = Color.LightGray;
+                                }
+                                else
+                                {
+                                    parameterSet[CurrPS, 51].Value = (Convert.ToInt16(parameterSet[CurrPS, 51].Value) & 239).ToString();
+                                    feld.BackColor = Color.White;
+                                }
+
+                            if (parameterPic[CurrPS, 51].Chapter == "ChannelSet")
+                                if ((Convert.ToInt16(parameterSet[CurrPS, 51].Value) & 16) ==
+                                    (Convert.ToInt16(parameterPic[CurrPS, 51].Value) & 16))
+                                    feld.ForeColor = Color.Green;
+                                else
+                                    if (writeUpdate == true)
+                                        feld.ForeColor = Color.Red;
+                                    else
+                                        feld.ForeColor = Color.Orange;
+                            else
+                                feld.ForeColor = Color.Black;
+                            break;
+
+                        case "Sense51Button":
+                            if (writeUpdate == false)
+                                if (ParameterForm.SenseButton[5])
+                                {
+                                    parameterSet[CurrPS, 51].Value = (Convert.ToInt16(parameterSet[CurrPS, 51].Value) | 32).ToString();
+                                    feld.BackColor = Color.LightGray;
+                                }
+                                else
+                                {
+                                    parameterSet[CurrPS, 51].Value = (Convert.ToInt16(parameterSet[CurrPS, 51].Value) & 223).ToString();
+                                    feld.BackColor = Color.White;
+                                }
+
+                            if (parameterPic[CurrPS, 51].Chapter == "ChannelSet")
+                                if ((Convert.ToInt16(parameterSet[CurrPS, 51].Value) & 32) ==
+                                    (Convert.ToInt16(parameterPic[CurrPS, 51].Value) & 32))
+                                    feld.ForeColor = Color.Green;
+                                else
+                                    if (writeUpdate == true)
+                                        feld.ForeColor = Color.Red;
+                                    else
+                                        feld.ForeColor = Color.Orange;
+                            else
+                                feld.ForeColor = Color.Black;
+                            break;
+                        case "Magic1Button":
+                            if (writeUpdate == false)
+                                if (ParameterForm.SenseButton[6])
+                                {
+                                    parameterSet[CurrPS, 51].Value = (Convert.ToInt16(parameterSet[CurrPS, 51].Value) | 64).ToString();
+                                    feld.BackColor = Color.Blue;
+                                }
+                                else
+                                {
+                                    parameterSet[CurrPS, 51].Value = (Convert.ToInt16(parameterSet[CurrPS, 51].Value) & 191).ToString();
+                                    feld.BackColor = Color.White;
+                                }
+
+                            if (parameterPic[CurrPS, 51].Chapter == "ChannelSet")
+                                if ((Convert.ToInt16(parameterSet[CurrPS, 51].Value) & 64) ==
+                                   (Convert.ToInt16(parameterPic[CurrPS, 51].Value) & 64))
+                                    feld.ForeColor = Color.Green;
+                                else
+                                    if (writeUpdate == true)
+                                        feld.ForeColor = Color.Red;
+                                    else
+                                        feld.ForeColor = Color.Orange;
+                            else
+                                feld.ForeColor = Color.Black;
+                            break;
+                    }
+               }
+        }
+
+
+        public void updateForm()
+        {
+
+            int p;
+
+
+            for (p = 1; p <= MAX_PARAMS; p++ )
+            {
+                switch (p)
+                {
+                    case 1:
+                        RollRatePropNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(RollRatePropNumericUpDown);
+                        break;
+                    case 2:
+                        RollIntNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(RollIntNumericUpDown);
+                        break;
+                    case 3:
+                        RollAnglePropNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(RollAnglePropNumericUpDown);
+                        break;
+                    case 4:
+                        TxModeComboBox.SelectedIndex = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+
+                        if (TxModeComboBox.SelectedIndex == 2)
+                            TxModeComboBox.BackColor = Color.Orange;
+                        else
+                            TxModeComboBox.BackColor = Color.White;
+
+                        ParamUpdate(TxModeComboBox);
+                        break;
+                    case 5:
+                        if (Convert.ToInt16(parameterSet[CurrPS, p-1].Value) <= 0)
+                            RollIntLimitNumericUpDown.Value = 1;
+                        else
+                            RollIntLimitNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(RollIntLimitNumericUpDown);
+                        break;
+                    case 6:
+                        PitchRatePropNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(PitchRatePropNumericUpDown);
+                        break;
+                    case 7:
+                        PitchRateIntNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(PitchRateIntNumericUpDown);
+                        break;
+                    case 8:
+                        PitchAnglePropNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(PitchAnglePropNumericUpDown);
+                        break;
+                    case 9:
+                        RangefinderComboBox.SelectedIndex = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(RangefinderComboBox);
+                        break;
+                    case 10:
+                        if (Convert.ToInt16(parameterSet[CurrPS, p-1].Value) <= 0)
+                            PitchIntLimitNumericUpDown.Value = 1;
+                        else
+                            PitchIntLimitNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+
+                        ParamUpdate(PitchIntLimitNumericUpDown);
+                        break;
+                    case 11:
+                        YawRatePropNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(YawRatePropNumericUpDown);
+                        break;
+                    case 12:
+                        RollRateDiffNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(RollRateDiffNumericUpDown);
+                        break;
+                    case 13:
+                        InertialSchemeComboBox.SelectedIndex = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(InertialSchemeComboBox);
+                        break;
+                    case 14:
+                        if (Convert.ToInt16(parameterSet[CurrPS, p-1].Value) <= 0)
+                            YawRateIntLimitNumericUpDown.Value = 1;
+                        else
+                            YawRateIntLimitNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(YawRateIntLimitNumericUpDown);
+                        break;
+                    case 15:
+                        RxTypeComboBox.SelectedIndex = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        if (RxTypeComboBox.SelectedIndex >= 5)
+                            RxTypeComboBox.BackColor = Color.Orange;
+                        else
+                            RxTypeComboBox.BackColor = Color.White;
+
+                        ParamUpdate(RxTypeComboBox);
+                        break;
+                    case 16:
+                        int temp = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        if (temp == -1)
+                            temp = 0;
+
+                        if ((temp & 1) == 1)
+                        {
+                            bit01CheckBox.Checked = true;
+                            ParamUpdate(bit01CheckBox);
+                        }
+                        else
+                        {
+                            bit01CheckBox.Checked = false;
+                            ParamUpdate(bit01CheckBox);
+                        }
+                        if ((temp & 2) == 2)
+                        {
+                            bit11CheckBox.Checked = true;
+                            ParamUpdate(bit11CheckBox);
+                        }
+                        else
+                        {
+                            bit11CheckBox.Checked = false;
+                            ParamUpdate(bit11CheckBox);
+                        }
+                        if ((temp & 4) == 4)
+                        {
+                            bit21CheckBox.Checked = true;
+                            ParamUpdate(bit21CheckBox);
+                        }
+                        else
+                        {
+                            bit21CheckBox.Checked = false;
+                            ParamUpdate(bit21CheckBox);
+                        }
+                        if ((temp & 8) == 8)
+                        {
+                            bit31CheckBox.Checked = true;
+                            ParamUpdate(bit31CheckBox);
+                        }
+                        else
+                        {
+                            bit31CheckBox.Checked = false;
+                            ParamUpdate(bit31CheckBox);
+                        }
+
+                        if ((temp & 16) == 16)
+                        {
+                            bit41CheckBox.Checked = true;
+                            ParamUpdate(bit41CheckBox);
+                        }
+                        else
+                        {
+                            bit41CheckBox.Checked = false;
+                            ParamUpdate(bit41CheckBox);
+                        }
+                        if ((temp & 32) == 32)
+                        {
+                            bit51CheckBox.Checked = true;
+                            ParamUpdate(bit51CheckBox);
+                        }
+                        else
+                        {
+                            bit51CheckBox.Checked = false;
+                            ParamUpdate(bit51CheckBox);
+                        }
+                        if ((temp & 64) == 64)
+                        {
+                            bit61CheckBox.Checked = true;
+                            ParamUpdate(bit61CheckBox);
+                        }
+                        else
+                        {
+                            bit61CheckBox.Checked = false;
+                            ParamUpdate(bit61CheckBox);
+                        }
+                        //parameterSet[CurrPS, 15].Value = temp.ToString();
+                        break;
+                    case 17:
+                        ChNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(ChNumericUpDown);
+                        break;
+                    case 18:
+                        if (Convert.ToInt16(parameterSet[CurrPS, p-1].Value) < 0)
+                            BatteryNumericUpDown.Value = 0;
+                        else
+                            BatteryNumericUpDown.Value = Convert.ToDecimal(Math.Round(Convert.ToDouble(parameterSet[CurrPS, p-1].Value), 1, MidpointRounding.AwayFromZero));
+                        ParamUpdate(BatteryNumericUpDown);
+                        break;
+                    case 19:
+                        CameraRollNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(CameraRollNumericUpDown);
+                        break;
+                    case 20:
+                        HoverThrottleNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(HoverThrottleNumericUpDown);
+                        break;
+                    case 21:
+                        BaroAccCompNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(BaroAccCompNumericUpDown);
+                        break;
+                    case 22:
+                        RollPitchMixNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(RollPitchMixNumericUpDown);
+                        break;
+                    case 23:
+                        LowMotorRunNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(LowMotorRunNumericUpDown);
+                        break;
+                    case 24:
+                        RollAngleIntNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(RollAngleIntNumericUpDown);
+                        break;
+                    case 25:
+                        PitchAngleIntNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(PitchAngleIntNumericUpDown);
+                        break;
+                    case 26:
+                        CameraPitchNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(CameraPitchNumericUpDown);
+                        break;
+                    case 27:
+                        YawAnglePropNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(YawAnglePropNumericUpDown);
+                        break;
+                    case 28:
+                        PitchRateDiffNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(PitchRateDiffNumericUpDown);
+                        break;
+                    case 29:
+                        NavMaxAngleNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(NavMaxAngleNumericUpDown);
+                        break;
+                    case 30:
+                        AltPropNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(AltPropNumericUpDown);
+                        break;
+                    case 31:
+                        YawRateIntNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(YawRateIntNumericUpDown);
+                        break;
+                    case 32:
+                        MadgwickKpMagNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(MadgwickKpMagNumericUpDown);
+                        break;
+                    case 33:
+                        NavRTHAltNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(NavRTHAltNumericUpDown);
+                        break;
+                    case 34:
+                        NavMagVarNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(NavMagVarNumericUpDown);
+                        break;
+                    case 35:
+                        GyroComboBox.SelectedIndex = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(GyroComboBox);
+                        break;
+                    case 36:
+                        ESCComboBox.SelectedIndex = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(ESCComboBox);
+                        break;
+                    case 37:
+                        RxChannelsNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(RxChannelsNumericUpDown);
+                        break;
+                    case 38:
+                        Ch2NumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(Ch2NumericUpDown);
+                        break;
+                    case 39:
+                        MadgwickKpAccNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(MadgwickKpAccNumericUpDown);
+                        break;
+                    case 40:
+                        CameraRollTrimNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(CameraRollTrimNumericUpDown);
+                        break;
+                    case 41:
+                        NavMaxVelNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(NavMaxVelNumericUpDown);
+                        break;
+                    case 42:
+                        Ch3NumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(Ch3NumericUpDown);
+                        break;
+                    case 43:
+                        Ch4NumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(Ch4NumericUpDown);
+                        break;
+                    case 44:
+                        AFTypeComboBox.SelectedIndex = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+
+                        /*
+ Tricopter
+ Quadrocopter
+ Hexacopter
+ Y6/Coaxial-Tricopter 
+ Octocopter
+ Coaxial-Octocopter
+ Helicopter
+ Elevon/Flying Wing
+ Aileron
+ V 
+ VTOL
+ Gimbal
+ Unknown
+     */
+                        if (AFTypeComboBox.SelectedIndex >= 12)
+                            AFTypeComboBox.BackColor = Color.Red;
+                        else
+                            if ((AFTypeComboBox.SelectedIndex == 0) ||
+                                (AFTypeComboBox.SelectedIndex >= 6))
+                                AFTypeComboBox.BackColor = Color.Orange;
+                            else
+                                AFTypeComboBox.BackColor = Color.White;
+
+                        ParamUpdate(AFTypeComboBox);
+                        break;
+                    case 45:
+                        TelemetryComboBox.SelectedIndex = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(TelemetryComboBox);
+                        break;
+                    case 46:
+                        DescentRateNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(DescentRateNumericUpDown);
+                        break;
+                    case 47:
+                        DescDelayNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(DescDelayNumericUpDown);
+                        break;
+                    case 48:
+                        GyroLPFComboBox.SelectedIndex = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        if (GyroLPFComboBox.SelectedIndex < 1)
+                            GyroLPFComboBox.BackColor = Color.Red;
+                        else
+                            if (GyroLPFComboBox.SelectedIndex > 2)
+                                GyroLPFComboBox.BackColor = Color.Orange;
+                            else
+                                GyroLPFComboBox.BackColor = Color.White;
+                        ParamUpdate(GyroLPFComboBox);
+                        break;
+                    case 49:
+                        CrossTrackNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(CrossTrackNumericUpDown);
+                        break;
+                    case 50:
+                        Ch5NumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(Ch5NumericUpDown);
+                        break;
+                    case 51:
+                        Ch6NumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(Ch6NumericUpDown);
+                        break;
+                    case 52:
+                        temp = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+
+                        ParameterForm.SenseButton[0] = (temp & 1) != 0;
+                        ParameterForm.SenseButton[1] = (temp & 2) != 0;
+                        ParameterForm.SenseButton[2] = (temp & 4) != 0;
+                        ParameterForm.SenseButton[3] = (temp & 8) != 0;
+                        ParameterForm.SenseButton[4] = (temp & 16) != 0;
+                        ParameterForm.SenseButton[5] = (temp & 32) != 0;
+                        ParameterForm.SenseButton[6] = (temp & 64) != 0;
+
+                        ParamUpdate(Sense01Button);
+                        ParamUpdate(Sense11Button);
+                        ParamUpdate(Sense21Button);
+                        ParamUpdate(Sense31Button);
+                        ParamUpdate(Sense41Button);
+                        ParamUpdate(Sense51Button);
+                        ParamUpdate(Magic1Button);
+                        break;
+                    case 53:
+                        AccCompNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(AccCompNumericUpDown);
+                        break;
+                    case 54:
+                        BatteryCapacityNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(BatteryCapacityNumericUpDown);
+                        break;
+                    case 55:
+                        Ch7NumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(Ch7NumericUpDown);
+                        break;
+                    case 56:
+                        Ch8NumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(Ch8NumericUpDown);
+                        break;
+                    case 57:
+                        WindIntNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(WindIntNumericUpDown);
+                        break;
+                    case 58:
+                        NavSlewRateNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(NavSlewRateNumericUpDown);
+                        break;
+                    case 59:
+                        BalanceNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(BalanceNumericUpDown);
+                        break;
+                    case 60:
+                        Ch9NumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(Ch9NumericUpDown);
+                        break;
+                    case 61:
+                        DriveFiltNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(DriveFiltNumericUpDown);
+                        break;
+                    case 62:
+                        GPSTypeComboBox.SelectedIndex = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(GPSTypeComboBox);
+                        break;
+                    case 63:
+                        PitchRollScaleNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(PitchRollScaleNumericUpDown);
+                        break;
+                    case 64:
+                        YawScaleNumericUpDown.Value = Convert.ToInt16(parameterSet[CurrPS, p-1].Value);
+                        ParamUpdate(YawScaleNumericUpDown);
+                        break;
+
+                    default: break; // up to case 64 available
+                }
+
+
+            }
+        }
+
+        public void farbenSetzen(ParameterForm formParam, Farbe farbe)
+        {
+
+            Color farbeElement = Color.Black;
+            switch (farbe)
+            {
+                case Farbe.red:
+                    farbeElement = Color.Red;
+                    break;
+                case Farbe.green:
+                    farbeElement = Color.Green;
+                    break;
+                case Farbe.orange:
+                    farbeElement = Color.Orange;
+                    break;
+                case Farbe.black:
+                    farbeElement = Color.Black;
+                    break;
+            }
+
+                RollRatePropNumericUpDown.ForeColor = farbeElement;
+                RollIntNumericUpDown.ForeColor = farbeElement;
+                RollAnglePropNumericUpDown.ForeColor = farbeElement;
+                RollIntLimitNumericUpDown.ForeColor = farbeElement;
+
+                PitchRatePropNumericUpDown.ForeColor = farbeElement;
+                PitchRateIntNumericUpDown.ForeColor = farbeElement;
+                PitchAnglePropNumericUpDown.ForeColor = farbeElement;
+                PitchIntLimitNumericUpDown.ForeColor = farbeElement;
+
+                YawRatePropNumericUpDown.ForeColor = farbeElement;
+             //   YawIntNumericUpDown.ForeColor = farbeElement;
+                //   YawDiffNumericUpDown.ForeColor = farbeElement;
+                YawRateIntLimitNumericUpDown.ForeColor = farbeElement;
+             //   RxTypeComboBox.ForeColor = farbeElement;
+
+                bit01CheckBox.ForeColor = farbeElement;
+                bit11CheckBox.ForeColor = farbeElement;
+                bit21CheckBox.ForeColor = farbeElement;
+                bit31CheckBox.ForeColor = farbeElement;
+                bit41CheckBox.ForeColor = farbeElement;
+                bit51CheckBox.ForeColor = farbeElement;
+                bit61CheckBox.ForeColor = farbeElement;
+
+                BatteryNumericUpDown.ForeColor = farbeElement;
+                LowMotorRunNumericUpDown.ForeColor = farbeElement;
+
+                CameraPitchNumericUpDown.ForeColor = farbeElement;
+                YawAnglePropNumericUpDown.ForeColor = farbeElement;
+
+
+                MadgwickKpMagNumericUpDown.ForeColor = farbeElement;
+                RollAngleDiffNumericUpDown.ForeColor = farbeElement;
+                NavRTHAltNumericUpDown.ForeColor = farbeElement;
+                NavMagVarNumericUpDown.ForeColor = farbeElement;
+        }
+
+        public void copySet1ToSet2(ParameterForm formParam)
+        {
+           // ParameterForm.CurrParamSet = 1;
+           // updateForm(parameterSet);
+        }
+
+        public void copySet2ToSet1(ParameterForm formParam)
+        {
+           // ParameterForm.CurrParamSet = 0;
+           // updateForm(parameterForm2);
+        }
+
+        public string info()
+        {
+            string helpstring = "No help found";
+
+            // Roll     
+            if (RollRatePropNumericUpDown.Focused)
+                helpstring = help.GetString("Proportional");
+            if (RollRateDiffNumericUpDown.Focused)
+                helpstring = help.GetString("Differential");
+            if (RollAnglePropNumericUpDown.Focused)
+                helpstring = help.GetString("ProportionalAngle");
+            if (RollAngleIntNumericUpDown.Focused)
+                helpstring = help.GetString("ProportionalAngle");
+            if (RollAngleDiffNumericUpDown.Focused)
+                helpstring = help.GetString("Differential");
+            if (RollIntNumericUpDown.Focused)
+                helpstring = help.GetString("Integral");
+            if (RollIntLimitNumericUpDown.Focused)
+                helpstring = help.GetString("IntegralLimiter");
+            if (RollPitchMixNumericUpDown.Focused)
+                helpstring = help.GetString("RollYawMix");
+
+            // Pitch
+            if (PitchRatePropNumericUpDown.Focused)
+                helpstring = help.GetString("Proportional");
+            if (PitchRateDiffNumericUpDown.Focused)
+                helpstring = help.GetString("Differential");
+            if (PitchAnglePropNumericUpDown.Focused)
+                helpstring = help.GetString("ProportionalAngle");
+            if (PitchAngleDiffNumericUpDown.Focused)
+                helpstring = help.GetString("Differential");
+            if (PitchAngleIntNumericUpDown.Focused)
+                helpstring = help.GetString("ProportionalAngle");
+            if (PitchRateIntNumericUpDown.Focused)
+                helpstring = help.GetString("Integral");
+            if (PitchIntLimitNumericUpDown.Focused)
+                helpstring = help.GetString("IntegralLimiter");
+
+            if (BalanceNumericUpDown.Focused)
+                helpstring = help.GetString("Balance");
+
+            // Yaw
+            if (YawRatePropNumericUpDown.Focused)
+                helpstring = help.GetString("Proportional");
+            if (CrossTrackNumericUpDown.Focused)
+                helpstring = help.GetString("CrossTrack");
+
+            if (YawScaleNumericUpDown.Focused)
+                helpstring = help.GetString("Damping");
+            if (YawRateIntLimitNumericUpDown.Focused)
+                helpstring = help.GetString("Limiter");
+            //   if (RxTypeComboBox.Focused || YawIntLimit2NumericUpDown.Focused)
+            //       helpstring = help.GetString("IntegralLimiter");
+
+
+            // General
+            if (bit01CheckBox.Focused)
+                helpstring = help.GetString("AuxMode");
+            if (bit61CheckBox.Focused)
+                helpstring = help.GetString("ControlScheme");
+            if (bit21CheckBox.Focused)
+                helpstring = help.GetString("StickProgMode");
+            if (bit31CheckBox.Focused)
+                helpstring = help.GetString("Emulation");
+            if (bit41CheckBox.Focused)
+                helpstring = help.GetString("WPNavigation");
+            if (bit51CheckBox.Focused)
+                helpstring = help.GetString("Failsafes");
+            if (bit11CheckBox.Focused)
+                helpstring = help.GetString("RTHDescend");
+
+            if (HoverThrottleNumericUpDown.Focused)
+                helpstring = help.GetString("HoverThrottle");
+            if (DriveFiltNumericUpDown.Focused)
+                helpstring = help.GetString("DriveFilter");
+            if (InertialSchemeComboBox.Focused)
+                helpstring = help.GetString("InertialScheme");
+
+            if (AFTypeComboBox.Focused)
+                helpstring = help.GetString("AFType");
+            if (LowMotorRunNumericUpDown.Focused)
+                helpstring = help.GetString("LowMotorRun");
+            if (CameraRollNumericUpDown.Focused)
+                helpstring = help.GetString("CameraGain");
+            if (CameraRollTrimNumericUpDown.Focused)
+                helpstring = help.GetString("CameraRollTrim");
+            if (YawAnglePropNumericUpDown.Focused)
+                helpstring = help.GetString("Compass");
+            if (AccCompNumericUpDown.Focused)
+                helpstring = help.GetString("AccGyroComp");
+            if (BatteryNumericUpDown.Focused)
+                helpstring = help.GetString("Unterspannung");
+            if (AltPropNumericUpDown.Focused)
+                helpstring = help.GetString("AltProp");
+
+
+            if (WindIntNumericUpDown.Focused)
+                helpstring = help.GetString("Wind");
+
+            if (BatteryCapacityNumericUpDown.Focused)
+                helpstring = help.GetString("BatteryCapacity");
+
+
+            if (YawRateIntNumericUpDown.Focused)
+                helpstring = help.GetString("ThrottleGainSchedule");
+
+            if (MadgwickKpMagNumericUpDown.Focused)
+                helpstring = help.GetString("Acro");
+
+            if (DescDelayNumericUpDown.Focused)
+                helpstring = help.GetString("DescentDelay");
+            if (DescentRateNumericUpDown.Focused)
+                helpstring = help.GetString("DescentRate");
+            if (BaroAccCompNumericUpDown.Focused)
+                helpstring = help.GetString("BaroFilter");
+
+            if (GyroLPFComboBox.Focused)
+                helpstring = help.GetString("GyroLPF");
+
+            if (MadgwickKpAccNumericUpDown.Focused)
+                helpstring = help.GetString("MadgwickKp");
+
+            if (GyroComboBox.Focused)
+                helpstring = help.GetString("GyroType");
+
+            if (ESCComboBox.Focused)
+                helpstring = help.GetString("ESCType");
+
+            if (TelemetryComboBox.Focused)
+                helpstring = help.GetString("TelemetryType");
+
+            if (RxChannelsNumericUpDown.Focused)
+                helpstring = help.GetString("RxChannels");
+
+            if (RxTypeComboBox.Focused)
+                helpstring = help.GetString("RxType");
+
+            if (TxModeComboBox.Focused)
+                helpstring = help.GetString("TxMode");
+
+            //GPS
+
+            if (NavMaxVelNumericUpDown.Focused)
+                helpstring = help.GetString("NavMaxVel");
+
+            if (NavRTHAltNumericUpDown.Focused)
+                helpstring = help.GetString("NavRTHAltitude");
+            if (NavMagVarNumericUpDown.Focused)
+                helpstring = help.GetString("NavMagVar");
+
+            if (NavMaxAngleNumericUpDown.Focused)
+                helpstring = help.GetString("NavGPSSlew");
+
+            if (NavSlewRateNumericUpDown.Focused)
+                helpstring = help.GetString("NavTurnLimit");
+
+            return helpstring;
+
+        }
+    }
+}

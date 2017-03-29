@@ -1,0 +1,21 @@
+C:\Flight\Code\UAVXGUI\bin\Debug\UAVXGUI 1.0.exe.config
+C:\Flight\Code\UAVXGUI\obj\Debug\UAVXGUI.csproj.ResolveComReference.cache
+C:\Flight\Code\UAVXGUI\bin\Debug\UAVXGUI 1.0.exe.manifest
+C:\Flight\Code\UAVXGUI\bin\Debug\UAVXGUI 1.0.application
+C:\Flight\Code\UAVXGUI\bin\Debug\UAVXGUI 1.0.exe
+C:\Flight\Code\UAVXGUI\bin\Debug\UAVXGUI 1.0.pdb
+C:\Flight\Code\UAVXGUI\bin\Debug\GMap.NET.Core.dll
+C:\Flight\Code\UAVXGUI\bin\Debug\GMap.NET.WindowsForms.dll
+C:\Flight\Code\UAVXGUI\obj\Debug\UAVXGUI.csprojResolveAssemblyReference.cache
+C:\Flight\Code\UAVXGUI\obj\Debug\UAVXGUI.AvionicsInstrumentsControls.AvionicsInstrumentsControlsResources.resources
+C:\Flight\Code\UAVXGUI\obj\Debug\UAVXGUI.FormMain.resources
+C:\Flight\Code\UAVXGUI\obj\Debug\UAVXGUI.NavForm.resources
+C:\Flight\Code\UAVXGUI\obj\Debug\UAVXGUI.ParameterForm.resources
+C:\Flight\Code\UAVXGUI\obj\Debug\UAVXGUI.Properties.Resources.resources
+C:\Flight\Code\UAVXGUI\obj\Debug\UAVXGUI.Resources.hilfe.resources
+C:\Flight\Code\UAVXGUI\obj\Debug\UAVXGUI.csproj.GenerateResource.Cache
+C:\Flight\Code\UAVXGUI\obj\Debug\UAVXGUI 1.0.TrustInfo.xml
+C:\Flight\Code\UAVXGUI\obj\Debug\UAVXGUI 1.0.exe.manifest
+C:\Flight\Code\UAVXGUI\obj\Debug\UAVXGUI 1.0.application
+C:\Flight\Code\UAVXGUI\obj\Debug\UAVXGUI 1.0.exe
+C:\Flight\Code\UAVXGUI\obj\Debug\UAVXGUI 1.0.pdb

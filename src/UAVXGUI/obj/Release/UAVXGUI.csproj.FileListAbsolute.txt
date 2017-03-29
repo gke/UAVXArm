@@ -1,0 +1,44 @@
+Y:\Autopilot\Code\UAVXGUI\bin\Release\UAVXGUI 1.0.exe.config
+Y:\Autopilot\Code\UAVXGUI\obj\Release\UAVXGUI.csproj.ResolveComReference.cache
+Y:\Autopilot\Code\UAVXGUI\obj\Release\UAVXGUI 1.0.exe
+Y:\Autopilot\Code\UAVXGUI\obj\Release\UAVXGUI 1.0.pdb
+Y:\Autopilot\Code\UAVXGUI\bin\Release\UAVXGUI 1.0.exe.manifest
+Y:\Autopilot\Code\UAVXGUI\bin\Release\UAVXGUI 1.0.application
+Y:\Autopilot\Code\UAVXGUI\bin\Release\UAVXGUI 1.0.exe
+Y:\Autopilot\Code\UAVXGUI\bin\Release\UAVXGUI 1.0.pdb
+Y:\Autopilot\Code\UAVXGUI\bin\Release\GMap.NET.Core.dll
+Y:\Autopilot\Code\UAVXGUI\bin\Release\GMap.NET.WindowsForms.dll
+Y:\Autopilot\Code\UAVXGUI\obj\Release\UAVXGUI.csprojResolveAssemblyReference.cache
+Y:\Autopilot\Code\UAVXGUI\obj\Release\UAVXGUI.AvionicsInstrumentsControls.AvionicsInstrumentsControlsResources.resources
+Y:\Autopilot\Code\UAVXGUI\obj\Release\UAVXGUI.FormMain.resources
+Y:\Autopilot\Code\UAVXGUI\obj\Release\UAVXGUI.NavForm.resources
+Y:\Autopilot\Code\UAVXGUI\obj\Release\UAVXGUI.ParameterForm.resources
+Y:\Autopilot\Code\UAVXGUI\obj\Release\UAVXGUI.Properties.Resources.resources
+Y:\Autopilot\Code\UAVXGUI\obj\Release\UAVXGUI.Resources.hilfe.resources
+Y:\Autopilot\Code\UAVXGUI\obj\Release\UAVXGUI.csproj.GenerateResource.Cache
+Y:\Autopilot\Code\UAVXGUI\obj\Release\UAVXGUI 1.0.TrustInfo.xml
+Y:\Autopilot\Code\UAVXGUI\obj\Release\UAVXGUI 1.0.exe.manifest
+Y:\Autopilot\Code\UAVXGUI\obj\Release\UAVXGUI 1.0.application
+C:\Flight\Code\UAVXGUI\obj\Release\UAVXGUI.csproj.ResolveComReference.cache
+C:\Flight\Code\UAVXGUI\obj\Release\UAVXGUI.AvionicsInstrumentsControls.AvionicsInstrumentsControlsResources.resources
+C:\Flight\Code\UAVXGUI\obj\Release\UAVXGUI.PlotForm.resources
+C:\Flight\Code\UAVXGUI\obj\Release\UAVXGUI.FormMain.resources
+C:\Flight\Code\UAVXGUI\obj\Release\UAVXGUI.NavForm.resources
+C:\Flight\Code\UAVXGUI\obj\Release\UAVXGUI.ParameterForm.resources
+C:\Flight\Code\UAVXGUI\obj\Release\UAVXGUI.Properties.Resources.resources
+C:\Flight\Code\UAVXGUI\obj\Release\UAVXGUI.Resources.hilfe.resources
+C:\Flight\Code\UAVXGUI\obj\Release\UAVXGUI.csproj.GenerateResource.Cache
+C:\Flight\Code\UAVXGUI\bin\Release\Properties\app.manifest
+C:\Flight\Code\UAVXGUI\bin\Release\UAVXGUI 2.0.exe.config
+C:\Flight\Code\UAVXGUI\bin\Release\UAVXGUI 2.0.exe.manifest
+C:\Flight\Code\UAVXGUI\bin\Release\UAVXGUI 2.0.application
+C:\Flight\Code\UAVXGUI\bin\Release\UAVXGUI 2.0.exe
+C:\Flight\Code\UAVXGUI\bin\Release\UAVXGUI 2.0.pdb
+C:\Flight\Code\UAVXGUI\bin\Release\GMap.NET.Core.dll
+C:\Flight\Code\UAVXGUI\bin\Release\GMap.NET.WindowsForms.dll
+C:\Flight\Code\UAVXGUI\obj\Release\UAVXGUI 2.0.TrustInfo.xml
+C:\Flight\Code\UAVXGUI\obj\Release\UAVXGUI 2.0.exe.manifest
+C:\Flight\Code\UAVXGUI\obj\Release\UAVXGUI 2.0.application
+C:\Flight\Code\UAVXGUI\obj\Release\UAVXGUI 2.0.exe
+C:\Flight\Code\UAVXGUI\obj\Release\UAVXGUI 2.0.pdb
+C:\Flight\Code\UAVXGUI\obj\Release\UAVXGUI.csprojResolveAssemblyReference.cache

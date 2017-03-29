@@ -1,0 +1,581 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Baro" xml:space="preserve">
+    <value>Influence of the Baro sensor on the throttle (proportional use 0-8). Zero is off.</value>
+  </data>
+  <data name="InertialScheme" xml:space="preserve">
+    <value>"Reserved" is for gke so don't use or bad things could happen;).</value>
+  </data>
+  <data name="AircraftMass" xml:space="preserve">
+    <value>Estimated hover/cruise throttle - updated by UAVX in flight.</value>
+  </data>
+  <data name="Failsafes" xml:space="preserve">
+    <value>It is STRONGLY recommended you ENABLE failsafes. If you choose to do so then the behaviour of your aircraft on 
+    loss of the radio control link will be UNPREDICTABLE. See the Failsafes Wiki</value>
+  </data>
+  <data name="ManualAltHold" xml:space="preserve">
+    <value>Overrides altitude hold except in failsafe. Useful if a fixed wing aircraft is visible but you may have lost orientation and need to do a RTH while managing throttle.</value>
+    </data>
+  <data name="RTHDescend" xml:space="preserve">
+    <value>Enables automatic descend after a short delay upon reaching the Origin when using RTH.</value>
+    </data>
+      <data name="FastStart" xml:space="preserve">
+    <value>Uses the gyro bias from IMU calibration and in theory allows takeoffs without needing to be still immediately after arming.</value>
+  </data>
+
+      <data name="BLHeli" xml:space="preserve">
+    <value>Enables ESC programming using BLHeliSuite.</value>
+  </data>
+
+      <data name="Glider" xml:space="preserve">
+    <value>Allows aircraft to expore autonomous thermal hunting. WP nav must be disabled.</value>
+  </data>
+        <data name="RebootConfig" xml:space="preserve">
+    <value>POTENTIALLY DANGEROUS USE AT YOUR OWN RISK- If checked forces a reboot if any parameter changes which may as a consequence change the Arm processor port pin functions. This includes changes to aircraft type specifically the control of motors and servos, rx type, gps port.
+The result is identical to a power cycle and can be used to avoid the flashing catastrophe flashing LEDs which some may find annoying/inconvenient but without causing a pause to allow you to rethink your changes.</value>
+  </data>
+  
+      <data name="unassigned" xml:space="preserve">
+    <value>UNASSIGNED CONFIG2 CHECKBOX - GKE.</value>
+  </data>
+  <data name="MadgwickKp" xml:space="preserve">
+    <value>Controls how much correction to gyro drift is applied by the accelerometer for the Madgwick attitude estimators. 
+    Too large causes jitter and over reliance on the accelerometers. Too small may cause drift from level flight.</value>
+  </data>
+  <data name="RxType" xml:space="preserve">
+    <value>There are a wide range of options available for connecting receivers to UAVX. CompoundPPM, or CPPM is when a
+    single channel on the Rx provides all channels as a packet, ParallelPPM is when you connect all channels to UAVX.
+    Spektrum and SBUS use serial data based transmission. </value>
+  </data>
+  <data name="ArmingMode" xml:space="preserve">
+    <value>The stick format of your Tx:
+Mode 1: Rudder/Elevator left hand Throttle/Ailerons right hand. Roll available for arming.
+Mode 2: Rudder/Throttle left hand Ailerons/Elevator right hand. Rudder available for arming.
+</value>
+  </data>
+  <data name="BaroDif" xml:space="preserve">
+    <value>Influence of the Baro sensor on the throttle (differential use 1-16.</value>
+  </data>
+  <data name="AltProp" xml:space="preserve">
+    <value>Controls by how much motor(s) throttles should be adjusted to achieve desired climb/descent rate. </value>
+  </data>
+  <data name="AltInt" xml:space="preserve">
+    <value>Throttle compensation for reducing the final altitude error. Experiment!</value>
+  </data>
+  <data name="AltIntLimit" xml:space="preserve">
+    <value>Controls the maximum influence of the altitude integral value.</value>
+  </data>
+  <data name="PitchRollScale" xml:space="preserve">
+    <value>Temperature compensation for Baro sensor (use 0)  It is always best to allow the quad to aclimate to a temperature 
+    change for 5-10 minutes before flying.</value>
+  </data>
+  <data name="Differential" xml:space="preserve">
+    <value>Corrects oscillations. The value is too high or too low, when the quad bounces or oscillates. For Yaw use 0.</value>
+    <comment>Direkt aus der Anleitung entnommen (Test)</comment>
+  </data>
+    <data name="DifferentialFC" xml:space="preserve">
+    <value>Reduces noise or jitters in inertial position estimates including altitude hold.</value>
+    <comment>Direkt aus der Anleitung entnommen (Test)</comment>
+  </data>
+  <data name="AttThrFF" xml:space="preserve">
+    <value>Determines the thorottle compensation required to overcome loss of lift in a multicopter when pitching and/or rolling.</value>
+  </data>
+    <data name="FWRollPitchFF" xml:space="preserve">
+    <value>For FW determines the fraction of roll command applied to elevator to lift nose in turns.</value>
+  </data>
+    <data name="FWPitchThrottleFF" xml:space="preserve">
+    <value>For FW determines the fraction of elevator command applied to throttle to maintain AS.</value>
+ </data>
+    <data name="FWMaxROC" xml:space="preserve">
+    <value>FW maximum ROC the aircraft is capable of at full throttle.</value>
+ </data>
+    <data name="MaxPitchAngle" xml:space="preserve">
+    <value>Mainly for FW but for multicopters should be set to the same value for Max Roll Angle parameter. Maximum pitch angle in angle control and navigation. Helps limit deep dives and stalls when climbing.</value>
+ </data>
+  <data name="MaxRollAngle" xml:space="preserve">
+    <value>Maximum roll angle in angle control and navigation.</value>
+ </data>
+  <data name="MaxAltComp" xml:space="preserve">
+    <value>The maximum throttle compensation above or below cruise throttle permitted for altitude control.</value>
+ </data>
+    <data name="FWDifferential" xml:space="preserve">
+    <value>FW the fraction of down aileron/elevon relative to the other wings up aileron/elevon to counter adverse yaw. 
+    Note that flying wings do not normally use differential as it rusults in an elevator action from the difference.</value>
+ </data>
+  <data name="AirspeedSensor" xml:space="preserve">
+    <value>The type of airspeed sensor if any. Ideally one is required for a FW aircraft as GPS groundspeed is not airspeed if there is any wind.</value>
+ </data>
+    <data name="BestROC" xml:space="preserve">
+    <value>The best rate of climb (ROC) for all aircraft types. Also acts as the upper limit in autonomous flight and for altitude hold corrections.</value>
+ </data>
+    <data name="FWGlideAngleOffset" xml:space="preserve">
+    <value>FW glide pitch angle offset. You will almost certainly have to trim the aircraft using your Tx to establish 
+    acceptable glide performance. UAVX measures the pitch angle in flight relative to the calibrated zero pitch angle. 
+    You should should trim your accelorometers to get this angle as close as possible to zero and remove your Tx trims.</value>
+  </data>
+    <data name="FWFlapDecayTime" xml:space="preserve">
+    <value>FW the time it takes for flaps/spoilers/airbrakes to close.</value>
+  </data>
+    <data name="FWAltHoldDecayTime" xml:space="preserve">
+    <value>When the altitude sensor changes from RF to baro or baro to RF in flight while holding altitude the altitude hold 
+    disengages and has to be re-acquired. THis is the time it takes for the altitude hold compensation applied to the throttle 
+    is maintained to prevent sudden changes in altitude.</value>
+  </data>             
+  <data name="WPNavigation" xml:space="preserve">
+    <value>Enables WP navigation selection. RTH always remains available. WP navigation requires bi-directional telemetry with UAVXNav.</value>
+  </data>
+  <data name="NavPosition" xml:space="preserve">
+    <value>Determines the desired velocity for a given Nav position error.</value>
+  </data>
+  <data name="NavVelocity" xml:space="preserve">
+    <value>Determines the desired attitude angle for a given Nav velocity error.</value>
+  </data>
+  <data name="NavWind" xml:space="preserve">
+    <value>Determines the attitude correction required to compensate for Wind by integrating the velocity errror.</value>
+  </data>
+  <data name="DescentDelay" xml:space="preserve">
+    <value>The time after which the quad will automatically descend after reaching the Origin when performing a RTH.</value>
+  </data>
+  <data name="Horizon" xml:space="preserve">
+    <value>Determines what percentage of stick movement is needed for full acro/gyro mode.</value>
+  </data>
+  <data name="Acro" xml:space="preserve">
+    <value>Controls how much correction to gyro drift is applied by the magnetometer for the Madgwick attitude estimators.</value>
+  </data>
+  <data name="AltKd" xml:space="preserve">
+    <value>Reduces rate of climb or descent when changing between different altitudes helping to prevent overshoots in altitude.</value>
+  </data>
+  <data name="DescentRate" xml:space="preserve">
+    <value>This controls the maximum descent rate when changing to a new lower altitude in WP navigation or when performing and Autoland. 
+    Units are in decimetres.</value>
+  </data>
+  <data name="LEDs" xml:space="preserve">
+    <value>Enables or disables external WS2812 LEDs.</value>
+  </data>
+  <data name="Hysteresis" xml:space="preserve">
+    <value>Desired heading is updated if the yaw stick movement is greater than this value. It is difficult not to input 
+    a yaw command when moving the stick forward or backward!
+  Note: You should NEVER have Roll/Pitch or Yaw trim offsets in your Tx. Use the accelerometer trimming process to get 
+  stable hover position. If you use Yaw trim you will NOT have heading hold.
+</value>
+  </data>
+  <data name="GyroLPF" xml:space="preserve">
+    <value>Sets the frequency above which the gyros will reduce their output signal. The dynamics of most multicopters are thought to 
+    be below 100Hz so if you set the gyro LPF below that then the aircraft response may be sluggish. Suggest 98 or 188Hz.</value>
+  </data>
+  <data name="ControlScheme" xml:space="preserve">
+    <value>Enables fast descents when navigating but multicopter will force a spiral orbit to avoid VRS. 
+</value>
+  </data>
+  <data name="PositionVelocity" xml:space="preserve">
+    <value>Determines how aggressively the hold position is held. Lower values for softer hold minimising jitters.
+    </value>
+  </data>
+  <data name="AuxMode" xml:space="preserve">
+    <value>Compensates for magnetometers mounted inverted in GPS masts.
+ </value>
+  </data>
+  <data name="Emulation" xml:space="preserve">
+    <value>Allows the aircraft to be "flown" as an emulation/simulation using UAVXGS or UAVXNav. Motors are disabled but props should be off or motors disconnected for safety.
+</value>
+  </data>
+  <data name="Impuls" xml:space="preserve">
+    <value>The time between motor control updates.
+Minimum recommended value is 5.  Normal value is 5 to 8.  Values will vary depending on your model of Tx and Rx and ESC's.
+Note how motors start and the stick responsiveness and flight performance.  Usually the higher the value, the slower the stick response will feel.  Oscillations might occur with too high or too low a setting.  Adjust if necessary for the best overall performance!</value>
+  </data>
+    <data name="AltDifferential" xml:space="preserve">
+    <value> Uses the yaw axis accelerometer to dampen rate of climb/descent. </value>
+  </data>
+      <data name="AltIntegral" xml:space="preserve">
+    <value> Reduces the final error in altitude hold. </value>
+  </data>
+  <data name="Integral" xml:space="preserve">
+    <value> Always the same sign as proportional!
+Affects the total gyro/acc value over time. The higher the value, the more accelerometer self-leveling emphasis there will be.  A value too high causes the quad to osciillate, a value that is too small causes a poor return to  level.   
+Recommended Pitch and Roll "I" values of 0 to 15.</value>
+    <comment>Direkt aus der Anleitung entnommen (Test)</comment>
+  </data>
+  <data name="ProportionalAngle" xml:space="preserve">
+    <value>When the using angle control mode the aircraft attitude should be proportional to the stick defelection.
+Pa (angle) by the outer control loop which now controls angle rather than rate. Ia reduces the final error from level flight. Pr (rate) is used by the inner rate control loop. The D term which attempts to remove wind and disturbances is shared with the rate control scheme. Always positive.</value>
+    <comment>Direkt aus der Anleitung entnommen (Test)</comment>
+  </data>
+  <data name="IntegralLimiter" xml:space="preserve">
+    <value>Determines the maximum value the integral term in a control loop can have. Low value causes slow return to level.  Too high a value can cause flips.  Recommended values for pitch and roll of +4 to +15. Recommended values for yaw of +1 to +2.  Upper value is automatically limitied by the your integral setting.</value>
+  </data>
+  <data name="RollYawMix" xml:space="preserve">
+    <value>FW aircraft it controls how much roll is coupled into the pitch command compensating for a tendency to pitch down in turns.</value>
+  </data>
+  <data name="YawScale" xml:space="preserve">
+    <value>Yaw stick sensitivity or multiplier. Two is twice as sensitive.</value>
+  </data>
+  <data name="RollPitchScale" xml:space="preserve">
+    <value>Roll/Pitch stick sensitivity or multiplier for RATE CONTROL when not in Bypass Mode. Two is twice as sensitive.</value>
+  </data>
+  <data name="PPMDSM2" xml:space="preserve">
+    <value>Currently the traditional PPM/PCM format is supported along with DSM2. DSM2 must use the ACTRO model with no mixing.</value>
+  </data>
+  <data name="CameraGain" xml:space="preserve">
+    <value>Affects how strong the pitch/rolling motions at the camera servos will be. Connect to K5=pitch servo. K6=roll servo. A setting of 0=no gyro control. Start with a setting of 1 and increase if necessary.</value>
+  </data>
+  <data name="CameraRollTrim" xml:space="preserve">
+    <value>Zero offset for camera roll servo.</value>
+  </data>
+  <data name="AFType" xml:space="preserve">
+    <value>CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION CAUTION  CAUTION CAUTION CAUTION
+Sets Airframe type. When armed all servo channels are driven to 50%. If you select the incorrect airframe type and/or have a motor connected to a servo channel it will also go to 50% throttle.
+
+Some configurations will also require setting the desired orientation.
+Does not work for UAVP PIC VERSION - uses specific hex file for the required airframe.</value>
+  </data>
+   <data name="Balance" xml:space="preserve">
+    <value>Only active for Tricopters and VTcopters. Allows compensation for steering motors which are of differing thrust to the left and right motors. The aircraft should not climb or descend when pitching. Experiment!</value>
+  </data>
+  <data name="Compass" xml:space="preserve">
+    <value>The compass is used to compensate for drift in the yaw gyro. More is not better as the compass can move quite a lot around the true heading. Normal range is 5-15.</value>
+  </data>
+  <data name="AccGyroComp" xml:space="preserve">
+    <value>If the aircraft does not come to level flight but continues to "lean" when the sticks are released after a change in 
+    direction or high angle banked turns then reduce this value. It is the amount by which the acceleration exceeds or falls below 1G when changing direction where we rapidly reduce our "confidence" in the accelerometer for compensating the gyro
+    based attitude estimates (actually the S.Dev. from 1G). 0.2 seems OK.</value>
+  </data>
+  <data name="BatteryCapacity" xml:space="preserve">
+    <value>The capacity of your flight battery in units of 100mAH.</value>
+  </data>
+  <data name="LowMotorRun" xml:space="preserve">
+    <value>Allows motors to have a minimum throttle to prevent them from stopping in the air and also to have them all spinning for initial launch. Values of 5% to 20% recommended.  Too high a value will cause fluttering in a fast descent.</value>
+  </data>
+  <data name="Limiter" xml:space="preserve">
+    <value>Scales altitude error to desired of climb or descent.</value>
+  </data>
+  <data name="Neutral" xml:space="preserve">
+    <value>Neutral values of the accelerometer are captured when the quad is initially powered on.  It is important that the quad is not jiggled if neutral values are taken and input into the data windows.  These values will vary by accelerometer and breakout board installation, but should remain fairly constant over time. They should be re-checked especially after a very "hard landing", or a board re-mount.  You can also use the "Get values" button to automatically copy the data to the windows.  As a suggestion to get better accelerometer values, load and use the testfirmware to check the values and get a good average.  The testfirmware allows you to check the accelerometer values repeatedly by clicking on the Tools/Testsoftware/Liinear Sensor check line.</value>
+  </data>
+  <data name="CrossTrack" xml:space="preserve">
+    <value>Wind and other forces may push the aircraft off a direct line between waypoints or when returning home. This paramter determines how strongly the aircraft tries to reduce the distance from the direct path.</value>
+  </data>
+  <data name="Proportional" xml:space="preserve">
+    <value>Affects gyro control strength corresponding to stick input.
+The value is too low, when the quad reacts poorly or uncontrollably to stick inputs. The value is too high if the yaw is oscillating. The value will be positive for the yaw if the props on the front are CW rotatiing.  
+Recommended values for pitch and roll 10 to 25.  Recommended values for yaw 15 to 35. </value>
+    <comment>Direkt aus der Anleitung entnommen (Test)</comment>
+  </data>
+  <data name="Unterspannung" xml:space="preserve">
+    <value>Alarm setting for the red LED and buzzer if installed for the LiPo voltage.
+Recommended values for 3s Lipos from 43 to 48.</value>
+  </data>
+  <data name="Fence" xml:space="preserve">
+    <value>Permitted radius of operation. Breach causes RTH when failsafes enabled.
+</value>
+  </data>
+  <data name="AccTrim" xml:space="preserve">
+    <value>It is VERY difficult to get the aircraft level for accelerometer calibration.  These trims may be used to fine tune the accelerometer neutrals until the aircraft flies level with neutral (50% on the graphic) roll/pitch stick trims. The Adjust Acc Trim tool in UAVXSet may then be used after landing to transfer these trims to the main accelerometer neutral values.</value>
+  </data>
+  <data name="NavIntLimit" xml:space="preserve">
+    <value>Assists in achieving and maintaining the desired GPS position in wind. TBD experiment!</value>
+  </data>
+  <data name="NavMaxGroundSpeed" xml:space="preserve">
+    <value>Maximum transit GPS ground speed between waypoints and in RTH. If you increase this then you should also increase the Nav Slew otherwise the rate at which the aircraft can change pitch/roll angle will be too slow and you will get oscillations around the desired position. Experiment!.</value>
+  </data>
+  <data name="NavAltProportional" xml:space="preserve">
+    <value>Determines how much throttle to use to climb or descend to desired altitude. Experiment!</value>
+  </data>
+  <data name="NavAltIntegral" xml:space="preserve">
+    <value>Used to minimise the final error in desired altitude hold. Experiment!</value>
+  </data>
+  <data name="NavRTHAltitude" xml:space="preserve">
+    <value>The altitude desired when executing a return to home(RTH).</value>
+  </data>
+  <data name="NavMagVar" xml:space="preserve">
+    <value>The magnetic variation of True from Magnetic North in positive degrees East. Here is a site to find your Magnetic Variation: http://www.magnetic-declination.com/#</value>
+  </data>
+  <data name="NavTurnLimit" xml:space="preserve">
+    <value>The GPS positions are combined with the estimated position from the accelerometers. This trims how much of each is used. Experiment!</value>
+  </data>
+  <data name="NavGPSSlew" xml:space="preserve">
+    <value>Sets the the maximum pitch/roll angle when navigating or performing a RTH. Experiment!</value>
+  </data>
+  <data name="NeutralRadius" xml:space="preserve">
+    <value>Within this radius from the hold point the aircraft relies upon its neutral stability and the GPS is not used. Outside this radius the GPS signals are used. Values 0-5 Metres.</value>
+  </data>
+  <data name="GyroType" xml:space="preserve">
+    <value>The sensors used for the roll, pitch and yaw axes.</value>
+  </data>
+  <data name="BaroScale" xml:space="preserve">
+    <value>Used to cross calibrate the baro altimeter against GPS or other altitude reference.</value>
+  </data>
+  <data name="ESCType" xml:space="preserve">
+    <value>The type of ESCs used to control the motors.</value>
+  </data>
+  <data name="TelemetryType" xml:space="preserve">
+    <value>Controls the format of telemetry information:
+ * None
+ * UAVX - full flight control, nav and stats packets 
+ * UAVXMin - minimum attitude, location and battery information (Uses FrSky text transmission to UAVXGS)
+ * FrSky - for Taranis and other FrSky telemetry compatible transmitters.
+</value>
+  </data>
+  <data name="RxChannels" xml:space="preserve">
+    <value>The TOTAL number of channels on your Rx, or if you are using a Parallel PPM connection between the RX and UAVX, the number of channels actually connected. 
+UAVX currently uses and displays a maximum of 9 channels with a minimum of 7 channels being required for Navigation. 
+UAVX can fy with Rx having four channels only but with no return to home capability or navigation.  
+</value>
+  </data>
+  <data name="NavNeutralRadius" xml:space="preserve">
+    <value>The quadrocopter relies only on its gyroscopes and accelerometer if it is less than this radius from the desired GPS position. The radius corresponds to the likely error radius of the GPS position. 
+While inside this radius no GPS based corrections are applied. Recommended value is 2.</value>
+  </data>
+
+  <data name="RxLoopback" xml:space="preserve">
+    <value>To test Spektrum and SBUS decoding connect RC3 to RC4 and observe Rx channel display - GKE Test function.</value>
+  </data>
+
+  <data name="bit02" xml:space="preserve">
+    <value>Rx Loopback</value>
+    <comment>bit 0: Flugmodus</comment>
+  </data> 
+    
+  
+  
+    
+    
+  
+  <data name="bit0" xml:space="preserve">
+    <value>Mag Upright</value>
+    <comment>bit 0: Flugmodus</comment>
+  </data>
+  <data name="bit01" xml:space="preserve">
+    <value>Specifies that the magnetometer is inverted which can occur in external I2C combined GPS and magnetometer units.</value>
+    <comment>bit 0: Flugmodus</comment>
+  </data>
+  <data name="bit6" xml:space="preserve">
+    <value>Slow Descent</value>
+    <comment>bit1: Fernsteuerung</comment>
+  </data>
+  <data name="bit61" xml:space="preserve">
+    <value>Rapid Descent</value>
+    <comment>bit1: Fernsteuerung</comment>
+  </data>
+  <data name="bit2" xml:space="preserve">
+    <value>LEDs Disabled</value>
+    <comment>bit2: zeige Integrierzustand</comment>
+  </data>
+  <data name="bit21" xml:space="preserve">
+    <value>LEDs Enabled</value>
+    <comment>bit2: zeige Integrierzustand</comment>
+  </data>
+  <data name="bit3" xml:space="preserve">
+    <value>Flight Mode</value>
+    <comment>bit3: Specky bit</comment>
+  </data>
+  <data name="bit31" xml:space="preserve">
+    <value>Emulation Mode</value>
+    <comment>bit3: Specky bit</comment>
+  </data>
+  <data name="bit4" xml:space="preserve">
+    <value>Soaring Enabled</value>
+    <comment>bit4: Ausgabe</comment>
+  </data>
+  <data name="bit41" xml:space="preserve">
+    <value>WP Nav Enabled</value>
+    <comment>Rangefinder units</comment>
+  </data>
+  <data name="bit5" xml:space="preserve">
+    <value>Failsafes Enabled</value>
+    <comment>Failsafe</comment>
+  </data>
+  <data name="bit51" xml:space="preserve">
+    <value>NO FAILSAFES</value>
+    <comment>Failsafe</comment>
+  </data>
+  <data name="bit1" xml:space="preserve">
+    <value>Autoland Disabled</value>
+    <comment></comment>
+  </data>
+  <data name="bit11" xml:space="preserve">
+    <value>Autoland Enabled</value>
+    <comment></comment>
+  </data>
+  <data name="bit7" xml:space="preserve">
+    <value>Disabled</value>
+    <comment></comment>
+  </data>
+  <data name="bit71" xml:space="preserve">
+    <value>Enabled</value>
+    <comment></comment>
+  </data>
+  <data name="LegacyOk" xml:space="preserve">
+    <value>Write sucessfull!</value>
+    <comment>Pic schreiben erfolgreich</comment>
+  </data>
+  <data name="disconnected" xml:space="preserve">
+    <value>Disconnected!</value>
+    <comment>Info wenn Verbindung bereits besteht und getrennt wird</comment>
+  </data>
+  <data name="flashInfo" xml:space="preserve">
+    <value>Reboot PIC!</value>
+    <comment>Nach dem Brennen das Board neu starten</comment>
+  </data>
+  <data name="listviewConnected" xml:space="preserve">
+    <value>Connected!</value>
+    <comment>Text für ListView</comment>
+  </data>
+  <data name="paraSet1" xml:space="preserve">
+    <value>Parameter Set 1</value>
+    <comment>Label für TAB</comment>
+  </data>
+  <data name="paraSet2" xml:space="preserve">
+    <value>Parameter Set 2</value>
+    <comment>Label für TAB</comment>
+  </data>
+  <data name="paraSetAktiv1" xml:space="preserve">
+    <value>Parameter Set 1 (ACTIVE)</value>
+    <comment>Label für TAB</comment>
+  </data>
+  <data name="paraSetAktiv2" xml:space="preserve">
+    <value>Parameter Set 2 (ACTIVE)</value>
+    <comment>Label für TAB</comment>
+  </data>
+  <data name="picConnected" xml:space="preserve">
+    <value>Connected!</value>
+    <comment>Verbindung hergestellt in Statusleiste</comment>
+  </data>
+  <data name="savePicBurn" xml:space="preserve">
+    <value>Flash the PIC? *Note the PIC 16F876A is not supported! PIC 16F876 and 18F2620 are supported.  Please select the correct firmware for the PIC when burning or updating.   :)</value>
+    <comment>Sicherheitsabfrage</comment>
+  </data>
+  <data name="writeLine" xml:space="preserve">
+    <value>Write Line:</value>
+    <comment>Zeileninfo bei Hexfile brenen</comment>
+  </data>
+  <data name="writeMax" xml:space="preserve">
+    <value>from</value>
+    <comment>Maximale PIC Zeilen</comment>
+  </data>
+  <data name="writeOk" xml:space="preserve">
+    <value>Successfull write!</value>
+    <comment>Schreiben der Parameter erfolgreich</comment>
+  </data>
+  <data name="writeParameter" xml:space="preserve">
+    <value>Write Parameter:</value>
+    <comment>Infotext in Statusleiste beim Schreiben</comment>
+  </data>
+</root>

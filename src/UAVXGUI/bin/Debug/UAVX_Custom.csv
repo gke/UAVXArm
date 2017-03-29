@@ -1,0 +1,1 @@
+Scheme,Gyro,Acc,Integrate(0),Wolferl(1),DCM(2),MadgwickIMU(3),MadgwickAHRS(4),Kalman(5),CFilter(6),MultiWii(7)

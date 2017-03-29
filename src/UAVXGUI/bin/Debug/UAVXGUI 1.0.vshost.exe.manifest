@@ -1,0 +1,125 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<asmv1:assembly xsi:schemaLocation="urn:schemas-microsoft-com:asm.v1 assembly.adaptive.xsd" manifestVersion="1.0" xmlns:asmv1="urn:schemas-microsoft-com:asm.v1" xmlns="urn:schemas-microsoft-com:asm.v2" xmlns:asmv2="urn:schemas-microsoft-com:asm.v2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:co.v1="urn:schemas-microsoft-com:clickonce.v1" xmlns:asmv3="urn:schemas-microsoft-com:asm.v3" xmlns:dsig="http://www.w3.org/2000/09/xmldsig#" xmlns:co.v2="urn:schemas-microsoft-com:clickonce.v2">
+  <asmv1:assemblyIdentity name="UAVXGUI 1.0.exe" version="1.0.0.145" publicKeyToken="0000000000000000" language="en-AU" processorArchitecture="msil" type="win32" />
+  <description asmv2:iconFile="XGS.ico" xmlns="urn:schemas-microsoft-com:asm.v1" />
+  <application />
+  <entryPoint>
+    <assemblyIdentity name="UAVXGUI 1.0" version="1.0.0.0" language="neutral" processorArchitecture="msil" />
+    <commandLine file="UAVXGUI 1.0.exe" parameters="" />
+  </entryPoint>
+  <trustInfo>
+    <security>
+      <applicationRequestMinimum>
+        <PermissionSet version="1" class="System.Security.NamedPermissionSet" Name="LocalIntranet" Description="Default rights given to applications on the local intranet" Unrestricted="true" ID="Custom" SameSite="site" />
+        <defaultAssemblyRequest permissionSetReference="Custom" />
+      </applicationRequestMinimum>
+      <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
+        <!-- UAC Manifest Options
+            If you want to change the Windows User Account Control level replace the 
+            requestedExecutionLevel node with one of the following.
+
+        <requestedExecutionLevel  level="asInvoker" uiAccess="false" />
+        <requestedExecutionLevel  level="requireAdministrator" uiAccess="false" />
+        <requestedExecutionLevel  level="highestAvailable" uiAccess="false" />
+
+            If you want to utilize File and Registry Virtualization for backward 
+            compatibility then delete the requestedExecutionLevel node.
+        -->
+        <requestedExecutionLevel level="asInvoker" uiAccess="false" />
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+  <dependency>
+    <dependentOS>
+      <osVersionInfo>
+        <os majorVersion="5" minorVersion="1" buildNumber="2600" servicePackMajor="0" />
+      </osVersionInfo>
+    </dependentOS>
+  </dependency>
+  <dependency>
+    <dependentAssembly dependencyType="preRequisite" allowDelayedBinding="true">
+      <assemblyIdentity name="Microsoft.Windows.CommonLanguageRuntime" version="4.0.30319.0" />
+    </dependentAssembly>
+  </dependency>
+  <dependency>
+    <dependentAssembly dependencyType="preRequisite" allowDelayedBinding="true">
+      <assemblyIdentity name="stdole" version="7.0.3300.0" publicKeyToken="B03F5F7F11D50A3A" language="neutral" />
+    </dependentAssembly>
+  </dependency>
+  <dependency>
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="GMap.NET.Core.dll" size="2440192">
+      <assemblyIdentity name="GMap.NET.Core" version="1.7.0.0" publicKeyToken="B85B9027B614AFEF" language="neutral" processorArchitecture="msil" />
+    </dependentAssembly>
+  </dependency>
+  <dependency>
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="GMap.NET.WindowsForms.dll" size="150528">
+      <assemblyIdentity name="GMap.NET.WindowsForms" version="1.7.0.0" publicKeyToken="B85B9027B614AFEF" language="neutral" processorArchitecture="msil" />
+    </dependentAssembly>
+  </dependency>
+  <dependency>
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="UAVXGUI 1.0.exe" size="10215936">
+      <assemblyIdentity name="UAVXGUI 1.0" version="1.0.0.0" language="neutral" processorArchitecture="msil" />
+    </dependentAssembly>
+  </dependency>
+  <file name="Resources\AirSpeedIndicator_Background.bmp" size="270054" />
+  <file name="Resources\AirSpeedNeedle.bmp" size="12654" />
+  <file name="Resources\Altimeter_Background.bmp" size="270054" />
+  <file name="Resources\burn.gif" size="1081" />
+  <file name="Resources\dateioeffnen.gif" size="1000" />
+  <file name="Resources\dateispeichern.gif" size="1014" />
+  <file name="Resources\del_btn.png" size="1006" />
+  <file name="Resources\diagram.bmp" size="396056" />
+  <file name="Resources\down_btn.png" size="982" />
+  <file name="Resources\eigenschaften.gif" size="994" />
+  <file name="Resources\flight_here.png" size="5096" />
+  <file name="Resources\HeadingIndicator_Aircraft.bmp" size="95574" />
+  <file name="Resources\HeadingIndicator_Background.bmp" size="270054" />
+  <file name="Resources\HeadingWeel.bmp" size="225830" />
+  <file name="Resources\home.bmp" size="23720" />
+  <file name="Resources\home.png" size="53889" />
+  <file name="Resources\home_marker.png" size="5437" />
+  <file name="Resources\Horizon_Background.bmp" size="270054" />
+  <file name="Resources\Horizon_GroundSky.bmp" size="541494" />
+  <file name="Resources\Indicator_Background.bmp" size="270054" />
+  <file name="Resources\info.jpg" size="20139" />
+  <file name="Resources\LongNeedleAltimeter.bmp" size="12654" />
+  <file name="Resources\map_point1.bmp" size="4010" />
+  <file name="Resources\map_point1.png" size="4891" />
+  <file name="Resources\Maquette_Avion.bmp" size="15054" />
+  <file name="Resources\marker_airplane.png" size="2007" />
+  <file name="Resources\marker_bi.png" size="2149" />
+  <file name="Resources\marker_blue.png" size="4929" />
+  <file name="Resources\marker_fwing.png" size="1722" />
+  <file name="Resources\marker_heli.png" size="1988" />
+  <file name="Resources\marker_hex6p.png" size="3463" />
+  <file name="Resources\marker_hex6x.png" size="3478" />
+  <file name="Resources\marker_land.png" size="4982" />
+  <file name="Resources\marker_octoflatx.png" size="3397" />
+  <file name="Resources\marker_octop8.png" size="3743" />
+  <file name="Resources\marker_octox8.png" size="3921" />
+  <file name="Resources\marker_oktoflatp.png" size="2745" />
+  <file name="Resources\marker_poi.png" size="5207" />
+  <file name="Resources\marker_quadp.png" size="2612" />
+  <file name="Resources\marker_quadx.png" size="3252" />
+  <file name="Resources\marker_tri.png" size="2334" />
+  <file name="Resources\marker_vtail4.png" size="2896" />
+  <file name="Resources\marker_y4.png" size="2895" />
+  <file name="Resources\marker_y6.png" size="2466" />
+  <file name="Resources\poshold.png" size="58155" />
+  <file name="Resources\poshold_markert.png" size="5093" />
+  <file name="Resources\SmallNeedleAltimeter.bmp" size="12654" />
+  <file name="Resources\splash.jpg" size="42603" />
+  <file name="Resources\SplashScreen.jpg" size="663" />
+  <file name="Resources\timed_marker.png" size="5443" />
+  <file name="Resources\TurnCoordinator_Background.bmp" size="270054" />
+  <file name="Resources\TurnCoordinatorAircraft.bmp" size="29798" />
+  <file name="Resources\TurnCoordinatorBall.bmp" size="2406" />
+  <file name="Resources\TurnCoordinatorMarks.bmp" size="3510" />
+  <file name="Resources\up_btn.png" size="983" />
+  <file name="Resources\VerticalSpeedIndicator_Background.bmp" size="270054" />
+  <file name="Resources\VerticalSpeedNeedle.bmp" size="12654" />
+  <file name="Resources\Warning_Stripe_Black_Yellow.png" size="2428" />
+  <file name="uavpset.ico" size="7406" />
+  <file name="UAVXGUI 1.0.exe.config" size="5445" />
+  <file name="XGS.ico" size="3774" />
+</asmv1:assembly>

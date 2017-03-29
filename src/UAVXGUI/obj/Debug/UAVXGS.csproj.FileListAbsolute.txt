@@ -1,0 +1,18 @@
+C:\Flight\Code\UAVXGS\obj\Debug\ResolveAssemblyReference.cache
+C:\Flight\Code\UAVXGS\obj\Debug\UAVXGS.AvionicsInstrumentsControls.AvionicsInstrumentsControlsResources.resources
+C:\Flight\Code\UAVXGS\obj\Debug\UAVXGS.Properties.Resources.resources
+C:\Flight\Code\UAVXGS\obj\Debug\UAVXGS.csproj.GenerateResource.Cache
+C:\Flight\Code\UAVXGS\obj\Debug\UAVXGS.FormMain.resources
+C:\Flight\Code\UAVXGS\bin\Debug\Interop.EARTHLib.dll
+C:\Flight\Code\UAVXGS\obj\Debug\Interop.EARTHLib.dll
+C:\Flight\Code\UAVXGS\obj\Debug\UAVXGS.csproj.ResolveComReference.cache
+C:\Flight\Code\UAVXGS\bin\Debug\UAVXGS 2.0.exe.config
+C:\Flight\Code\UAVXGS\bin\Debug\UAVXGS 2.0.exe.manifest
+C:\Flight\Code\UAVXGS\bin\Debug\UAVXGS 2.0.application
+C:\Flight\Code\UAVXGS\bin\Debug\UAVXGS 2.0.exe
+C:\Flight\Code\UAVXGS\bin\Debug\UAVXGS 2.0.pdb
+C:\Flight\Code\UAVXGS\obj\Debug\UAVXGS 2.0.TrustInfo.xml
+C:\Flight\Code\UAVXGS\obj\Debug\UAVXGS 2.0.exe.manifest
+C:\Flight\Code\UAVXGS\obj\Debug\UAVXGS 2.0.application
+C:\Flight\Code\UAVXGS\obj\Debug\UAVXGS 2.0.exe
+C:\Flight\Code\UAVXGS\obj\Debug\UAVXGS 2.0.pdb

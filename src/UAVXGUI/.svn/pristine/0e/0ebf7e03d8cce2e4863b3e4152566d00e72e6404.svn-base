@@ -1,0 +1,3090 @@
+// =================================================================================================
+// =                                  UAVX Quadrocopter Groundstation                              =
+// =                             Copyright (c) 2008 by Prof. Greg Egan                             =
+// =                         Instruments Copyright (c) 2008 Guillaume Choutea                      =                                        */
+// =                               http://code.google.com/p/uavp-mods/                             =
+// =================================================================================================
+
+//    This is part of UAVX.
+
+//    UAVX is free software: you can redistribute it and/or modify it under the terms of the GNU 
+//    General Public License as published by the Free Software Foundation, either version 3 of the 
+//    License, or (at your option) any later version.
+
+//    UAVX is distributed in the hope that it will be useful,but WITHOUT ANY WARRANTY; without even 
+//    the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU 
+//    General Public License for more details.
+
+//    You should have received a copy of the GNU General Public License along with this program.  
+//    If not, see http://www.gnu.org/licenses/
+
+
+using System.Threading;
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Windows.Forms;
+using System.IO.Ports;
+using System.IO;
+using System.Text.RegularExpressions;
+using System.Xml;
+using System.Net;
+using System.Net.Sockets;
+
+using System.Resources;
+
+using System.Speech;
+using System.Speech.Synthesis;
+
+using System.Reflection;
+using System.Drawing.Drawing2D;
+using System.Net.NetworkInformation;
+
+using GMap.NET;
+using GMap.NET.WindowsForms;
+using GMap.NET.WindowsForms.Markers;
+using GMap.NET.MapProviders;
+
+
+namespace UAVXGUI
+{
+    public partial class FormMain : Form
+    {
+        const float MILLIRADDEG = (float)0.057295;
+
+        const double DEFAULT_HOME_LAT = -38.0556105; // Crossover
+        const double DEFAULT_HOME_LON = 145.9696235;
+        const double DEFAULT_LON_CORR = 0.79f;
+
+        public const byte MaxWayPoints = 14;
+
+        // ASCII Constants
+        const byte NUL = 0;
+        const byte SOH = 1;
+        const byte EOT = 4;
+        const byte ACK = 6;
+        const byte HT = 9;
+        const byte LF = 10;
+        const byte CR = 13;
+        const byte NAK = 21;
+        const byte ESC = 27;
+
+        SpeechSynthesizer speech;
+
+        public const byte MAX_PARAMS = 64;
+        public const byte MAX_PARAM_SETS = 2;
+
+        const short RCMaximum = 1000;
+        const double OUTMaximumScale = 0.5; // 100/200 % for PWM at least
+
+        public const byte UnknownPacketTag = 0;
+        public const byte RestartPacketTag = 8;
+        public const byte UAVXFlightPacketTag = 13;
+        public const byte UAVXNavPacketTag = 14;
+        public const byte UAVXStatsPacketTag = 15;
+        public const byte UAVXControlPacketTag = 16;
+        public const byte UAVXParamPacketTag = 17;
+        public const byte UAVXMinPacketTag = 18;
+        public const byte UAVXOriginPacketTag = 19;
+        public const byte UAVXWPPacketTag = 20;
+        public const byte UAVXMissionPacketTag = 21;
+        public const byte UAVXRequestPacketTag = 22;
+        public const byte UAVXNAKPacketTag = 23;
+
+        public const byte FrSkyPacketTag = 99;
+
+        public enum RxStates
+        {
+            WaitRxSentinel, WaitRxBody, WaitRxESC, WaitRxCheck, WaitRxCopy,
+            WaitUPTag, WaitUPLength, WaitUPBody, WaitRxTag
+        };
+
+        public enum NavStates
+        {
+            HoldingStation, ReturningHome, AtHome, Descending, Touchdown,
+            Transiting, Loitering, Orbiting, Perching, Takeoff, PIC, NavStateUndefined
+        };
+
+        static NavStates PrevNavState = NavStates.NavStateUndefined;
+
+        public enum NavComs { navVia, navOrbit, navPerch, navPOI, navUnknown };
+
+        public static string[] NavComNames = {
+            "Via",
+            "Orbit",
+            "Perch",
+            "POI"
+            };
+
+   //     NavComs NavCom;
+
+        const byte MAXPARAMS = 64;
+
+        const double RadToDeg = (double)(180.0 / Math.PI);
+        const double DegToRad = (double)(1.0 / RadToDeg);
+        const double MilliRadToDeg = (double)(RadToDeg * 0.001);
+        // const float AttitudeToDegrees = 156.0f;
+
+        // const int DefaultRangeLimit = 100;
+        public int MaximumRangeLimit = 250; // You carry total responsibility if you increase this value
+        public const int MaximumAltitudeLimit = 121; // You carry total responsibility if you increase this value 
+
+        const double CurrentSensorMax = 50.0; // depends on current ADC used - needs calibration box?
+        const double YawGyroRate = 400.0;
+        const double RollPitchRateRate = 400.0;
+
+        string[] TagNames = { 
+        	"UnknownPacket",
+	        "LevPacket",
+	        "NavPacket",
+	        "MicropilotPacket",
+	        "WayPacket",
+	        "AirframePacket",
+	        "NavUpdatePacket",
+	        "BasicPacket",
+	        "RestartPacket",
+	        "TrimblePacket",
+	        "MessagePacket",
+	        "EnvironmentPacket",
+	        "BeaconPacket",
+
+	        "UAVXFlightPacket",
+	        "UAVXNavPacket",
+	        "UAVXStatsPacket",
+	        "UAVXControlPacket",
+	        "UAVXParamPacket",
+	        "UAVXMinPacket",
+	        "UAVXOriginPacket",
+	        "UAVXWPPacket",
+            "UAVXRequestPacket",
+	        "UAVXNAKPacket",
+
+	        "FrSkyPacketTag = 99"};
+
+        string[] AFNames = { 
+            "Tricopter",
+            "Coax Tri (Y6)",
+            "VTail (Y4)",
+            "Quadcopter",
+            "X Quadcopter",
+            "Coax Quad",
+            "X Coax Quad",
+            "Hexacopter",
+            "X Hexacopter",
+            "Octocopter",
+            "X Octocopter",
+            "Heli 90",
+            "Heli 120",
+            "Flying Wing",
+            "Aircraft",
+            "VTOL",
+            "Gimbal",
+            "Unknown" };
+
+        public enum FlightStates
+        {
+            Starting,
+            Warmup,
+            Landing,
+            Landed,
+            Shutdown,
+            Flying,
+            Unknown
+        };
+
+        string[] StateNames = {
+            "Starting",
+            "Warmup",
+            "Landing",
+            "Landed",
+            "Shutdown",
+            "Flying",
+            "Unknown"};
+
+        bool[] F;
+
+        enum FlagValues
+        {
+            	AltControlEnabled,
+				AllowTurnToWP,
+				GyroFailureZZZ,
+				LostModel,
+				NearLevel,
+				LowBatt,
+				GPSValid,
+				OriginValid,
+
+				// 1
+				BaroFailure,
+				IMUFailure,
+				Magnetometer,
+				GPSFailure,
+				AttitudeHold,
+				ThrottleMoving,
+				HoldingAlt,
+				Navigate,
+
+
+            // 2
+            ReturnHome,
+            WayPointAchieved,
+            WayPointCentred,
+            IMUEnabled,
+            UsingRTHAutoDescend,
+            BaroActive,
+            RangefinderActive,
+            UsingRangefinderAlt,
+
+            // 3
+            UnusedAllowNavAltControl,
+            Bypass,
+            UsingRateControl,
+            Emulation,
+            AcquireNewPosition,
+            DrivesArmed,
+            NavigationActive,
+            SticksUnchangedFailsafe,
+
+            // 4
+            Signal,
+            RCFrameOK,
+            ParametersValid,
+            RCNewValues,
+            NewCommands,
+            IMUActive,
+            MagnetometerActive,
+            NewMagValues,
+
+            // 5
+            NewGPSPosition,
+            ReceivingGPS,
+            MagnetometerCalibrated,
+            NewNavUpdate,
+            NewAltitudeValue,
+            IMUCalibrated,
+            CrossTrackActive,
+            FailsafesEnabled,
+
+            /*
+            // NOT TRANSMITTED
+            // 6
+            NewBaroValue,
+            BeeperInUse,
+            RFInInches,
+            FirstArmed,
+            ValidGPSVel,
+            RCFrameReceived,
+            ValidGPSPos,
+            NewMagnetometerValue,
+
+            // 7
+            UpdateHeading,
+            HaveGPS,
+            UsingCompoundPPM,
+            UsingAltHoldBeeper,
+            HaveEEPROM,
+            HaveMPU60XX,
+            ConfigError,
+            SetupError,
+
+            // 8
+            TxToBuffer,
+            UsingAnalogGyros,
+            i2cFatal,
+            GPSPacketReceived,
+            ThrottleOpen,
+            UsingMWStickProg,
+            UsingInertialFilters,
+            NavigationEnabled,
+
+            // 9
+            UsingWPNavigation,
+            VRSHazard,
+            spiFatal,
+            BatteryFailsafe,
+            UsingMagic
+            */
+        };
+
+
+        // struct not used - just to document packet format
+        // byte UAVXFlightPacketTag;   
+        // byte Length;  
+        const byte NoOfFlagBytes = 6;
+        byte[] Flags = new byte[NoOfFlagBytes];
+        public static FlightStates StateT;     // 8
+        public static short BatteryVoltsT;     // 9
+        short BatteryCurrentT;          // 11
+        short BatteryChargeT;           // 13
+        short RCGlitchesT;              // 15
+        short DesiredThrottleT;         // 17
+        short DesiredRollT;             // 19
+        short DesiredPitchT;            // 21
+        short DesiredYawT;              // 23
+        short RollRateT;                // 25
+        short PitchRateT;               // 27
+        short YawRateT;                 // 29
+        short RollAngleT;                 // 31
+        short PitchAngleT;                // 33
+        short YawAngleT; //HeadingE       // 35
+        short LRAccT;                   // 37
+        short FBAccT;                   // 39
+        short DUAccT;                   // 41
+
+        short ROCT;                     // 43
+        int RelBaroAltitudeT;          // 45 24bits
+        short CruiseThrottleT;          // 48
+        short RangefinderAltitudeT;     // 50
+        public static short HeadingT;          // 52
+        short AltFiltCompT;             // 54
+        short AltCompT;                 // 56
+        short AccConfidenceT;           // 58
+
+        short[] PWMT = new short[10];    // 59
+        int MissionTimeMilliSecT;       // 71
+
+        // UAVXNavPacket
+        //byte UAVXNavPacketTag;
+        //byte Length;
+        public static NavStates NavStateT;            // 2
+        public static byte FailStateT;                // 3
+        public static byte GPSNoOfSatsT;              // 4
+        public static byte GPSFixT;                   // 5
+
+        public static byte CurrWPT;                   // 6
+
+        public static short GPSHDiluteT;              // 16
+        public static short WPBearingT;        // 18
+        public static short CrossTrackET;             // 20
+
+        public static short GPSVelT;                  // 22
+        public static short GPSHeadingT;              // 24
+        public static int GPSRelAltitudeT;            // 26 3b
+        public static int GPSLatitudeT;               // 29 
+        public static int GPSLongitudeT;              // 33
+        public static int DesiredAltitudeT;           // 37 3b
+        public static int NorthPosET;                 // 40
+        public static int EastPosET;                  // 44
+        public static int NavStateTimeoutT;           // 48 3b
+        public static short MPU6XXXTempT;             // 51
+        public static int GPSMissionTimeT;            // 53
+
+        short NavSensitivityT;                 // 57
+        short NavRCorrT;             // 59
+        short NavPCorrT;            // 61
+        short NavHeadingET;             // 63
+
+
+ 
+
+        /*
+       UAVXStatsPacket      
+       */
+
+        //should be an enum!!!
+        const byte GPSAltitudeX = 0;
+        const byte BaroRelAltitudeX = 1;
+        const byte ESCI2CFailX = 2;
+        const byte GPSMinSatsX = 3;
+        const byte MinROCX = 4;
+        const byte MaxROCX = 5;
+        const byte GPSMaxVelX = 6;
+        const byte AccFailsX = 7;
+        const byte CompassFailsX = 8;
+        const byte BaroFailsX = 9;
+
+        const byte GPSInvalidX = 10;
+        const byte GPSMaxSatsX = 11;
+        const byte NavValidX = 12;
+        const byte MinHDiluteX = 13;
+        const byte MaxHDiluteX = 14;
+        const byte RCGlitchX = 15;
+        const byte SPIFailsX = 16;
+        const byte GyroFailsX = 17;
+        const byte RCFailSafesX = 18;
+        const byte I2CFailsX = 19;
+
+        const byte BadX = 20;
+        const byte BadNumX = 21;
+
+        const byte RollAccCorrAvX = 22;
+        const byte RollAccCorrMeanX = 23;
+        const byte PitchAccCorrAvX = 24;
+        const byte PitchAccCorrMeanX = 25;
+        const byte PitchRateMaxChangeX = 26;
+        const byte FBAccMaxChangeX = 27;
+        const byte RollRateMaxChangeX = 28;
+        const byte LRAccMaxChangeX = 29;
+
+        const byte YawGyroMaxChangeX = 30;
+        const byte DUAccMaxChangeX = 31;
+
+        const byte AirframeX = 32;
+        const byte OrientX = 34;
+
+        const byte MaxStats = 32;
+
+        short AirframeT;
+        short OrientT;
+
+        short[] Stats = new short[MaxStats];
+
+        public struct WPStructNV
+        {
+            public int LatitudeRaw;            // 0
+            public int LongitudeRaw;           // 4
+            public short Altitude;             // 8
+            public double Velocity;             // 10
+            public short Loiter;               // 12
+            public short OrbitRadius;            // 14
+            public short OrbitGroundAltitude;          // 16
+            public double OrbitVelocity;          // 18
+            public byte Action;                // 19
+        };
+
+        public static WPStructNV[] WP = new WPStructNV[256]; // should use actual max packets
+
+        public struct MissionStruct
+        {
+            // byte[] UAVXNavFlags = new byte[8]; // 0
+            public byte NoOfWayPoints;         // 9
+            public byte ProximityAltitude;     // 10
+            public byte ProximityRadius;       // 11
+            public short OriginAltitude;       // 12
+            public int OriginLatitude;         // 14
+            public int OriginLongitude;        // 18
+            public short RTHAltitudeHold;           // 22
+        };
+
+        public static MissionStruct Mission;
+        public static MissionStruct NewMission;
+
+        public static bool NewMissionAvailable = false;
+
+        public short[] UAVXParameterSet = new short[MAX_PARAMS];
+
+        bool GoToEnabled;
+
+        static byte PrevWPT = 255;
+
+        public static double CurrAlt, AltError;
+        double EastDiff, NorthDiff;
+        static double WhereDirection; 
+        static double Distance;
+     //   static double WPDistance = 0.0;
+     //   double RangeLimit;
+        //bool WPInvalid = false;
+
+        static bool AutoLandEnabled = false;
+        // bool InFlight = false;
+
+        short NavYCorrT = 0;
+
+        double LongitudeCorrection; 
+        bool FirstGPSCoordinates = true;
+        int FlightHeading;
+        double FlightHeadingOffset = 0.0;
+        double FlightRoll, FlightPitch;
+        double FlightRollp = 0.0;
+        double FlightPitchp = 0.0;
+        double OSO = 0.0;
+        double OCO = 1.0;
+
+        bool UAVXArm = true; // default
+
+        byte[] UAVXPacket = new byte[256]; // big enough to cope with stats etc at start of dump file
+        byte[] FrSkyPacket = new byte[256];
+
+        const short RxQueueLength = 16384;
+        const short RxQueueMask = RxQueueLength - 1;
+        byte[] RxQueue = new byte[RxQueueLength];
+        short RxTail = 0;
+        short RxHead = 0;
+
+        bool TelemetryActive = false;
+        bool TelemetryLostMessageUsed = false;
+
+        int NavPacketsReceived = 0;
+        int FlightPacketsReceived = 0;
+        int StatsPacketsReceived = 0;
+        int ControlPacketsReceived = 0;
+        int FrSkyPacketsReceived = 0;
+        short MotorsAndServos;
+
+        public short UAVXCurrPS = 0;
+
+        short FrSkyRxPacketByteCount;
+        short FrSkyRxPacketTag, FrSkyReceivedPacketTag;
+        RxStates FrSkyPacketRxState;
+        bool FrSkyPacketReceived = false;
+
+        short RxPacketByteCount;
+        byte RxPacketTag, RxPacketLength;
+        RxStates PacketRxState;
+        byte ReceivedPacketTag;
+        bool PacketReceived = false;
+        long ReplayProgress = 0;
+        int ReplayDelay = 1;
+
+        static byte TxCheckSum = 0;
+
+        bool CheckSumError;
+        short RxLengthErrors = 0, RxCheckSumErrors = 0, RxIllegalErrors = 0, RxFrSkyErrors = 0;
+
+        double[,] Params = new double[2,MAXPARAMS];
+        int[] Sticks = new int[16];
+
+        byte RxCheckSum;
+
+        bool InFlight = false;
+
+        System.IO.FileStream SaveLogFileStream;
+        System.IO.BinaryWriter SaveLogFileBinaryWriter; 
+        System.IO.FileStream SaveTextLogFileStream;
+        System.IO.StreamWriter SaveTextLogFileStreamWriter;
+        System.IO.FileStream SaveTextParamFileStream;
+        System.IO.StreamWriter SaveTextParamFileStreamWriter;
+        System.IO.FileStream SaveTextCustomFileStream;
+        System.IO.StreamWriter SaveTextCustomFileStreamWriter;
+
+        System.IO.FileStream OpenLogFileStream;
+        System.IO.BinaryReader OpenLogFileBinaryReader;
+ 
+        bool DoingLogfileReplay = false;
+        bool ReadingTelemetry = false;
+
+        NavForm formNav = new NavForm();
+
+        public static SerialPort serialPort;
+
+        public FormMain()
+        {
+          int i;
+
+          InitializeComponent();
+
+          serialPort1 = new System.IO.Ports.SerialPort(this.components);
+          serialPort1.DataReceived += new System.IO.Ports.SerialDataReceivedEventHandler(serialPort_DataReceived);
+
+          speech = new SpeechSynthesizer();
+          speech.Rate = -2;
+
+          SpeakVoltsCheckBox.Checked = Properties.Settings.Default.SpeakVolts;
+          SpeakAltitudeCheckBox.Checked = Properties.Settings.Default.SpeakAltitude;
+          SpeakWhereCheckBox.Checked = Properties.Settings.Default.SpeakWhere;
+          SpeakNavCheckBox.Checked = Properties.Settings.Default.SpeakNav;
+          SpeechEnableCheckBox.Checked = Properties.Settings.Default.SpeechEnable;
+          timer_announce.Interval = Properties.Settings.Default.SpeakInterval * 1000;
+
+          F = new bool[72];
+
+          string[] AvailableCOMPorts = ComPorts.readPorts();
+          foreach (string AvailableCOMPort in AvailableCOMPorts)
+              COMSelectComboBox.Items.Add(AvailableCOMPort);
+          COMSelectComboBox.Text = Properties.Settings.Default.COMPort;
+          COMBaudRateComboBox.Text = string.Format("{0:n0}", Properties.Settings.Default.COMBaudRate);
+
+          Version vrs = new Version(Application.ProductVersion);
+          //this.Text = this.Text + " v" + vrs.Major + "." + vrs.Minor + "." + vrs.Build;// vrs.MajorRevision + 
+
+          ReplayDelay = 20 - Convert.ToInt16(ReplayNumericUpDown.Text);
+
+         // FrSkycheckBox1.Checked = UAVXGUI.Properties.Settings.Default.IsFrSky;
+       
+          string AppLogDir = UAVXGUI.Properties.Settings.Default.LogDirectory;
+          if (!(Directory.Exists(AppLogDir))) {
+            string sProgFilesLogDir = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            sProgFilesLogDir += "\\" + "UAVXLogs"; // " + vrs.Major + "." + vrs.Minor;
+            if (!(Directory.Exists(sProgFilesLogDir))) {
+              Directory.CreateDirectory(sProgFilesLogDir);
+            }
+            UAVXGUI.Properties.Settings.Default.LogDirectory = sProgFilesLogDir;
+
+            for (i = 0; i < 72; i++)
+                F[i] = false;
+          } 
+        }
+
+        private void timer_telemetry_Tick(object sender, EventArgs e)
+        {
+            TelemetryActive = false;
+        } // timer_announce_Tick
+
+        public static class ComPorts
+        {
+            public static string[] readPorts()
+            {
+                string[] ComPorts = System.IO.Ports.SerialPort.GetPortNames();
+                Array.Sort(ComPorts);
+                return ComPorts;
+            }
+        }
+
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (serialPort1.IsOpen)
+            {
+                e.Cancel = true; //cancel the fom closing
+                Thread CloseDown = new Thread(new ThreadStart(CloseSerialOnExit)); //close port in new thread to avoid hang
+                CloseDown.Start(); //close port in new thread to avoid hang
+            }
+        }
+
+        private void CloseSerialOnExit()
+        {
+            try
+            {
+                serialPort1.Close(); //close the serial port
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message); //catch any serial port closing error messages
+            }
+            this.Invoke(new EventHandler(NowClose)); //now close back in the main thread
+        }
+
+        private void NowClose(object sender, EventArgs e)
+        {
+            this.Close(); //now close the form
+        }
+
+        public void SetSerialPort(string portSelected, int speed, ref string errorMessage)
+        {
+            try
+            {
+                errorMessage = "";
+                serialPort1.PortName = portSelected;
+                serialPort1.ReadBufferSize = 8192;
+                serialPort1.BaudRate = speed;
+                serialPort1.ReceivedBytesThreshold = 1;
+                serialPort1.Open();
+                serialPort1.Close();
+            }
+            catch (Exception er)
+            {
+                //MessageBox.Show(Convert.ToString(er.Message));
+                errorMessage = Convert.ToString(er.Message);
+            }
+        }
+
+
+       // private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+       // {
+       //     if (serialPort1.IsOpen) serialPort1.Close();
+       // }
+
+        private void COMSelectComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            UAVXGUI.Properties.Settings.Default.COMPort = COMSelectComboBox.Text;
+            UAVXGUI.Properties.Settings.Default.Save();
+        }
+
+        private void COMBaudRateComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            UAVXGUI.Properties.Settings.Default.COMBaudRate = Convert.ToInt32(COMBaudRateComboBox.Text);
+            UAVXGUI.Properties.Settings.Default.Save();
+        }
+
+        private void textBox1_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            // If the port is closed, don't try to send a character.
+            if (!serialPort1.IsOpen) return;
+
+            // If the port is Open, declare a char[] array with one element.
+            char[] buff = new char[1];
+
+            // Load element 0 with the key character.
+            buff[0] = e.KeyChar;
+
+            // Send the one character buffer.
+            serialPort1.Write(buff, 0, 1);
+
+            // Set the KeyPress event as handled so the character won't
+            // display locally. If you want it to display, omit the next line.
+            e.Handled = true;
+        }
+
+        private void ReplayButton_Click(object sender, EventArgs e)
+        {
+            if (!DoingLogfileReplay)
+            {
+                OpenLogFileDialog.Filter = "UAVX Log File (*.log)|*.log";
+                OpenLogFileDialog.InitialDirectory = UAVXGUI.Properties.Settings.Default.LogDirectory;
+
+                if (OpenLogFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    UAVXGUI.Properties.Settings.Default.LogDirectory = OpenLogFileDialog.InitialDirectory;
+                    OpenLogFileStream = new System.IO.FileStream(OpenLogFileDialog.FileName, System.IO.FileMode.Open);
+                    OpenLogFileBinaryReader = new System.IO.BinaryReader(OpenLogFileStream);
+
+                    string FileName = OpenLogFileDialog.FileName;
+                    int fileExtPos = FileName.LastIndexOf(".");
+                    if (fileExtPos >= 0)
+                       FileName = OpenLogFileDialog.FileName.Substring(0, fileExtPos);
+
+                    SaveTextLogFileStream = new System.IO.FileStream(FileName + ".csv", System.IO.FileMode.Create);
+                    SaveTextLogFileStreamWriter = new System.IO.StreamWriter(SaveTextLogFileStream, System.Text.Encoding.ASCII);
+                    WriteTextLogFileHeader();
+                    DoingLogfileReplay = true;
+
+                    SaveTextParamFileStream = new System.IO.FileStream(FileName + "_Param.csv", System.IO.FileMode.Create);
+                    SaveTextParamFileStreamWriter = new System.IO.StreamWriter(SaveTextParamFileStream, System.Text.Encoding.ASCII);
+                    WriteTextParamFileHeader();
+
+                    SaveTextCustomFileStream = new System.IO.FileStream(FileName + "_Custom.csv", System.IO.FileMode.Create);
+                    SaveTextCustomFileStreamWriter = new System.IO.StreamWriter(SaveTextCustomFileStream, System.Text.Encoding.ASCII);
+                    WriteTextCustomFileHeader();
+
+                    ReplayProgressBar.Value = 0;
+                    ReplayProgress = 0;
+                    Thread Replay = new Thread(new ThreadStart(ReadReplayLogFile)); 
+                    Replay.Start(); 
+                }
+            }
+            else
+                CloseReplayLogFile();
+        }
+
+        private void CloseReplayLogFile()
+        {
+            OpenLogFileStream.Close();
+            SaveTextLogFileStreamWriter.Flush();
+            SaveTextLogFileStreamWriter.Close();
+            SaveTextLogFileStream.Close();
+            SaveTextParamFileStreamWriter.Flush();
+            SaveTextParamFileStreamWriter.Close();
+            SaveTextParamFileStream.Close();
+            SaveTextCustomFileStreamWriter.Flush();
+            SaveTextCustomFileStreamWriter.Close();
+            SaveTextCustomFileStream.Close();
+        }
+
+        private void CreateSaveLogFile()
+        {
+            string FileName;
+
+            FileName = UAVXGUI.Properties.Settings.Default.LogDirectory + "\\UAVX_" + 
+                DateTime.Now.Year + "_" +
+                DateTime.Now.Month + "_" +
+                DateTime.Now.Day + "_" +
+                DateTime.Now.Hour + "_" +
+                DateTime.Now.Minute;
+
+            SaveLogFileStream = new System.IO.FileStream(FileName + ".log", System.IO.FileMode.Create);
+            SaveLogFileBinaryWriter = new System.IO.BinaryWriter(SaveLogFileStream); 
+
+            SaveTextLogFileStream = new System.IO.FileStream(FileName + ".csv", System.IO.FileMode.Create);
+            SaveTextLogFileStreamWriter = new System.IO.StreamWriter(SaveTextLogFileStream, System.Text.Encoding.ASCII);
+            WriteTextLogFileHeader();
+
+            SaveTextParamFileStream = new System.IO.FileStream(FileName + "_Param.csv", System.IO.FileMode.Create);
+            SaveTextParamFileStreamWriter = new System.IO.StreamWriter(SaveTextParamFileStream, System.Text.Encoding.ASCII);
+            WriteTextParamFileHeader();
+
+            SaveTextCustomFileStream = new System.IO.FileStream(FileName + "_Custom.csv", System.IO.FileMode.Create);
+            SaveTextCustomFileStreamWriter = new System.IO.StreamWriter(SaveTextCustomFileStream, System.Text.Encoding.ASCII);
+            WriteTextCustomFileHeader();
+
+            NavPacketsReceived = 0;
+            FlightPacketsReceived = 0;
+            StatsPacketsReceived = 0;
+
+        }
+
+        private void saveBlackBoxToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            //blackboxSaveFileDialog.Filter = "Black Box (*.log)|*.log";
+            //blackboxSaveFileDialog.InitialDirectory = Properties.Settings.Default.LogDirectory;
+
+            //blackboxSaveFileDialog.Filter = "log - black box (*.log)|*.log";
+            //        blackboxSaveFileDialog.InitialDirectory = Properties.Settings.Default.LogFileDirectory;
+
+            /*      blackboxSaveFileDialog.FileName = "UAVX_Black_Box_" +
+            DateTime.Now.Year + "_" +
+            DateTime.Now.Month + "_" +
+            DateTime.Now.Day + "_" +
+            DateTime.Now.Hour + "_" +
+            DateTime.Now.Minute +
+            ".log";
+
+            //Properties.Settings.Default.LogFileDirectory + 
+
+            //      blackboxSaveFileDialog.Filter = "log - black box (*.log)|*.log";
+            //      blackboxSaveFileDialog.InitialDirectory = Properties.Settings.Default.LogFileDirectory;
+            /*
+                        if (blackboxSaveFileDialog.ShowDialog() == DialogResult.OK)
+                        {
+                            picConnect.readBlackBox(blackboxSaveFileDialog.FileName, this);
+                            Properties.Settings.Default.LogFileDirectory = blackboxSaveFileDialog.InitialDirectory;
+                        }
+             * */
+        }
+
+
+        private void WriteTextCustomFileHeader()
+        {
+             SaveTextCustomFileStreamWriter.WriteLine("Scheme,Unused,Gyro,Acc,Integrate(0),Wolferl(1),CFilter(2),Kalman(3),DCM(4),MadgwickIMU(5),MadgwickIMU2(6),MadgwickAHRS(7),MultiWii(8)");
+             SaveTextCustomFileStreamWriter.WriteLine("Desired,Motor,Gyro,Acc,Angle");
+        }
+
+        private void WriteTextParamFileHeader()
+        {
+            SaveTextParamFileStreamWriter.WriteLine("Param," + "#," +
+                "RollKp," +
+                "RollKi," +
+                "RollKd," +
+                "HorizDampKp," +
+                "RollIntLimit," +
+                "PitchKp," +
+                "PitchKi," +
+                "PitchKd," +
+                "AltKp," +
+                "PitchIntLimit," +  
+
+                "YawKp," +
+                "YawKi," +
+                "YawKd," +
+                "YawLimit," +
+                "YawIntLimit," +
+                "ConfigBits," +
+                "TimeSlots," +
+                "LowVoltThres," +
+                "CamRollKp," +
+                "PercentCruiseThr," +
+
+                "VertDampKp," +
+                "MiddleUD," +
+                "PercentIdleThr," +
+                "MiddleLR," +
+                "MiddleBF," +
+                "CamPitchKp," +
+                "CompassKp," +
+                "AltKi," +
+                "was NavRadius," +
+                "NavKi," +
+
+                "GSThrottle," +
+                "Acro," +
+                "NavRTHAlt," +
+                "NavMagVar," +
+                "GyroType," +
+                "ESCType," +
+                "TxRxType," +
+                "NeutralRadius," +
+                "PercentNavSens6Ch," +
+                "CamRollTrim," +
+
+                "NavKd," +
+                "VertDampDecay," +
+                "HorizDampDecay," +
+                "BaroScale," +
+                "TelemetryType," +
+                "MaxDescentRate," +
+                "DescentDelayS," +
+                "NavIntLimit," +
+                "AltIntLimit," +
+                "Unused50," +
+
+                "Unused51," +
+                "ServoSense," + 
+                "CompOffsetQtr," +
+                "BattCap," +
+                "GyroYawType," +     
+                "AltKd," +
+                "Orient," +   
+                "NavYawLimit," +
+                "Balance");
+
+
+        }
+
+        private void WriteTextLogFileHeader()
+        {
+            SaveTextLogFileStreamWriter.Write("Flight," +
+                "AltHEn," +
+                "TTPosEn," + // stick programmed
+                "GyroFail," +
+                "Lost," +
+                "Level," +
+                "LowBatt," +
+                "GPSVal," +
+                "NavVal," +
+
+                "BaroFail," +
+                "AccFail," +
+                "CompFail," +
+                "GPSFail," +
+                "AttH," +
+                "ThrMov," +
+                "AltH," +
+                "Nav," +
+
+                "RTH," +
+                "Prox," +
+                "CloseProx," +
+                "UseAccComp," +
+                "UseRTHDes," +
+                "BaroVal," +
+                "RFVal," +
+                "UseRFAlt," +
+
+                "NavAltHEn," +   // stick programmed
+                "Pass," +
+                "Rate," +
+                "Sim," +
+                "AcqPos," +
+                "Armed," +
+                "NavActive," +
+                "StkFreeze," +
+
+                "Signal," +
+		        "RCOK," +
+		        "ParamVal," +
+		        "RCNew," +
+		        "NewComm," +
+		        "AccVal," +
+		        "CompVal," +
+		        "NewCompVal," +
+
+		        "NewGPSPosition," +
+		        "PktRx," +
+                "MagCal," +
+		        "NavComp," +
+		        "AltVal," +		
+		        "AccCal," +
+		        "CTrack," +
+                "FSEn,");
+
+                SaveTextLogFileStreamWriter.Write("StateT," +
+                "BattV," +
+                "BattI," +
+                "BattCh," +
+                "RCGlitches," +
+                "DesThr," +
+                "DesRoll," +
+                "DesPitch," +
+                "DesYaw," +
+                "RollRate/RawAngle," +
+                "PitchRate/RawAngle," +
+                "YawGyro," +
+                "RollAngle," +
+                "PitchAngle," +
+                "YawAngleError," +
+                "LRAcc," +
+                "FBAcc," +
+                "DUAcc," +
+                "AccConf," +
+                "AltFiltComp," +
+                "AltComp,");
+
+                SaveTextLogFileStreamWriter.Write("K1,K2,K3,K4,K7,K8,K9,K10,K5/CamP,K6/CamR,"); 
+
+                SaveTextLogFileStreamWriter.Write("Time, Nav," +
+                "NavState," +
+                "FailState," +
+                "GPSSats," +
+                "GPSFix," +
+                "CurrWP," +
+                "ROC," +
+                "RelBaroAlt," +
+                "CruiseThrottle," +
+                "RFAlt," +
+                "GPSHD," +
+                "Heading," +
+                "DesCourse," +
+                "GPSVel," +
+                "GPSHeading," +
+                "GPSRelAlt," +
+                "GPSLat," +
+                "GPSLon," +
+                "DesAlt," +
+                "NorthPosET," +
+                "EastPosET," +
+                "NavTimeout," +
+                "SensorTemp," +
+                "GPSTime," +
+                "Sens," +
+                "RCorr," +
+                "PCorr," +
+                "YCorr,");
+
+                SaveTextLogFileStreamWriter.WriteLine("Stats," +
+
+                "GPSAltX," + 
+                "BaroRelAltX," +
+                "ESCI2CFailX," +
+                "GPSMinSatsX," +
+                "MinROCX," +
+                "MaxROCX," +
+                "GPSVelX," +
+                "AccFailsX," +
+                "CompassFailsX," +
+                "BaroFailsX," +
+
+                "GPSInvalidX," +
+                "GPSMaxSatsX," +
+                "NavValidX," +
+                "MinHDiluteX," +
+                "MaxHDiluteX," +
+                "RCGlitchesX," +
+                "GPSBaroScaleX," +
+                "GyroFailX," +
+                "RCFailsafesX," +
+                "I2CFailX," +
+
+                "BadReferGKEX," +
+                "BadNumX," +
+                "RollAccCorrAvX," +
+                "RollAccCorrMeanX," +
+                "PitchAccCorrAvX," +
+                "PitchAccCorrMeanX," + 
+                "PitchRateMaxChangeX,"+
+                "FBAccMaxChangeX,"+
+                "RollRateMaxChangeX,"+
+                "LRAccMaxChangeX, "+
+
+                "YawGyroMaxChangeX, " +
+                "DUAccMaxChangeX," +
+
+            "AFType, Orient, ");
+        }  
+
+        private void FlyingButton_Click(object sender, EventArgs e)
+        {
+            if (InFlight)
+            {
+                InFlight = false;
+                UAVXCloseTelemetry();
+                FlyingButton.Text = "Disconnected";
+                FlyingButton.BackColor = System.Drawing.Color.Red;
+            }
+            else
+            {
+                FlyingButton.Text = "Connected";
+                FlyingButton.BackColor = System.Drawing.Color.Green;
+                UAVXOpenTelemetry();
+            }
+ 
+         //   e.Handled = true;
+        }
+
+        //_______________________________________________________________________________________
+
+        // Speech Announcements
+
+        private void timer_announce_Tick(object sender, EventArgs e)
+        {
+ 
+            if (TelemetryActive)
+            {
+                TelemetryLostMessageUsed = false;
+
+                Properties.Settings.Default.SpeakAltitude = SpeakAltitudeCheckBox.Checked;
+                Properties.Settings.Default.SpeakWhere = SpeakWhereCheckBox.Checked;
+
+                if (SpeechEnableCheckBox.Checked)
+                {
+                    if (SpeakWhereCheckBox.Checked && (WhereDistance.Text != "?") && !FirstGPSCoordinates)
+                           if (Convert.ToInt32(WhereDistance.Text) > 30)
+                               speech.SpeakAsync("Distance " + WhereDistance.Text + " Meters at " + WhereBearing.Text + " True.");
+  
+                    if (SpeakAltitudeCheckBox.Checked && (StateT == FlightStates.Flying))
+                        speech.SpeakAsync("Altitude " + Convert.ToInt16(CurrAlt) + " Meters.");
+
+                    if ((SpeakVoltsCheckBox.Checked) && (StateT == FlightStates.Flying))
+                        SpeakBattery();
+                }
+            }
+            else
+                if (SpeechEnableCheckBox.Checked && !TelemetryLostMessageUsed)
+                {
+                    speech.SpeakAsync("Telemetry Lost.");
+                    TelemetryLostMessageUsed = true;
+                }
+           
+        } // timer_telemetry_Tick
+
+        private void SpeakBattery()
+        {
+            double Volts = Convert.ToDouble(FormMain.BatteryVoltsT * 0.1);
+            short VoltsPlace = (short)((Volts - (short)Volts) * 10.0);
+            if ((Flags[0] & 0x20) != 0)
+                speech.SpeakAsync("Battery LOW  " + (short)Volts + "Point" + VoltsPlace + " Volts."); // . -> point
+            else
+                speech.SpeakAsync("Battery " + (short)Volts + "Point" + VoltsPlace + " Volts."); // . -> point
+
+        } // SpeakBattery
+
+        private void SpeakClimbDescend()
+        {
+            if (AltError < -2.0)
+                speech.SpeakAsync("Climbing to " + Convert.ToInt16(FormMain.DesiredAltitudeT * 0.01) + "Meters.");
+            else
+                if (AltError > 2.0)
+                    speech.SpeakAsync("Descending to " + Convert.ToInt16(FormMain.DesiredAltitudeT * 0.01) + "Meters.");
+        } // SpeakClimbDescend
+
+        private void SpeechCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            if (SpeechEnableCheckBox.Checked)
+            {
+                speech.SpeakAsync("Speech Enabled");
+                timer_announce.Interval = Convert.ToInt32(SpeakIntervalNumericUpDown.Value) * 1000;
+            }
+
+            Properties.Settings.Default.SpeechEnable = SpeechEnableCheckBox.Checked;
+
+        } // SpeechCheckBox_CheckedChanged
+
+        private void SpeakIntervalNumericUpDown_Click(object sender, EventArgs e)
+        {
+            short interval = Convert.ToInt16(SpeakIntervalNumericUpDown.Value);
+            timer_announce.Interval = interval * 1000;
+            Properties.Settings.Default.SpeakInterval = interval;
+
+        } // SpeakIntervalNumericUpDown_Click
+
+
+        private void SpeakNavStatus()
+        {
+            
+            if (SpeechEnableCheckBox.Checked && SpeakNavCheckBox.Checked)
+            {
+                if (((PrevNavState != NavStateT) || (PrevWPT != CurrWPT)) && (StateT == FlightStates.Flying))
+                {
+                    switch (NavStateT)
+                    {
+                        case NavStates.HoldingStation: speech.SpeakAsync("Holding Position.");
+                            break;
+                        case NavStates.ReturningHome: speech.SpeakAsync("Return to home.");
+                            SpeakClimbDescend();
+                            break;
+                        case NavStates.AtHome: speech.SpeakAsync("Reached home.");
+                            if (AutoLandEnabled)
+                                speech.SpeakAsync("Landing in " + FormMain.NavStateTimeoutT / 1000 + " Seconds.");
+                            break;
+                        case NavStates.Descending: speech.SpeakAsync("Descending.");
+                            break;
+                        case NavStates.Touchdown: speech.SpeakAsync("Touchdown.");
+                            break;
+                        case NavStates.Transiting: speech.SpeakAsync("Going to waypoint " + CurrWPT + ".");
+                            SpeakClimbDescend();
+                            break;
+                        case NavStates.Loitering: speech.SpeakAsync("Holding at waypoint" + CurrWPT + ".");
+                            break;
+                        case NavStates.Orbiting: speech.SpeakAsync("Orbiting waypoint" + CurrWPT + ".");
+                            break;
+                        case NavStates.Perching: speech.SpeakAsync("Perching.");
+                            break;
+                        case NavStates.Takeoff: speech.SpeakAsync("Takeoff.");
+                            break;
+                        case NavStates.PIC: speech.SpeakAsync("Pilot in command.");
+                            break;
+                        default:
+                            break;
+                    }
+                    PrevNavState = NavStateT;
+                    PrevWPT = FormMain.CurrWPT;
+                }
+            }
+        } // SpeakNavStatus
+
+        //-----------------------------------------------------------------------
+        // UAVX Communications
+
+        private void UAVXOpenTelemetry()
+        {
+            string sError = "Could not open telemetry link?";
+
+            UAVXCloseTelemetry();
+            
+            SetSerialPort(UAVXGUI.Properties.Settings.Default.COMPort, UAVXGUI.Properties.Settings.Default.COMBaudRate, ref sError);
+            if (sError != "")
+            {
+              //  MessageTextBox.Text = sError;
+                InFlight = false;
+            }
+            else
+            {
+                CreateSaveLogFile();
+                RxHead = RxTail = 0;
+                InitPollPacket();
+                serialPort1.Open();
+                if (serialPort1.IsOpen)
+                    InFlight = true;
+                else
+                {
+                    UAVXCloseTelemetry();
+                    InFlight = false;
+                }
+            } 
+        }
+
+        private void ReadReplayLogFile()
+        {
+            byte b;
+
+            while ( OpenLogFileStream.Position < OpenLogFileStream.Length )
+            {
+                RxTail++;
+                RxTail &= RxQueueMask;
+                b = OpenLogFileBinaryReader.ReadByte();
+                RxQueue[RxTail] = b;
+
+                ReadingTelemetry = true;
+                this.Invoke(new EventHandler(UAVXReadTelemetry));
+                while (ReadingTelemetry) { };
+
+                ReplayProgress = (long) (100 * OpenLogFileStream.Position) / OpenLogFileStream.Length;
+
+                Thread.Sleep(ReplayDelay);
+            }
+
+            if (OpenLogFileStream.Position == OpenLogFileStream.Length)
+            {
+                DoingLogfileReplay = false;
+                CloseReplayLogFile();
+            }
+             //this.Invoke(new EventHandler(NowCloseReplay)); //now close back in the main thread
+        }
+
+        private void NowCloseReplay(object sender, EventArgs e)
+        {
+            this.Close(); 
+        }
+
+        private void serialPort_DataReceived(object sender, System.IO.Ports.SerialDataReceivedEventArgs e)
+        {
+            byte b;
+            short NewRxTail;
+
+            if (serialPort1.IsOpen) // flakey serial drivers hence heroics
+            {
+                while ( serialPort1.IsOpen && (serialPort1.BytesToRead != 0))
+                {
+                    NewRxTail = RxTail;
+                    NewRxTail++;
+                    NewRxTail &= RxQueueMask;
+                    if (NewRxTail != RxHead)
+                    {
+                        RxTail = NewRxTail;
+                        b = (byte)serialPort1.ReadByte();
+                        RxQueue[RxTail] = b;
+                        SaveLogFileBinaryWriter.Write(b);
+                    }
+                    else
+                    {
+                        b = (byte)serialPort1.ReadByte(); // processing overflow - discard
+                        SaveLogFileBinaryWriter.Write(b);
+                    }
+                }
+                if (serialPort1.IsOpen) 
+                    this.Invoke(new EventHandler(UAVXReadTelemetry));
+            }
+        }
+
+        void InitPollPacket()
+        {
+            RxPacketByteCount = 0;
+            RxCheckSum = 0;
+            CheckSumError = false;
+
+            RxPacketTag = UnknownPacketTag;
+
+            RxPacketLength = 2; // set as minimum
+            PacketRxState = FrSkyPacketRxState = RxStates.WaitRxSentinel;
+        } // InitPollPacket
+
+        void AddToBuffer(byte ch)
+        {
+            bool RxPacketError;
+
+            UAVXPacket[RxPacketByteCount++] = ch;
+            if (RxPacketByteCount == 1)
+            {
+                RxPacketTag = ch;
+                PacketRxState = RxStates.WaitRxBody;
+            }
+            else
+                if (RxPacketByteCount == 2)
+                {
+                    RxPacketLength = ch;
+                    PacketRxState = RxStates.WaitRxBody;
+                }
+                else
+                    if (RxPacketByteCount >= (RxPacketLength + 3))
+                    {
+                        RxPacketError = CheckSumError = !((RxCheckSum == 0) || (RxCheckSum == ESC));
+
+                        if (CheckSumError)
+                            RxCheckSumErrors++;
+
+                        if (!RxPacketError)
+                        {
+                            PacketReceived = true;
+                            ReceivedPacketTag = RxPacketTag;
+
+                        }
+                        PacketRxState = RxStates.WaitRxSentinel;
+                    }
+                    else
+                        PacketRxState = RxStates.WaitRxBody;
+        } // AddToBuffer
+
+        void ParseFrSkyPacket(byte ch)
+        {
+            switch (FrSkyPacketRxState)
+            {
+                case RxStates.WaitRxSentinel:
+                    if (ch == 0x7e)
+                    {
+                        FrSkyRxPacketTag = FrSkyPacketTag;
+                        FrSkyPacketRxState = RxStates.WaitRxTag;
+                    }
+                    break;
+                case RxStates.WaitRxTag:
+                    if (ch != 0x7e)
+                    {
+                        FrSkyReceivedPacketTag = ch;
+                        FrSkyRxPacketByteCount = 0;
+                        FrSkyPacketRxState = RxStates.WaitRxBody;
+                    }
+                    break;
+                case RxStates.WaitRxBody:
+                    if (((ch == 0x7d) || (ch == 0x7e)) && (FrSkyRxPacketByteCount != 8))
+                        FrSkyPacketRxState = RxStates.WaitRxESC;
+                    else
+                    {
+                        FrSkyPacket[FrSkyRxPacketByteCount++] = ch;
+                        if (FrSkyRxPacketByteCount == 9)
+                        {
+                            if (ch != 0x7e)
+                                RxFrSkyErrors++;
+                            else
+                                FrSkyPacketReceived = true;
+                            FrSkyPacketRxState = RxStates.WaitRxSentinel;
+                        }
+                    }
+                    break;
+                case RxStates.WaitRxESC:
+                    ch ^= 0x20;
+                    FrSkyPacket[FrSkyRxPacketByteCount++] = ch;
+                    FrSkyPacketRxState = RxStates.WaitRxBody;
+                    break;
+
+                default:
+                    FrSkyPacketRxState = RxStates.WaitRxSentinel;
+                    break;
+            }
+        }
+
+        void ParsePacket(byte ch)
+        {
+            RxCheckSum ^= ch;
+            switch (PacketRxState)
+            {
+                case RxStates.WaitRxSentinel:
+                    if (ch == SOH)
+                    {
+                        InitPollPacket();
+                        PacketRxState = RxStates.WaitRxBody;
+                    }
+                    break;
+                case RxStates.WaitRxBody:
+                    if (ch == ESC)
+                        PacketRxState = RxStates.WaitRxESC;
+                    else
+                        if (ch == SOH) // unexpected start of packet
+                        {
+                            RxLengthErrors++;
+
+                            InitPollPacket();
+                            PacketRxState = RxStates.WaitRxBody;
+                        }
+                        else
+                            if (ch == EOT) // unexpected end of packet 
+                            {
+                                RxLengthErrors++;
+                                PacketRxState = RxStates.WaitRxSentinel;
+                            }
+                            else
+                                AddToBuffer(ch);
+                    break;
+                case RxStates.WaitRxESC:
+                    AddToBuffer(ch);
+                    break;
+                default:
+                    PacketRxState = RxStates.WaitRxSentinel;
+                    break;
+            }
+        } // ParsePacket
+
+        public void DoAirframeLabels()
+        {
+            /*
+            	TriAF,
+	QuadAF,
+	HexAF,
+	Y6AF,
+	OctAF,
+	OctCoaxVAF,
+	HeliAF,
+	ElevAF,
+	AilAF,
+	VAF,
+	VTOLAF,
+	GimbalAF,
+	AFUnknown
+     
+                switch (AirframeT)
+                {
+                    case 1:
+                        Output0Label.Text = "F";
+                        OutputLabel.Text = "S";
+                        Output2Label.Text = "R";
+                        Output3Label.Text = "L";
+                        Output4Label.Visible = false;
+                        Output5Label.Visible = false;
+                        PWMT4.Visible = false;
+                        PWMT5.Visible = false;
+                        break;// Tricopter
+                    case 0:
+                        Output0Label.Text = "F";
+                        OutputLabel.Text = "L";
+                        Output2Label.Text = "R";
+                        Output3Label.Text = "B";
+                        Output4Label.Visible = false;
+                        Output5Label.Visible = false;
+                        PWMT4.Visible = false;
+                        PWMT5.Visible = false;
+                        break;// Quadrocopter
+                   
+                    case 2:
+                        Output0Label.Text = "0";
+                        OutputLabel.Text = "1";
+                        Output2Label.Text = "2";
+                        Output3Label.Text = "3";
+                        Output4Label.Visible = false;
+                        Output5Label.Visible = false;
+                        PWMT4.Visible = false;
+                        PWMT5.Visible = false;
+                        break;// VTcopter
+                    case 3: // Y6copter
+                        Output0Label.Text = "TF";
+                        OutputLabel.Text = "TL";
+                        Output2Label.Text = "TR";
+                        Output3Label.Text = "BF";
+                        Output4Label.Text = "BL";
+                        Output5Label.Text = "BR";
+
+                        Output4Label.Visible = true;
+                        Output5Label.Visible = true;
+                        PWMT4.Visible = true;
+                        PWMT5.Visible = true;
+
+                        Output6Label.Visible = false;
+                        Output7Label.Visible = false;
+                        PWMT6.Visible = false;
+                        PWMT7.Visible = false;
+                        break;
+                    case 4: // Helicopter
+                        Output0Label.Text = "Th";
+                        OutputLabel.Text = "R";
+                        Output2Label.Text = "P";
+                        Output3Label.Text = "Y";
+
+                        Output4Label.Visible = false;
+                        Output5Label.Visible = false;
+                        PWMT4.Visible = false;
+                        PWMT5.Visible = false;
+                        break;
+                    case 5: // Flying Wing
+                        Output0Label.Text = "Th";
+                        OutputLabel.Text = "RE";
+                        Output2Label.Text = "LE";
+                        Output3Label.Text = "R";
+                        Output4Label.Visible = false;
+                        Output5Label.Visible = false;
+                        PWMT4.Visible = false;
+                        PWMT5.Visible = false;
+                        break;
+                    case 6: // Conventional
+                        Output0Label.Text = "Th";
+                        OutputLabel.Text = "A";
+                        Output2Label.Text = "E";
+                        Output3Label.Text = "R";
+
+                        Output4Label.Visible = false;
+                        Output5Label.Visible = false;
+                        PWMT4.Visible = false;
+                        PWMT5.Visible = false;
+                        break;
+                    case 7: // Hexacopter
+                        Output0Label.Text = "F";
+                        OutputLabel.Text = "FL";
+                        Output2Label.Text = "FR";
+                        Output3Label.Text = "BL";
+                        Output4Label.Text = "BR";
+                        Output5Label.Text = "B";
+
+                        Output4Label.Visible = true;
+                        Output5Label.Visible = true;
+                        PWMT4.Visible = true;
+                        PWMT5.Visible = true;
+
+                        Output6Label.Visible = false;
+                        Output7Label.Visible = false;
+                        PWMT6.Visible = false;
+                        PWMT7.Visible = false;
+
+                        break;
+                    case 8: // VTOL/Can/Sphere
+                        Output0Label.Text = "Th";
+                        OutputLabel.Text = "RPY";
+                        Output2Label.Text = "LPY";
+                        Output3Label.Text = "R";
+                        Output4Label.Visible = false;
+                        Output5Label.Visible = false;
+                        PWMT4.Visible = false;
+                        PWMT5.Visible = false;
+                        break;
+                }
+            */
+        }
+
+        void ExtractFlags()
+        {
+            int bb, i, cf;
+
+            for (i = 0; i < 6; i++)
+            {
+                cf = Flags[i];
+                for (bb = 7; bb >= 0; bb--)
+                    F[i * 8 + bb] = ((cf >> bb) & 1) != 0;
+            }
+        } // ExtractFlags
+
+        void UpdateFlags()
+        {
+
+            ExtractFlags();
+
+            if ((Flags[0] & 0x01) != 0)
+                AltHoldBox.BackColor = System.Drawing.Color.Green;
+            else
+                AltHoldBox.BackColor = System.Drawing.Color.Red;
+            if ((Flags[0] & 0x02) != 0)
+                TurnToWPBox.BackColor = System.Drawing.Color.Green;
+            else
+                TurnToWPBox.BackColor = FlagsGroupBox.BackColor;
+        //    if ((Flags[0] & 0x04) != 0)
+       //         UnusedFlagBox.BackColor = System.Drawing.Color.Green;
+       //     else
+       //         UnusedFlagBox.BackColor = FlagsGroupBox.BackColor;
+            if ((Flags[0] & 0x08) != 0)
+                LostModelBox.BackColor = System.Drawing.Color.Red;
+            else
+                LostModelBox.BackColor = FlagsGroupBox.BackColor;
+            if ((Flags[0] & 0x10) != 0)
+                NearLevelBox.BackColor = System.Drawing.Color.Green;
+            else
+                NearLevelBox.BackColor = System.Drawing.Color.LightSteelBlue;
+            if ((Flags[0] & 0x20) != 0)
+            {
+                LowBatteryBox.BackColor = System.Drawing.Color.Red;
+                BatteryVolts.BackColor = System.Drawing.Color.Red;
+            }
+            else
+            {
+                LowBatteryBox.BackColor = FlagsGroupBox.BackColor;
+                BatteryVolts.BackColor = BatteryGroupBox.BackColor;
+            }
+            if ((Flags[0] & 0x40) != 0)
+                GPSValidBox.BackColor = System.Drawing.Color.Green;
+            else
+                GPSValidBox.BackColor = System.Drawing.Color.Red;
+
+            if ((Flags[0] & 0x80) != 0)
+                NavValidBox.BackColor = System.Drawing.Color.Green;
+            else
+                NavValidBox.BackColor = System.Drawing.Color.Red;
+
+            //if (UAVXArm)
+           // GPSROC.Visible = false;
+            //else
+            //    GPSROC.Visible = true;
+
+            if ((Flags[1] & 0x01) != 0)
+                BaroFailBox.BackColor = System.Drawing.Color.Red;
+            else
+                BaroFailBox.BackColor = FlagsGroupBox.BackColor;
+
+            if ((Flags[1] & 0x02) != 0)
+                IMUFailBox.BackColor = System.Drawing.Color.Red;
+            else
+                IMUFailBox.BackColor = FlagsGroupBox.BackColor;
+
+            if ((Flags[1] & 0x04) != 0)
+                CompassFailBox.BackColor = System.Drawing.Color.Red;
+            else
+                CompassFailBox.BackColor = FlagsGroupBox.BackColor;
+
+            if ((Flags[1] & 0x08) != 0)
+                GPSFailBox.BackColor = System.Drawing.Color.Red;
+            else
+                GPSFailBox.BackColor = FlagsGroupBox.BackColor;
+
+            if ((Flags[1] & 0x10) != 0)
+                AttitudeHoldBox.BackColor = System.Drawing.Color.Green;
+            else
+                AttitudeHoldBox.BackColor = System.Drawing.Color.LightSteelBlue;
+
+            if ((Flags[1] & 0x20) != 0)
+                ThrottleMovingBox.BackColor = System.Drawing.Color.LightSteelBlue;
+            else
+                ThrottleMovingBox.BackColor = FlagsGroupBox.BackColor;
+
+            if ((Flags[1] & 0x40) != 0)
+                HoldingAltBox.BackColor = System.Drawing.Color.Green;
+            else
+                HoldingAltBox.BackColor = FlagsGroupBox.BackColor;
+
+            if ((Flags[1] & 0x80) != 0)
+                NavigateBox.BackColor = System.Drawing.Color.Green;
+            else
+                NavigateBox.BackColor = FlagsGroupBox.BackColor;
+
+            if ((Flags[2] & 0x02) != 0)
+                ProximityBox.BackColor = System.Drawing.Color.Green;
+            else
+                ProximityBox.BackColor = FlagsGroupBox.BackColor;
+
+            if ((Flags[2] & 0x04) != 0)
+                CloseProximityBox.BackColor = System.Drawing.Color.Green;
+            else
+                CloseProximityBox.BackColor = FlagsGroupBox.BackColor;
+
+            //0x08
+
+            if ((Flags[2] & 0x10) != 0)
+                UseRTHAutoDescendBox.BackColor = System.Drawing.Color.Green;
+            else
+                UseRTHAutoDescendBox.BackColor = FlagsGroupBox.BackColor;
+
+            if ((Flags[2] & 0x20) != 0)
+                BaroAltValidBox.BackColor = System.Drawing.Color.Green;
+            else
+                BaroAltValidBox.BackColor = FlagsGroupBox.BackColor;
+
+            if ((Flags[2] & 0x40) != 0)
+            {
+                RangefinderAltValidBox.BackColor = System.Drawing.Color.Green;
+                RangefinderAltitude.BackColor = AltitudeGroupBox.BackColor;
+            }
+            else
+            {
+                RangefinderAltValidBox.BackColor = FlagsGroupBox.BackColor;
+                RangefinderAltitude.BackColor = System.Drawing.Color.Orange;
+            }
+            if ((Flags[2] & 0x80) != 0)
+                UsingRangefinderBox.BackColor = System.Drawing.Color.Green;
+            else
+                UsingRangefinderBox.BackColor = FlagsGroupBox.BackColor;
+
+            // 0x01
+
+            if ((Flags[3] & 0x02) != 0)
+                BypassBox.BackColor = System.Drawing.Color.Orange;
+            else
+                BypassBox.BackColor = FlagsGroupBox.BackColor;
+
+            WarningPictureBox.Visible = F[(byte)FlagValues.DrivesArmed];//(Flags[3] & 0x20) != 0;// 
+
+            if ((Flags[3] & 0x04) != 0)
+                RateControlBox.BackColor = System.Drawing.Color.Orange;
+            else
+                RateControlBox.BackColor = FlagsGroupBox.BackColor;
+
+           // if ((Flags[3] & 0x08) != 0)
+            if (F[(byte)FlagValues.Emulation]) //if (F[(byte)FlagValues.Emulation])
+                EmulationTextBox.Text = "EMULATION";
+            else
+                EmulationTextBox.Text = " ";
+
+
+                AccelerationsGroupBox.Visible = true;
+                RollAngle.BackColor = AttitudeGroupBox.BackColor;
+                PitchAngle.BackColor = AttitudeGroupBox.BackColor;
+
+            if (F[(byte)FlagValues.IMUCalibrated])  //if ((Flags[5] & 0x20) != 0)
+                AccsCalibratedBox.BackColor = System.Drawing.Color.Green;
+            else
+                AccsCalibratedBox.BackColor = System.Drawing.Color.Red;
+ 
+            if ((Flags[5] & 0x80) != 0)
+            {
+                SticksFrozenBox.Text = "Sticks Frozen";
+                if ((Flags[3] & 0x80) != 0)
+                    SticksFrozenBox.BackColor = System.Drawing.Color.Orange;
+                else
+                    SticksFrozenBox.BackColor = FlagsGroupBox.BackColor;
+            }
+            else
+            {
+                SticksFrozenBox.Text = "NO FAILSAFES";
+                SticksFrozenBox.BackColor = System.Drawing.Color.Red;
+            }
+            
+        }
+
+        void DoOrientation()
+        {
+         //  do it all of the time in case some one changes orientation but does not shutdown GS if (!DoneOrientation)
+            {
+                if ((Flags[3] & 0x08) != 0)
+                    FlightHeadingOffset = 0.0;
+                else
+                    FlightHeadingOffset = (OrientT * Math.PI) / 24.0;
+
+                OSO = Math.Sin(FlightHeadingOffset);
+                OCO = Math.Cos(FlightHeadingOffset);
+            }
+        }
+
+        void UpdateFlightState()
+        {
+            FlightState.Text = StateNames[(byte)StateT];
+        }
+
+        void UpdateNavState()
+        {
+            switch (NavStateT)
+            {
+                case NavStates.HoldingStation: NavState.Text = "Holding";
+                    NavState.BackColor = System.Drawing.Color.LightSteelBlue;
+                    break;
+                case NavStates.ReturningHome: NavState.Text = "Returning";
+                    NavState.BackColor = System.Drawing.Color.Lime;
+                    break;
+                case NavStates.AtHome: NavState.Text = "@Home";
+                    NavState.BackColor = System.Drawing.Color.Green;
+                    break;
+                case NavStates.Descending: NavState.Text = "Descending";
+                    NavState.BackColor = System.Drawing.Color.Orange;
+                    break;
+                case NavStates.Touchdown: NavState.Text = "Touchdown!";
+                    NavState.BackColor = System.Drawing.Color.RosyBrown;
+                    break;
+                case NavStates.Transiting: NavState.Text = "Transiting";
+                    NavState.BackColor = System.Drawing.Color.Silver;
+                    break;
+                case NavStates.Loitering: NavState.Text = "Loitering";
+                    NavState.BackColor = System.Drawing.Color.Gold;
+                    break;
+                case NavStates.Orbiting: NavState.Text = "Orbiting";
+                    NavState.BackColor = System.Drawing.Color.Gold;
+                    break;
+                case NavStates.Perching: NavState.Text = "Perching";
+                    NavState.BackColor = System.Drawing.Color.RosyBrown;
+                    break;
+                case NavStates.Takeoff: NavState.Text = "Takeoff";
+                    NavState.BackColor = System.Drawing.Color.Red;
+                    break;
+                case NavStates.PIC: NavState.Text = "PIC";
+                    NavState.BackColor = System.Drawing.Color.Orange;
+                    break;
+                default: NavState.Text = "Unknown"; break;
+            } // switch
+        }
+
+        void UpdateFailState()
+        {    
+
+	// NoFailsafes, Monitoring, BatteryLow, LostSignal
+
+            switch (FailStateT)
+            {
+                case 0: FailState.Text = "No Failsafes";
+                    FailState.BackColor = System.Drawing.Color.Orange;
+                    break;
+                case 1: FailState.Text = "Monitoring";
+                    FailState.BackColor = System.Drawing.Color.Green;
+                    break;
+                case 2: FailState.Text = "Battery Low";
+                    FailState.BackColor = System.Drawing.Color.RosyBrown;
+                    break;
+                case 3: FailState.Text = "Lost Signal";
+                    FailState.BackColor = System.Drawing.Color.Red;
+                    break;
+                default: FailState.Text = "Unknown"; break;
+            } // switch
+        }
+
+        void UpdateAttitude()
+        {
+                RollRate.Text = string.Format("{0:n0}", RollRateT * MILLIRADDEG);
+                PitchRate.Text = string.Format("{0:n0}", PitchRateT * MILLIRADDEG);
+                YawGyro.Text = string.Format("{0:n0}", YawRateT * MILLIRADDEG);
+                RollAngle.Text = string.Format("{0:n0}", RollAngleT * MILLIRADDEG);
+                PitchAngle.Text = string.Format("{0:n0}", PitchAngleT * MILLIRADDEG);
+                YawAngleError.Text = string.Format("{0:n0}", YawAngleT * MILLIRADDEG);
+        }
+
+        void UpdateAccelerations()
+        {
+                LRAcc.Text = string.Format("{0:n2}", (float)LRAccT * 0.001);
+                FBAcc.Text = string.Format("{0:n2}", (float)FBAccT * 0.001);
+                DUAcc.Text = string.Format("{0:n2}", (float)DUAccT * 0.001);
+
+                FBAccLabel.Text = "FB";
+                DUAccLabel.Text = "DU";
+        }
+
+        void UpdateCompensation()
+        {
+            AccConfidence.Text = string.Format("{0:n0}", AccConfidenceT);
+            AltFiltComp.Text = string.Format("{0:n1}", AltFiltCompT * 0.01);
+            AltComp.Text = string.Format("{0:n1}", AltCompT * 0.1);
+
+            if (AccConfidenceT < 33 )
+                AccConfidence.BackColor = System.Drawing.Color.Red;
+            else
+                if (AccConfidenceT <67)
+                    AccConfidence.BackColor = System.Drawing.Color.Orange;
+                else
+                    AccConfidence.BackColor = System.Drawing.Color.Green;
+
+        }
+
+        void UpdateBattery()
+        {
+            if (UAVXArm)
+            {
+                BatteryVolts.Text = string.Format("{0:n1}", (float)BatteryVoltsT * 0.1);
+                BatteryCurrent.Text = string.Format("{0:n1}", (float)BatteryCurrentT * 0.1);
+                BatteryCharge.Text = string.Format("{0:n0}", (float)BatteryChargeT);
+            }
+            else
+            {
+                BatteryVolts.Text = string.Format("{0:n1}", (float)BatteryVoltsT * 27.73 / 1024.0); // ADC units 5V * (10K+2K2)/2K2.
+                BatteryCurrent.Text = string.Format("{0:n1}", ((float)BatteryCurrentT * CurrentSensorMax) / 1024.0); // ADC units sent
+                BatteryCharge.Text = string.Format("{0:n0}", (float)BatteryChargeT); // mAH // converted as it is used on board
+            }
+        }
+
+        void UpdateWhere()
+        {
+
+            if (FirstGPSCoordinates && ((Flags[0] & 0x80) != 0))
+            {
+                FirstGPSCoordinates = false;
+                Mission.OriginLatitude = GPSLatitudeT;
+                Mission.OriginLongitude = GPSLongitudeT;
+
+                LongitudeCorrection = Math.Abs(Math.Cos((Math.PI / 180.0) * (double)Mission.OriginLatitude * 1e-7));
+            }
+
+            if (!FirstGPSCoordinates)
+            {
+                WhereBearing.BackColor = NavGroupBox.BackColor;
+                WhereDistance.BackColor = NavGroupBox.BackColor;
+
+                NorthDiff = (double)(GPSLatitudeT - Mission.OriginLatitude);
+                EastDiff = (double)(GPSLongitudeT - Mission.OriginLongitude) * LongitudeCorrection;
+
+                WhereDirection = Math.Atan2(EastDiff, NorthDiff) * 180.0 / Math.PI;
+                while (WhereDirection < 0.0)
+                    WhereDirection += 360.0;
+                WhereBearing.Text = string.Format("{0:n0}", WhereDirection);
+                Distance = ConvertGPSToM(Math.Sqrt(NorthDiff * NorthDiff + EastDiff * EastDiff));
+                if (Distance > 10000.0) 
+                    Distance = 10000.0;
+                WhereDistance.Text = string.Format("{0:n0}", Distance);
+                if (Distance > MaximumRangeLimit) {
+                    WhereDistance.BackColor = System.Drawing.Color.Orange;
+            }
+                else
+                    WhereDistance.BackColor = NavGroupBox.BackColor;
+            }
+            else
+            {
+                WhereBearing.BackColor = System.Drawing.Color.Orange;
+                WhereDistance.BackColor = System.Drawing.Color.Orange;
+
+                WhereBearing.Text = "?";
+                WhereDistance.Text = "?";
+            }
+        }
+
+        void UpdateControls()
+        {
+            if (UAVXArm)
+            {
+                DesiredThrottle.Text = string.Format("{0:n0}", ((float)DesiredThrottleT * 100.0) / RCMaximum);
+                DesiredRoll.Text = string.Format("{0:n0}", ((float)DesiredRollT * 200.0) / RCMaximum);
+                DesiredPitch.Text = string.Format("{0:n0}", ((float)DesiredPitchT * 200.0) / RCMaximum);
+                DesiredYaw.Text = string.Format("{0:n0}", ((float)DesiredYawT * 200.0) / RCMaximum);
+            }
+            else
+            {
+                DesiredThrottle.Text = string.Format("{0:n0}", (float)DesiredThrottleT * 0.416);
+                DesiredRoll.Text = string.Format("{0:n0}", (float)DesiredRollT  * 0.832);
+                DesiredPitch.Text = string.Format("{0:n0}", (float)DesiredPitchT * 0.832);
+                DesiredYaw.Text = string.Format("{0:n0}", (float)DesiredYawT * 0.832);
+            }
+        }
+
+        void DoMotorsAndTime(short p)
+        {
+            short m;
+
+               MotorsAndServos = 10;// ExtractByte(ref UAVXPacket, (byte)(p));
+               m = p;
+                for (m = 0; m < MotorsAndServos; m++)
+                    PWMT[m] = ExtractShort(ref UAVXPacket, (byte)(p + 1 + m * 2));
+
+                MissionTimeMilliSecT = ExtractInt24(ref UAVXPacket, (byte)(p + 1 + MotorsAndServos * 2));   
+        }
+
+        int Limit(int v, int Min, int Max)
+        {
+            if (v < Min) return (Min); else if (v > Max) return Max; else return v;
+        } // Limit
+
+        void UpdateMotors()
+        {
+                PWMT0ProgressBar.Value = Limit(PWMT[0], 0, 1000);
+                PWMT1ProgressBar.Value = Limit(PWMT[1], 0, 1000);
+                PWMT2ProgressBar.Value = Limit(PWMT[2], 0, 1000);
+                PWMT3ProgressBar.Value = Limit(PWMT[3], 0, 1000);
+
+                PWMT4ProgressBar.Value = Limit(PWMT[4], 0, 1000);
+                PWMT5ProgressBar.Value = Limit(PWMT[5], 0, 1000);
+                PWMT6ProgressBar.Value = Limit(PWMT[6], 0, 1000);
+                PWMT7ProgressBar.Value = Limit(PWMT[7], 0, 1000);
+
+                PWMT8ProgressBar.Value = Limit(PWMT[8], 0, 1000);
+                PWMT9ProgressBar.Value = Limit(PWMT[9], 0, 1000);
+
+                PWMT0.Text = string.Format("{0:n0}", PWMT[0] * 0.1);
+                PWMT1.Text = string.Format("{0:n0}", PWMT[1] * 0.1);
+                PWMT2.Text = string.Format("{0:n0}", PWMT[2] * 0.1);
+                PWMT3.Text = string.Format("{0:n0}", PWMT[3] * 0.1);
+
+                PWMT4.Text = string.Format("{0:n0}", PWMT[4] * 0.1);
+                PWMT5.Text = string.Format("{0:n0}", PWMT[5] * 0.1);
+                PWMT6.Text = string.Format("{0:n0}", PWMT[6] * 0.1);
+                PWMT7.Text = string.Format("{0:n0}", PWMT[7] * 0.1);
+
+                PWMT8.Text = string.Format("{0:n0}", PWMT[8] * 0.1);
+                PWMT9.Text = string.Format("{0:n0}", PWMT[9] * 0.1);
+        }
+
+        void UpdateAltitude()
+        {
+            ROC.Text = string.Format("{0:n1}", (float)ROCT * 0.01);
+            RelBaroAltitude.Text = string.Format("{0:n2}", (float)RelBaroAltitudeT * 0.01);
+            if ( (RelBaroAltitudeT * 0.01) > MaximumAltitudeLimit)
+                RelBaroAltitude.BackColor = System.Drawing.Color.Orange;
+            else
+                RelBaroAltitude.BackColor = AltitudeGroupBox.BackColor;
+
+            if ( (ROCT * 0.01) < -1) // 1M/S
+                ROC.BackColor = System.Drawing.Color.Orange;
+            else
+                ROC.BackColor = AltitudeGroupBox.BackColor;
+
+            RangefinderAltitude.Text = string.Format("{0:n2}", (float)RangefinderAltitudeT * 0.01);
+            if ((Flags[2] & 0x80) != 0)
+            {
+                CurrAlt = RangefinderAltitudeT * 0.01;
+                AltitudeSource.Text = "Rangefinder";
+            }
+            else
+            {
+                CurrAlt = RelBaroAltitudeT * 0.01;
+                AltitudeSource.Text = "Barometer";
+            }
+
+            if (AccConfidenceT >= 67)
+            {
+                LRAcc.BackColor = AccelerationsGroupBox.BackColor;
+                FBAcc.BackColor = AccelerationsGroupBox.BackColor;
+                DUAcc.BackColor = AccelerationsGroupBox.BackColor;
+            }
+            else 
+            {
+                LRAcc.BackColor = System.Drawing.Color.Orange;
+                FBAcc.BackColor = System.Drawing.Color.Orange;
+                DUAcc.BackColor = System.Drawing.Color.Orange;
+            }     
+
+            CurrentAltitude.Text = string.Format("{0:n0}", (float)CurrAlt);
+            if ((CurrAlt * 0.01) > MaximumAltitudeLimit)
+                CurrentAltitude.BackColor = System.Drawing.Color.Orange;
+            else
+                CurrentAltitude.BackColor = NavGroupBox.BackColor;
+
+            AltError = CurrAlt - DesiredAltitudeT * 0.01;
+            AltitudeError.Text = string.Format("{0:n1}", (float)AltError);
+        }
+
+        void ProcessFrSkyPacket()
+        {
+            short b, nb;
+            double RxVolts;
+            short LQ;
+
+            FrSkyPacketsReceived++;
+            FrSkyPacketReceived = false;
+            switch ( FrSkyReceivedPacketTag ) {
+                case 0xf0:
+                case 0xf1:
+                case 0xf2:
+                case 0xf3:
+                case 0xf4:
+                case 0xf5:
+                case 0xf6:
+                case 0xf7:
+                    break;
+                case 0xf8:    // Threshold request
+                    break;
+                case 0xf9:    // A2 Threshold
+
+                    break;
+                case 0xfa:    // A2 Threshold
+
+                    break;
+                case 0xfb:    // A1 Threshold
+
+                    break;
+                case 0xfc:    // A1 Threshold
+                  
+                    break;
+                case 0xfd:    // Data packet
+                    nb = FrSkyPacket[0];
+                    for (b = 2; b < (nb + 2); b++)
+                    {
+                        ParsePacket(FrSkyPacket[b]);
+                        if (PacketReceived)
+                            ProcessPacket();
+                    }
+                    break;
+                case 0xfe:    // A1, A2, link quality
+                    RxVolts = (FrSkyPacket[0] * 4.0 * 3.3) / 255.0;
+                    if ( RxVolts < 4.0 )
+                        FrSkyA1.BackColor = System.Drawing.Color.Orange;
+                    else
+                        if ( RxVolts < 3.5 )
+                            FrSkyA1.BackColor = System.Drawing.Color.Red;
+                        else
+                            FrSkyA1.BackColor = FrSkyBox.BackColor;
+
+                    FrSkyA1.Text = string.Format("{0:n1}", RxVolts );
+                    FrSkyA2.Text = string.Format("{0:n1}", ((float)FrSkyPacket[1] * 10.0 * 3.3) / 255.0);
+
+                    LQ = FrSkyPacket[2];
+                    if ( LQ < 80 )
+                        FrSkyLQ.BackColor = System.Drawing.Color.Orange;
+                    else
+                        if ( LQ < 70 )
+                            FrSkyLQ.BackColor = System.Drawing.Color.Red;
+                        else
+                            FrSkyLQ.BackColor = FrSkyBox.BackColor;
+
+                    FrSkyLQ.Text = string.Format("{0:n0}", LQ );
+
+                    break;
+                case 0xff:
+
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        void ProcessPacket()
+        {
+            byte b;
+            short i;
+
+            PacketReceived = false;
+            TelemetryActive = true;
+
+            if (DoingLogfileReplay)
+                ReplayProgressBar.Value = (int)ReplayProgress;
+
+                switch (RxPacketTag)
+                {
+                    case UAVXParamPacketTag:
+                        int p;
+
+                        ParameterForm.UAVXCurrPS = UAVXPacket[2];
+                        for (p = 0; p< MAX_PARAMS; p++)
+                            ParameterForm.UAVXP[UAVXCurrPS, p].Value = Convert.ToString(UAVXPacket[p + 3]);
+
+                        break;
+
+                    case UAVXWPPacketTag:
+	                    int wp;
+
+	                    wp = UAVXPacket[2];
+
+	                    WP[wp].LatitudeRaw = ExtractInt(ref UAVXPacket, 3);
+                        WP[wp].LongitudeRaw = ExtractInt(ref UAVXPacket, 7);
+                        WP[wp].Altitude = ExtractShort(ref UAVXPacket, 11);
+                        WP[wp].Velocity = ExtractShort(ref UAVXPacket, 13) * 0.1;
+                        WP[wp].Loiter = ExtractShort(ref UAVXPacket, 15);
+
+                        WP[wp].OrbitRadius = ExtractShort(ref UAVXPacket, 17);
+                        WP[wp].OrbitGroundAltitude = Convert.ToInt16(Convert.ToDouble(ExtractShort(ref UAVXPacket, 19)) * 0.1);
+                        WP[wp].OrbitVelocity = ExtractShort(ref UAVXPacket, 21);
+                        WP[wp].Action = UAVXPacket[23];
+
+                        break;
+
+                    case UAVXOriginPacketTag:
+	                    NewMission.NoOfWayPoints = UAVXPacket[2];
+
+                        NewMission.ProximityAltitude = Convert.ToByte(ExtractShort(ref UAVXPacket, 3));
+                        NewMission.ProximityRadius = Convert.ToByte(ExtractShort(ref UAVXPacket, 4));
+                        NewMission.OriginAltitude = ExtractShort(ref UAVXPacket, 5);
+
+                        NewMission.OriginLatitude = ExtractInt(ref UAVXPacket, 7);
+                        NewMission.OriginLongitude = ExtractInt(ref UAVXPacket, 11);
+
+                        NewMission.RTHAltitudeHold = ExtractShort(ref UAVXPacket, 15);
+
+	                    NewMissionAvailable = true;
+
+                        break;
+
+                    case UAVXMinPacketTag:
+
+                    for (i = 2; i < (NoOfFlagBytes + 2); i++)
+                        Flags[i - 2] = ExtractByte(ref UAVXPacket, i);
+
+                    StateT = (FlightStates)ExtractByte(ref UAVXPacket, 8);               
+                    NavStateT = (NavStates)ExtractByte(ref UAVXPacket, 9);
+                    FailStateT = ExtractByte(ref UAVXPacket, 10);
+                    BatteryVoltsT = ExtractShort(ref UAVXPacket, 11);
+                    BatteryCurrentT = ExtractShort(ref UAVXPacket, 13);
+                    BatteryChargeT = ExtractShort(ref UAVXPacket, 15);
+                    RollAngleT = ExtractShort(ref UAVXPacket, 17);
+                    PitchAngleT = ExtractShort(ref UAVXPacket, 19);
+                    RelBaroAltitudeT = ExtractInt24(ref UAVXPacket, 21);
+                    RangefinderAltitudeT = ExtractShort(ref UAVXPacket, 24);  
+                    HeadingT = ExtractShort(ref UAVXPacket, 26);
+                    GPSLatitudeT = ExtractInt(ref UAVXPacket, 28);
+                    GPSLongitudeT = ExtractInt(ref UAVXPacket, 32);
+
+
+                    AirframeT = ExtractByte(ref UAVXPacket, 36);
+                    OrientT = ExtractByte(ref UAVXPacket, 37);
+                    MissionTimeMilliSecT = ExtractInt24(ref UAVXPacket, 38);
+
+                    DesiredAltitudeT = 0;
+                    ROCT = 0;
+
+                    UAVXArm = (AirframeT & 0x80) != 0;
+                    AirframeT &= 0x7f;
+
+                    UpdateFlightState();
+                    UpdateNavState();
+                    UpdateFailState();
+                    UpdateBattery();
+                    UpdateWhere();
+                    UpdateFlags();
+
+                    Airframe.Text = AFNames[AirframeT];
+
+                    UpdateAltitude();
+                    UpdateAttitude();
+
+                    DoOrientation();
+
+                    Heading.Text = string.Format("{0:n0}", (float)HeadingT * MILLIRADDEG);
+
+                    GPSLongitude.Text = string.Format("{0:n6}", (double)GPSLongitudeT * 1e-7); // 6000000
+                    GPSLatitude.Text = string.Format("{0:n6}", (double)GPSLatitudeT * 1e-7);
+
+                    if ((Flags[0] & 0x40) != 0) // GPSValid
+                    {
+                        GPSLongitude.BackColor = NavGroupBox.BackColor;
+                        GPSLatitude.BackColor = NavGroupBox.BackColor;
+                    }
+                    else
+                    {
+                        GPSLongitude.BackColor = System.Drawing.Color.Orange;
+                        GPSLatitude.BackColor = System.Drawing.Color.Orange;
+                    }
+
+                    UpdateWhere();
+
+                    MissionTimeTextBox.Text = string.Format("{0:n1}", MissionTimeMilliSecT * (1.0 / 60000.0));
+
+
+                    WriteTextLogFile(); // no other packets
+
+                    break;
+                case UAVXStatsPacketTag:
+                    StatsPacketsReceived++;
+
+                    for (b = 0; b < MaxStats; b++)
+                        Stats[b] = ExtractShort(ref UAVXPacket, (byte)(b * 2 + 2));
+                   
+                    AirframeT = ExtractByte(ref UAVXPacket, 2 + MaxStats * 2);
+                    OrientT = ExtractByte(ref UAVXPacket, 2 + MaxStats * 2 + 1);
+
+                    UAVXArm = (AirframeT & 0x80) != 0;
+                    AirframeT &= 0x7f;
+
+                    I2CSIOFailS.Text = string.Format("{0:n0}", Stats[I2CFailsX] + Stats[SPIFailsX]);
+                    GPSFailS.Text = string.Format("{0:n0}", Stats[GPSInvalidX]);
+                    AccFailS.Text = string.Format("{0:n0}", Stats[AccFailsX]);
+                    GyroFailS.Text = string.Format("{0:n0}", Stats[GyroFailsX]);
+                    CompassFailS.Text = string.Format("{0:n0}", Stats[CompassFailsX]);
+                    BaroFailS.Text = string.Format("{0:n0}", Stats[BaroFailsX]);
+                    I2CESCFailS.Text = string.Format("{0:n0}", Stats[ESCI2CFailX]);
+                    RCFailSafeS.Text = string.Format("{0:n0}", Stats[RCFailSafesX]);
+
+                    GPSAltitudeS.Text = string.Format("{0:n1}", (float)Stats[GPSAltitudeX] * 0.01);
+                    GPSMaxVelS.Text = string.Format("{0:n1}", (float)Stats[GPSMaxVelX] * 0.1);
+                    GPSMinSatS.Text = string.Format("{0:n0}", Stats[GPSMinSatsX]);
+                    GPSMaxSatS.Text = string.Format("{0:n0}", Stats[GPSMaxSatsX]);
+                    GPSMinHDiluteS.Text = string.Format("{0:n2}", (float)Stats[MinHDiluteX] * 0.01);
+                    GPSMaxHDiluteS.Text = string.Format("{0:n2}", (float)Stats[MaxHDiluteX] * 0.01);
+
+                    BaroRelAltitudeS.Text = string.Format("{0:n1}", (float)Stats[BaroRelAltitudeX] * 0.01);
+                    BaroMinROCS.Text = string.Format("{0:n1}", (float)Stats[MinROCX] * 0.01);
+                    BaroMaxROCS.Text = string.Format("{0:n1}", (float)Stats[MaxROCX] * 0.01);
+
+                    BadS.Text = string.Format("{0:n0}", Stats[BadX]);
+                    ErrNoS.Text = string.Format("{0:n0}", Stats[BadNumX]);
+
+
+                    AirframeT = ExtractShort(ref UAVXPacket, AirframeX + 2);
+                    Airframe.Text = AFNames[AirframeT];
+
+                    DoOrientation();
+
+                    if (Stats[BadNumX] != 0)
+                        ErrNoS.BackColor = System.Drawing.Color.Red;
+                    else
+                        ErrNoS.BackColor = GPSStatsGroupBox.BackColor;
+
+                    if (Stats[AccFailsX] > 0)
+                        AccFailS.BackColor = System.Drawing.Color.Red;
+                    else
+                        AccFailS.BackColor = GPSStatsGroupBox.BackColor;
+
+                    if (Stats[GyroFailsX] > 0)
+                        GyroFailS.BackColor = System.Drawing.Color.Orange;
+                    else
+                        GyroFailS.BackColor = GPSStatsGroupBox.BackColor;
+
+                    if (Stats[CompassFailsX] > 50)
+                        CompassFailS.BackColor = System.Drawing.Color.Red;
+                    else
+                        if (Stats[CompassFailsX] > 5)
+                            CompassFailS.BackColor = System.Drawing.Color.Orange;
+                        else
+                            CompassFailS.BackColor = GPSStatsGroupBox.BackColor;
+
+                    if (Stats[BaroFailsX] > 50)
+                        BaroFailS.BackColor = System.Drawing.Color.Red;
+                    else
+                        if (Stats[BaroFailsX] > 5)
+                            BaroFailS.BackColor = System.Drawing.Color.Orange;
+                        else
+                            BaroFailS.BackColor = GPSStatsGroupBox.BackColor;
+
+                    if (Stats[GPSInvalidX] > 20)
+                        GPSFailS.BackColor = System.Drawing.Color.Red;
+                    else
+                        if (Stats[GPSInvalidX] > 5)
+                            GPSFailS.BackColor = System.Drawing.Color.Orange;
+                        else
+                            GPSFailS.BackColor = GPSStatsGroupBox.BackColor;
+
+                    if (Stats[MaxHDiluteX] > 150)
+                        GPSMaxHDiluteS.BackColor = System.Drawing.Color.Red;
+                    else
+                        GPSMaxHDiluteS.BackColor = GPSStatsGroupBox.BackColor;
+/*
+                    if (Stats[RCFailSafesX] > 20)
+                        RCGlitchesS.BackColor = System.Drawing.Color.Red;
+                    else
+                        if (Stats[RCFailSafesX] > 5)
+                            RCGlitchesS.BackColor = System.Drawing.Color.Orange;
+                        else
+                            RCGlitchesS.BackColor = GPSStatsGroupBox.BackColor;
+*/
+                    break;
+                case UAVXFlightPacketTag:
+                    FlightPacketsReceived++;
+
+                    for (i = 2; i < (NoOfFlagBytes + 2); i++)
+                        Flags[i - 2] = ExtractByte(ref UAVXPacket, i);
+
+                    StateT = (FlightStates)ExtractByte(ref UAVXPacket, 8);
+                    BatteryVoltsT = ExtractShort(ref UAVXPacket, 9);
+                    BatteryCurrentT = ExtractShort(ref UAVXPacket, 11);
+                    BatteryChargeT = ExtractShort(ref UAVXPacket, 13);
+                    RCGlitchesT = ExtractShort(ref UAVXPacket, 15);
+                    DesiredThrottleT = ExtractShort(ref UAVXPacket, 17);
+
+                    DesiredRollT = ExtractShort(ref UAVXPacket, 19);
+                    DesiredPitchT = ExtractShort(ref UAVXPacket, 21);
+                    DesiredYawT = ExtractShort(ref UAVXPacket, 23);
+
+                    RollRateT = ExtractShort(ref UAVXPacket, 25);
+                    PitchRateT = ExtractShort(ref UAVXPacket, 27);
+                    YawRateT = ExtractShort(ref UAVXPacket, 29);
+
+                    RollAngleT = ExtractShort(ref UAVXPacket, 31);
+                    PitchAngleT = ExtractShort(ref UAVXPacket, 33);
+                    YawAngleT = ExtractShort(ref UAVXPacket, 35);
+
+
+                    FBAccT = ExtractShort(ref UAVXPacket, 37);
+                    LRAccT = ExtractShort(ref UAVXPacket, 39);
+                    DUAccT = ExtractShort(ref UAVXPacket, 41);
+
+                    ROCT = ExtractShort(ref UAVXPacket, 43);
+                    RelBaroAltitudeT = ExtractInt24(ref UAVXPacket, 45);
+
+                    CruiseThrottleT = ExtractShort(ref UAVXPacket, 48);
+                    RangefinderAltitudeT = ExtractShort(ref UAVXPacket, 50);
+
+                    HeadingT = ExtractShort(ref UAVXPacket, 52);
+
+                    AltFiltCompT = ExtractShort(ref UAVXPacket, 54);
+                    AltCompT = ExtractShort(ref UAVXPacket, 56);
+                    AccConfidenceT = ExtractByte(ref UAVXPacket, 58);
+
+                    DoMotorsAndTime(59);
+
+                    UpdateFlags();
+                    UpdateFlightState();
+
+                    UpdateControls();
+                    UpdateAttitude();
+                    UpdateAltitude();
+                    UpdateAccelerations();
+                    UpdateCompensation();
+                    UpdateMotors();
+
+                    Heading.Text = string.Format("{0:n0}", (float)HeadingT * MILLIRADDEG);
+
+                    DoAirframeLabels();
+
+                    RCGlitches.Text = string.Format("{0:n0}", RCGlitchesT);
+                    if (RCGlitchesT > 20)
+                        RCGlitches.BackColor = System.Drawing.Color.Orange;
+                    else
+                        RCGlitches.BackColor = EnvGroupBox.BackColor;
+
+                    MissionTimeTextBox.Text = string.Format("{0:n1}", MissionTimeMilliSecT * (1.0 / 60000.0));
+
+                    UpdateBattery();
+
+                    WriteTextLogFile();
+                    break;
+                case UAVXControlPacketTag:
+                    ControlPacketsReceived++;
+
+                    DesiredThrottleT = ExtractShort(ref UAVXPacket, 2);
+                    DesiredRollT = ExtractShort(ref UAVXPacket, 4);
+                    DesiredPitchT = ExtractShort(ref UAVXPacket, 6);
+                    DesiredYawT = ExtractShort(ref UAVXPacket, 8);
+                    RollRateT = ExtractShort(ref UAVXPacket, 10);
+                    PitchRateT = ExtractShort(ref UAVXPacket, 12);
+                    YawRateT = ExtractShort(ref UAVXPacket, 14);
+                    RollAngleT = ExtractShort(ref UAVXPacket, 16);
+                    PitchAngleT = ExtractShort(ref UAVXPacket, 18);
+               //zzz     YawAngleT = ExtractShort(ref UAVXPacket, 20);
+
+                    FBAccT = ExtractShort(ref UAVXPacket, 22);
+                    LRAccT = ExtractShort(ref UAVXPacket, 24);
+                    DUAccT = ExtractShort(ref UAVXPacket, 26);
+
+                    AirframeT = ExtractByte(ref UAVXPacket, 28);
+
+                    UAVXArm = (AirframeT & 0x80) != 0;
+                    AirframeT &= 0x7f;
+
+                    DoMotorsAndTime(29); 
+
+                    UpdateControls();
+                    UpdateAttitude();
+                    UpdateAccelerations();
+                    UpdateCompensation();
+                    UpdateMotors();
+
+                    DoAirframeLabels();
+
+                    Heading.Text = string.Format("{0:n0}", (float)HeadingT * MILLIRADDEG);
+
+                    MissionTimeTextBox.Text = string.Format("{0:n0}", MissionTimeMilliSecT / 1000);
+
+                    WriteTextLogFile();
+                    break;
+                case UAVXNavPacketTag:
+                    NavPacketsReceived++;
+                    NavStateT = (NavStates)ExtractByte(ref UAVXPacket, 2);
+                    FailStateT = ExtractByte(ref UAVXPacket, 3);
+
+                    GPSNoOfSatsT = ExtractByte(ref UAVXPacket, 4);
+                    GPSFixT = ExtractByte(ref UAVXPacket, 5);
+                    CurrWPT = ExtractByte(ref UAVXPacket, 6);
+
+                    GPSHDiluteT = ExtractShort(ref UAVXPacket, 7);
+
+                    WPBearingT = ExtractShort(ref UAVXPacket, 9);
+                    CrossTrackET = ExtractShort(ref UAVXPacket, 11);
+                    GPSVelT = ExtractShort(ref UAVXPacket, 13);
+                    GPSHeadingT = ExtractShort(ref UAVXPacket, 15);
+                    GPSRelAltitudeT = ExtractInt24(ref UAVXPacket, 17);
+                    GPSLatitudeT = ExtractInt(ref UAVXPacket, 20);
+                    GPSLongitudeT = ExtractInt(ref UAVXPacket, 24);
+                    DesiredAltitudeT = ExtractInt24(ref UAVXPacket, 28);
+                    NorthPosET = ExtractInt(ref UAVXPacket, 31);
+                    EastPosET = ExtractInt(ref UAVXPacket, 35);
+                    NavStateTimeoutT = ExtractInt24(ref UAVXPacket, 39);
+
+                    MPU6XXXTempT = ExtractShort(ref UAVXPacket, 42);
+                    GPSMissionTimeT = ExtractInt(ref UAVXPacket, 44);
+
+                    NavSensitivityT = ExtractShort(ref UAVXPacket, 48);
+                    NavRCorrT = ExtractShort(ref UAVXPacket, 50);
+                    NavPCorrT = ExtractShort(ref UAVXPacket, 52);
+                    NavYCorrT = ExtractShort(ref UAVXPacket, 54);
+
+                    UpdateNavState();
+                    UpdateFailState();
+
+                    UpdateWhere();
+
+                    if ( Math.Abs(DesiredThrottleT - CruiseThrottleT) < 3 )
+                        DesiredThrottle.BackColor = System.Drawing.Color.Green;
+                    else
+                        if (Math.Abs(DesiredThrottleT - CruiseThrottleT) < 7)
+                            DesiredThrottle.BackColor = System.Drawing.Color.LightGreen;
+                        else
+                            DesiredThrottle.BackColor = ControlsGroupBox.BackColor;
+
+                    GPSNoOfSats.Text = string.Format("{0:n0}", GPSNoOfSatsT);
+                    if (GPSNoOfSatsT < 6)
+                        GPSNoOfSats.BackColor = System.Drawing.Color.Orange;
+                    else
+                        GPSNoOfSats.BackColor = GPSStatBox.BackColor;
+
+                    GPSFix.Text = string.Format("{0:n0}", GPSFixT);
+                    if (GPSFixT < 2)
+                        GPSFix.BackColor = System.Drawing.Color.Orange;
+                    else
+                        GPSFix.BackColor = GPSStatBox.BackColor;
+
+                    GPSHDilute.Text = string.Format("{0:n2}", (float)GPSHDiluteT * 0.01);
+                    if (GPSHDiluteT > 150)
+                        GPSHDilute.BackColor = System.Drawing.Color.Red;
+                    else
+                        if (GPSHDiluteT > 130)
+                            GPSHDilute.BackColor = System.Drawing.Color.Orange;
+                        else
+                            GPSHDilute.BackColor = GPSStatBox.BackColor;
+
+                    CurrWP.Text = string.Format("{0:n0}", CurrWPT);
+                    //pad1.Text = string.Format("{0:n0}", ExtractByte(ref UAVXPacket, 7));
+
+
+                    //UpdateAltitude();
+
+                    GPSVel.Text = string.Format("{0:n1}", (double)GPSVelT * 0.1); // M/Sec
+                    //GPSROC.Text = string.Format("{0:n1}", (float)GPSROCT * 0.01);
+                    GPSHeading.Text = string.Format("{0:n0}", (float)GPSHeadingT * MILLIRADDEG);
+                    GPSRelAltitude.Text = string.Format("{0:n1}", (double)GPSRelAltitudeT * 0.01);
+                    GPSLongitude.Text = string.Format("{0:n6}", (double)GPSLongitudeT * 1e-7);
+                    GPSLatitude.Text = string.Format("{0:n6}", (double)GPSLatitudeT * 1e-7);
+
+                    if ((Flags[0] & 0x40) != 0) // GPSValid
+                    {
+                        GPSVel.BackColor = NavGroupBox.BackColor;
+                       // GPSROC.BackColor = NavGroupBox.BackColor;
+                        GPSHeading.BackColor = NavGroupBox.BackColor;
+                        GPSRelAltitude.BackColor = NavGroupBox.BackColor;
+                        GPSLongitude.BackColor = NavGroupBox.BackColor;
+                        GPSLatitude.BackColor = NavGroupBox.BackColor;
+                        WayHeading.BackColor = NavGroupBox.BackColor;
+                        DistanceToDesired.BackColor = NavGroupBox.BackColor;
+
+                        WayHeading.Text = string.Format("{0:n0}", (float)WPBearingT * MILLIRADDEG);
+                        CrossTrackError.Text = string.Format("{0:n1}", (float)CrossTrackET * 0.1);
+
+                        NorthDiff = (double)NorthPosET * 0.1; // scale up to decimetres after conversion
+                        EastDiff = (double)EastPosET * 0.1;
+
+                        Distance = Math.Sqrt(NorthDiff * NorthDiff + EastDiff * EastDiff);
+                        DistanceToDesired.Text = string.Format("{0:n1}", Distance);
+                    }
+                    else
+                    {
+                        GPSVel.BackColor = System.Drawing.Color.Orange;
+                       // GPSROC.BackColor = System.Drawing.Color.Orange;
+                        GPSHeading.BackColor = System.Drawing.Color.Orange;
+                        GPSRelAltitude.BackColor = System.Drawing.Color.Orange;
+                        GPSLongitude.BackColor = System.Drawing.Color.Orange;
+                        GPSLatitude.BackColor = System.Drawing.Color.Orange;
+                        WayHeading.BackColor = System.Drawing.Color.Orange;
+                        DistanceToDesired.BackColor = System.Drawing.Color.Orange;
+
+                        WayHeading.Text = "?";
+                        DistanceToDesired.Text = "?";
+                    }
+
+                    UpdateWhere();
+                    SpeakNavStatus();
+              
+                    if (NavStateTimeoutT >= 0)
+                        NavStateTimeout.Text = string.Format("{0:n0}", (float)NavStateTimeoutT * 0.001);
+                    else
+                        NavStateTimeout.Text = " ";
+
+                    SensorTemp.Text = string.Format("{0:n1}", MPU6XXXTempT * 0.1);
+
+                    NavSensitivity.Text = string.Format("{0:n0}", (NavSensitivityT) * 0.1);
+                    NavRCorr.Text = string.Format("{0:n0}", NavRCorrT * 0.1);
+                    NavPCorr.Text = string.Format("{0:n0}", NavPCorrT * 0.1);
+                    NavYCorr.Text = string.Format("{0:n0}", NavYCorrT);
+
+                    if (MPU6XXXTempT < 0.0)
+                        SensorTemp.BackColor = System.Drawing.Color.LightSteelBlue;
+                    else
+                        if (MPU6XXXTempT > 300.0)
+                            SensorTemp.BackColor = System.Drawing.Color.Orange;
+                        else
+                            SensorTemp.BackColor = EnvGroupBox.BackColor;
+
+                    break;
+                default: break;
+            } // switch
+
+
+            if ( ( RxPacketTag == UAVXControlPacketTag ) || ( RxPacketTag == UAVXFlightPacketTag ) ||
+                ( RxPacketTag == UAVXMinPacketTag ) )
+            {
+                FlightRoll = PitchAngleT * OSO + RollAngleT * OCO;
+                FlightPitch = PitchAngleT * OCO - RollAngleT * OSO;
+
+               // FlightRoll = FlightRollp + (FlightRoll - FlightRollp) * 0.5;
+               // FlightPitch = FlightPitchp + (FlightPitch - FlightPitchp) * 0.5; // 0.5 1Hz 0.8 5Hz @ 0.2
+
+                FlightRollp = FlightRoll;
+                FlightPitchp = FlightPitch;
+
+              //  if (UAVXArm)
+                    attitudeIndicatorInstrumentControl1.SetAttitudeIndicatorParameters(
+                        FlightPitch * MILLIRADDEG, -FlightRoll * MILLIRADDEG);
+              /*
+              else
+                   
+                    attitudeIndicatorInstrumentControl1.SetAttitudeIndicatorParameters(
+                        FlightPitch / AttitudeToDegrees, -FlightRoll / AttitudeToDegrees);
+               */
+            }
+
+            if (RxPacketTag == UAVXFlightPacketTag )
+            {
+                FlightHeading = (int)((HeadingT) * MILLIRADDEG);
+                if (FlightHeading >= 360) FlightHeading -= 360;
+
+                headingIndicatorInstrumentControl1.SetHeadingIndicatorParameters(FlightHeading);
+            }
+        }
+
+        public void UAVXReadTelemetry(object sender, EventArgs e)
+        {
+            byte b;
+
+            while (RxHead != RxTail)
+            {
+                b = RxQueue[RxHead];
+                RxHead++;
+                RxHead &= RxQueueMask;
+
+                if (FrSkyCheckBox.Checked)
+                {
+                    ParseFrSkyPacket(b);
+                    if (FrSkyPacketReceived)
+                        ProcessFrSkyPacket();
+                }
+                else
+                {
+                    ParsePacket(b);
+                    if (PacketReceived)
+                        ProcessPacket();
+                }
+                RxTypeErr.Text = string.Format("{0:n0}", RxIllegalErrors);
+                RxCSumErr.Text = string.Format("{0:n0}", RxCheckSumErrors);
+                RxLenErr.Text = string.Format("{0:n0}", RxLengthErrors);
+                RxFrSkyErr.Text = string.Format("{0:n0}", RxFrSkyErrors);
+            }
+    
+            ReadingTelemetry = false;
+        }
+
+
+        private static void SendPacketHeader()
+        {
+            TxChar(0xff); // synchronisation to "jolt" USART
+            TxChar(SOH);
+            TxCheckSum = 0;
+        } // SendPacketHeader
+
+        private static void SendPacketTrailer()
+        {
+            TxESCu8(TxCheckSum);
+            TxChar(EOT);
+
+            TxChar(CR);
+            TxChar(LF);
+        } // SendPacketTrailer
+
+        public static void SendParamsPacket() 
+        {
+	        int p;
+
+	        SendPacketHeader();
+
+	        TxESCu8(UAVXParamPacketTag);
+	        TxESCu8(MAX_PARAM_SETS + 1);
+
+	        TxESCu8(ParameterForm.UAVXCurrPS);
+	        for (p = 0; p < MAX_PARAMS; p++)
+	        TxESCi8(Convert.ToByte(ParameterForm.UAVXP[ParameterForm.UAVXCurrPS, p]));
+
+	        SendPacketTrailer();
+
+        } // SendParamsPacket
+
+        public static void SendRequestPacket(byte Tag, byte a1, byte a2)
+        {
+           // TxLabel.Text = "Request " + TagNames[Tag];
+            SendPacketHeader();
+            TxESCu8(UAVXRequestPacketTag);
+            TxESCu8(3);
+
+            TxESCu8(Tag);
+            TxESCu8(a1);
+            TxESCu8(a2);
+
+            SendPacketTrailer();
+        } // SendRequestPacket
+
+
+        public static void SendMission()
+        {
+            int wp;
+
+            for (wp = 1; wp <= Mission.NoOfWayPoints; wp++)
+                SendWPPacket(wp);
+
+            SendOriginPacket();
+        } // SendMission
+
+
+        private static void SendOriginPacket()
+        {
+           // TxLabel.Text = "Origin";
+
+            SendPacketHeader();
+
+            TxESCu8(UAVXOriginPacketTag);
+            TxESCu8(15);
+
+            TxESCu8(Mission.NoOfWayPoints);
+            TxESCu8(Mission.ProximityAltitude);
+            TxESCu8(Mission.ProximityRadius);
+            TxESCi16(Mission.OriginAltitude);
+
+            TxESCi32(Mission.OriginLatitude);
+            TxESCi32(Mission.OriginLongitude);
+
+            TxESCi16(Mission.RTHAltitudeHold);
+
+            SendPacketTrailer();
+        } // SendOriginPacket
+
+
+        private static void SendWPPacket(int wp)
+        {
+           // TxLabel.Text = "WP";
+
+            SendPacketHeader();
+
+            TxESCu8(UAVXWPPacketTag);
+            TxESCu8(22);
+
+            TxESCu8((byte)wp);
+            TxESCi32(WP[wp].LatitudeRaw); // 1e7/degree
+            TxESCi32(WP[wp].LongitudeRaw);
+            TxESCi16(WP[wp].Altitude); // dM
+            TxESCi16((short)(WP[wp].Velocity * 10.0)); // dM/S
+            TxESCi16(WP[wp].Loiter); // S
+            TxESCi16(WP[wp].OrbitRadius); // dM
+            TxESCi16(WP[wp].OrbitGroundAltitude); // dM relative to Origin
+            // TxESCi16(Convert.ToInt16(GetAltitudeData(WP[wp].LatitudeRaw * 1e-7, WP[wp].LongitudeRaw * 1e-7)));
+            TxESCi16((short)(WP[wp].OrbitVelocity * 10.0)); // dM/S
+            TxESCu8(WP[wp].Action);
+
+            SendPacketTrailer();
+        } // SendWPPacket
+
+        //___________________________________________________________________________________
+
+        void WriteTextLogFile()
+        {
+            short i;
+
+            SaveTextLogFileStreamWriter.Write("Flight," +
+
+            (Flags[0] & 0x01) + "," + //NavAltitudeHold	
+            ((Flags[0] & 0x02) >> 1) + "," + //TurnToWP			
+            ((Flags[0] & 0x04) >> 2) + "," + //GyroFailure
+            ((Flags[0] & 0x08) >> 3) + "," + //LostModel
+            ((Flags[0] & 0x10) >> 4) + "," + //NearLevel
+            ((Flags[0] & 0x20) >> 5) + "," + //LowBatt
+            ((Flags[0] & 0x40) >> 6) + "," + //GPSValid
+            ((Flags[0] & 0x80) >> 7) + "," + //NavValid
+
+            (Flags[1] & 0x01) + "," + //BaroFailure
+            ((Flags[1] & 0x02) >> 1) + "," + //AccFailure
+            ((Flags[1] & 0x04) >> 2) + "," + //CompassFailure
+            ((Flags[1] & 0x08) >> 3) + "," + //GPSFailure
+            ((Flags[1] & 0x10) >> 4) + "," + //AttitudeHold
+            ((Flags[1] & 0x20) >> 5) + "," + //ThrottleMoving
+            ((Flags[1] & 0x40) >> 6) + "," + // Hovering
+            ((Flags[1] & 0x80) >> 7) + "," + //Navigate
+
+            (Flags[2] & 0x01) + "," + //ReturnHome
+            ((Flags[2] & 0x02) >> 1) + "," + //Proximity
+            ((Flags[2] & 0x04) >> 2) + "," + //CloseProximity
+            ((Flags[2] & 0x08) >> 3) + "," + //UsingAccComp
+            ((Flags[2] & 0x10) >> 4) + "," + //UsingRTHAutoDescend
+            ((Flags[2] & 0x20) >> 5) + "," + //BaroAltitudeValid
+            ((Flags[2] & 0x40) >> 6) + "," + //RangefinderAltitudeValid
+            ((Flags[2] & 0x80) >> 7) + "," + //UsingRangefinderAlt
+
+            (Flags[3] & 0x01) + "," + // AllowNavAltitudeHold
+            ((Flags[3] & 0x02) >> 1) + "," + // PassThrough
+            ((Flags[3] & 0x04) >> 2) + "," + // Rate
+            ((Flags[3] & 0x08) >> 3) + "," + // Emulation
+            ((Flags[3] & 0x10) >> 4) + "," + // AcquireNewPosition
+            ((Flags[3] & 0x20) >> 5) + "," + // MotorsArmed
+            ((Flags[3] & 0x40) >> 6) + "," + // NavigationActive
+            ((Flags[3] & 0x80) >> 7) + "," + // Sticks Frozen
+
+             (Flags[4] & 0x01) + "," + // Signal
+            ((Flags[4] & 0x02) >> 1) + "," + // RCFrameOK
+            ((Flags[4] & 0x04) >> 2) + "," + // ParametersValid
+            ((Flags[4] & 0x08) >> 3) + "," + // RCNewValues
+            ((Flags[4] & 0x10) >> 4) + "," + // NewCommands
+            ((Flags[4] & 0x20) >> 5) + "," + // AccelerationsValid
+            ((Flags[4] & 0x40) >> 6) + "," + // CompassValid
+            ((Flags[4] & 0x80) >> 7) + "," + // NewCompassValues
+
+            (Flags[5] & 0x01) + "," + // NewGPSPosition
+            ((Flags[5] & 0x02) >> 1) + "," + // ReceivingGPS
+            ((Flags[5] & 0x04) >> 2) + "," + // MagCalibrated
+            ((Flags[5] & 0x08) >> 3) + "," + // NavComputed
+            ((Flags[5] & 0x10) >> 4) + "," + // AltitudeValid 
+            ((Flags[5] & 0x20) >> 5) + "," + // AcceleromtersCalibrated 
+            ((Flags[5] & 0x40) >> 6) + "," + // CrossTrackActive
+            ((Flags[5] & 0x80) >> 7) + ","); // FailsafesEnabled
+
+            SaveTextLogFileStreamWriter.Write(StateT + "," +
+
+            BatteryVoltsT * 0.1 + "," +
+            BatteryCurrentT * 0.1 + "," +
+
+            BatteryChargeT + "," +
+            RCGlitchesT + "," +
+            DesiredThrottleT * 0.001+ "," +
+            DesiredRollT *0.001 + "," +
+            DesiredPitchT *0.001 + "," +
+            DesiredYawT *0.001 + "," );
+
+           // if ( UAVXArm )
+           // {
+                SaveTextLogFileStreamWriter.Write(RollRateT * MILLIRADDEG + "," +
+                PitchRateT * MILLIRADDEG + "," +
+
+                YawRateT * MILLIRADDEG + "," +
+                RollAngleT * MILLIRADDEG + "," +
+                PitchAngleT * MILLIRADDEG + "," +
+                YawAngleT * MILLIRADDEG + ",");
+            /*
+              }
+            else
+            {
+                if (RawCheckBox.Checked)
+                {
+                    SaveTextLogFileStreamWriter.Write(RollRateT / AttitudeToDegrees + "," +
+                    PitchRateT + "," +
+
+                    YawRateT + "," +
+                    RollAngleT + "," +
+                    PitchAngleT + "," +
+                    YawAngleT + ",");
+                }
+                else
+                {
+                    SaveTextLogFileStreamWriter.Write(RollRateT / AttitudeToDegrees + "," +
+                    PitchRateT / AttitudeToDegrees + "," +
+
+                    YawRateT + "," +
+                    RollAngleT / AttitudeToDegrees + "," + 
+                    PitchAngleT / AttitudeToDegrees + "," + 
+                    YawAngleT + ",");
+                }
+            }
+             */
+
+            /*if (UAVXArm)
+            {
+                */
+                SaveTextLogFileStreamWriter.Write(FBAccT * 0.001 + "," +
+                LRAccT * 0.001 + "," +
+                DUAccT * 0.001 + "," );
+           /* }
+            else
+            {
+                if (RawCheckBox.Checked) 
+                {
+                    SaveTextLogFileStreamWriter.Write(FBAccT + "," +
+                    LRAccT + "," +
+                    DUAccT + "," );
+                } 
+                else 
+                {
+                    SaveTextLogFileStreamWriter.Write(LRAccT * 0.000976 + "," +
+                    FBAccT * 0.000976 + "," +
+                    DUAccT * 0.000976 + "," );
+                }
+            }
+            */
+
+             SaveTextLogFileStreamWriter.Write(AccConfidenceT * 0.01 + "," + 
+             AltFiltCompT * 0.01 + "," +
+             AltCompT * 0.001 + ",");
+
+             for (i = 0; i < MotorsAndServos; i++)
+                SaveTextLogFileStreamWriter.Write(PWMT[i] + ",");
+
+            SaveTextLogFileStreamWriter.Write(MissionTimeMilliSecT * 0.001 + ",");
+
+            SaveTextLogFileStreamWriter.Write("Nav," +
+            NavStateT + "," +
+            FailStateT + "," +
+            GPSNoOfSatsT + "," +
+            GPSFixT + "," +
+            CurrWPT + "," +
+
+            ROCT * 0.01 + "," +
+            RelBaroAltitudeT * 0.01 + "," +
+            CruiseThrottleT*0.001 + "," +
+            RangefinderAltitudeT * 0.01 + "," +
+            GPSHDiluteT * 0.01 + "," +
+            HeadingT * 0.001 + "," +
+            WPBearingT * 0.001 + "," +
+            GPSVelT * 0.1 + "," +
+            GPSHeadingT * 0.001 + "," +
+            GPSRelAltitudeT * 0.01+ "," +
+            GPSLatitudeT * 1e-7 + "," +
+            GPSLongitudeT * 1e-7 + "," +
+            DesiredAltitudeT * 0.01 + "," +
+            NorthPosET *0.1 + "," +
+            EastPosET *0.1 + "," +
+            NavStateTimeoutT + "," +
+            MPU6XXXTempT * 0.1 + "," +
+
+            GPSMissionTimeT + "," +
+
+            NavSensitivityT * 0.001 + "," +
+            NavRCorrT * 0.001 + "," +
+            NavPCorrT * 0.001 + "," +
+            NavYCorrT + ",");
+
+            SaveTextLogFileStreamWriter.Write("Stats,");
+
+            for (i = 0; i < 22; i++)
+            SaveTextLogFileStreamWriter.Write( Stats[i] + ",");
+
+            for (i = 22; i < MaxStats; i++)
+                SaveTextLogFileStreamWriter.Write(Stats[i]*0.001 + ",");
+
+            SaveTextLogFileStreamWriter.WriteLine( AirframeT + "," + OrientT );
+
+
+        }
+
+        void UAVXCloseTelemetry()
+        {
+            if (serialPort1.IsOpen)
+            {
+                serialPort1.Close();
+
+                SaveLogFileBinaryWriter.Flush();
+                SaveLogFileBinaryWriter.Close();
+                SaveLogFileStream.Close();
+                SaveTextLogFileStreamWriter.Flush();
+                SaveTextLogFileStreamWriter.Close();
+                SaveTextLogFileStream.Close();
+                SaveTextParamFileStreamWriter.Flush();
+                SaveTextParamFileStreamWriter.Close();
+                SaveTextParamFileStream.Close();
+                SaveTextCustomFileStreamWriter.Flush();
+                SaveTextCustomFileStreamWriter.Close();
+                SaveTextCustomFileStream.Close();
+            }
+        }
+
+        //----------------------------------------------------------------------- 
+
+        public static void TxChar(byte ch)
+        {
+            var b = new byte[] { ch };
+            TxCheckSum ^= ch;
+            serialPort1.Write(b, 0, 1);
+        } // TxChar
+
+        public static void TxESCu8(byte ch)
+        {
+            if ((ch == SOH) || (ch == EOT) || (ch == ESC))
+                TxChar(ESC);
+            TxChar(ch);
+        } // TxESCu8
+
+        public static void TxESCi8(byte b)
+        {
+            if ((b == SOH) || (b == EOT) || (b == ESC))
+                TxChar(ESC);
+            TxChar(b);
+        } // TxESCu8
+
+        public static void Sendi16(short v)
+        {
+            TxChar((byte)(v & 0xff));
+            TxChar((byte)((v >> 8) & 0xff));
+        } // Sendi16
+
+        public static void TxESCi16(short v)
+        {
+            TxESCu8((byte)(v & 0xff));
+            TxESCu8((byte)((v >> 8) & 0xff));
+        } // TxESCi16
+
+        public static void TxESCi24(int v)
+        {
+            TxESCu8((byte)(v & 0xff));
+            TxESCu8((byte)((v >> 8) & 0xff));
+            TxESCu8((byte)((v >> 16) & 0xff));
+        } // TxESCi24
+
+        public static void TxESCi32(int v)
+        {
+            TxESCi16((short)(v & 0xffff));
+            TxESCi16((short)((v >> 16) & 0xffff));
+        } // TxESCi32
+
+        public void Zero(ref byte[] a, short len)
+        {
+            for (int s = 0; s < len; s++)
+                a[s] = 0;
+        }
+
+        public static byte ExtractByte(ref byte[] a, short p)
+        {
+            return a[p];
+        }
+
+        public static short ExtractSignedByte(ref byte[] a, short p)
+        {
+            short temp;
+
+            temp = a[p];
+            if (temp > 127)
+                temp -= 256;
+
+            return temp;
+        }
+
+        public static short ExtractShort(ref byte[] a, short p)
+        {
+            short temp;
+            temp = (short)(a[p + 1] << 8);
+            temp |= (short)a[p];
+
+            return temp;
+        }
+
+        public static int ExtractInt24(ref byte[] a, short p)
+        {
+            int temp;
+
+            temp = ((int)a[p + 2] << 24);
+            temp |= ((int)a[p + 1] << 16);
+            temp |= (int)a[p] << 8;
+            temp /= 256;
+            return temp;
+        }
+
+        public static int ExtractInt(ref byte[] a, short p)
+        {
+            int temp;
+
+            temp = (int)(a[p + 3] << 24);
+            temp |= ((int)a[p + 2] << 16);
+            temp |= ((int)a[p + 1] << 8);
+            temp |= (int)a[p];
+            return temp;
+        }
+
+        public static double ConvertGPSToM(double c)
+        {	
+            //return (c * 0.018553257183);
+            return ((double)c * 0.011131953098f);
+        }
+
+        private void ReplayNumericUpDown_Changed(object sender, EventArgs e)
+        {
+            ReplayDelay = 20 - Convert.ToInt16(ReplayNumericUpDown.Text);
+        }
+
+
+        private void StartParametersButton_Click(object sender, EventArgs e)
+        {
+            StartParametersButton.BackColor = System.Drawing.Color.Green;
+            ParameterForm formParameters = new ParameterForm();
+           // if (formParameters.errorFlag == false)
+                formParameters.Show(); // was ShowDialog
+        }
+
+        private void StartNavigationButton_Click(object sender, EventArgs e)
+        {
+            StartNavigationButton.BackColor = System.Drawing.Color.Green;
+           // NavForm formNav = new NavForm();
+           // if (formNav.errorFlag == false)
+                formNav.Show();
+
+        }
+
+     
+    }
+}
