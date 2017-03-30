@@ -1,0 +1,61 @@
+// ===============================================================================================
+// =                                UAVX Quadrocopter Controller                                 =
+// =                           Copyright (c) 2008 by Prof. Greg Egan                             =
+// =                 Original V3.15 Copyright (c) 2007 Ing. Wolfgang Mahringer                   =
+// =                     http://code.google.com/p/uavp-mods/ http://uavp.ch                      =
+// ===============================================================================================
+
+//    This is part of UAVX.
+
+//    UAVX is free software: you can redistribute it and/or modify it under the terms of the GNU 
+//    General Public License as published by the Free Software Foundation, either version 3 of the 
+//    License, or (at your option) any later version.
+
+//    UAVX is distributed in the hope that it will be useful,but WITHOUT ANY WARRANTY; without
+//    even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+//    See the GNU General Public License for more details.
+
+//    You should have received a copy of the GNU General Public License along with this program.  
+//    If not, see http://www.gnu.org/licenses/
+
+// Barometers
+
+#include "UAVX.h"
+
+real32 Airspeed;
+
+void ReadASDiffPressureI2C(void) {
+	uint8 B[2];
+
+	//sioReadBlock(SIORF, MAXSONAR_ID, 0, 2, B); // 0
+	//RangefinderAltitude = (real32) (((int32) B[0] << 8) + B[1]) * 0.01f;
+	//sioWrite(SIORF, MAXSONAR_ID, 81, 1); // start read cm
+
+} // ReadAirspeedI2C
+
+void ReadAirspeed(void) {
+
+	// called inside Altitude update
+
+	switch (P(AirspeedSensorType)) {
+	case ASDiffPressureI2C:
+		ReadASDiffPressureI2C();
+		break;
+	case ASDiffPressureAnalog:
+		break;
+	case ASThermopileAnalaog:
+		break;
+	case ASGPSDerived:
+		break;
+	default:
+break;
+	} // switch
+
+	Airspeed = 10.0f;
+
+} // ReadAirspeed
+
+void InitAirspeed(void) {
+
+} // InitAirspeed
+

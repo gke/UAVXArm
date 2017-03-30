@@ -1,0 +1,536 @@
+// ===============================================================================================
+// =                                UAVX Quadrocopter Controller                                 =
+// =                           Copyright (c) 2008 by Prof. Greg Egan                             =
+// =                 Original V3.15 Copyright (c) 2007 Ing. Wolfgang Mahringer                   =
+// =                     http://code.google.com/p/uavp-mods/ http://uavp.ch                      =
+// ===============================================================================================
+
+//    This is part of UAVX.
+
+//    UAVX is free software: you can redistribute it and/or modify it under the terms of the GNU 
+//    General Public License as published by the Free Software Foundation, either version 3 of the 
+//    License, or (at your option) any later version.
+
+//    UAVX is distributed in the hope that it will be useful,but WITHOUT ANY WARRANTY; without
+//    even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+//    See the GNU General Public License for more details.
+
+//    You should have received a copy of the GNU General Public License along with this program.  
+//    If not, see http://www.gnu.org/licenses/
+
+// Barometers
+
+#include "UAVX.h"
+
+//#define ALTFILTER LPFilter
+#define ALTFILTER LPFilterBW // hit it hard!!
+#define MS5611_PROM 		0xA0
+#define MS5611_PRESS 		0x40
+#define MS5611_TEMP 		0x50
+#define MS5611_RESET 		0x1E
+
+// OSR (Over Sampling Ratio) constants
+#define MS5611_OSR_256 		0x00 //0.065 mBar  0.6mS
+#define MS5611_OSR_512 		0x02 //0.042 1.17mS
+#define MS5611_OSR_1024 	0x04 //0.027 2.28mS
+// DO NOT USE #define MS5611_OSR_2048 	0x06 //0.018 4.54mS
+#define MS5611_OSR_4096 	0x08 //0.012 9.04mS
+#define MS5611_OSR  		MS5611_OSR_256 // MUST be this to be < 2mS main loop
+#if (MS5611_OSR>0)
+#define MA_FILTER_LEN (32/MS5611_OSR) // >= MS5611_OSR_512
+#else
+#define MA_FILTER_LEN 32
+#endif
+
+const uint32 ms5611SampleIntervaluS[] = { 1000, 1500, 2500, 5000, 10000 };
+//const uint32 ms5611SampleIntervaluS[] = { 600, 1170, 2280, 4540, 9040 };
+
+uint16 ms5611_c[8];
+int64 C1, C2, C3; // expansions for baro temp comp coeffs
+int64 M[7];
+
+uint16 ms5611_ManufacturersData;
+boolean AcquiringPressure;
+uint16 BaroWarmupCycles = 1000;
+real32 BaroTemperature, BaroPressure, BaroPressureRaw;
+real32 OriginAltitude, BaroAltitude, AltitudeP, ROCP, AccZ;
+real32 FAltitude, FROC; // fusion filter output
+uint32 NextBaroUpdateuS;
+real32 Airspeed;
+
+HistStruct AccZMAF, AccZLPF;
+real32 AltLPFHz;
+
+uint8 BaroType;
+
+HistStruct ROCLPF, BaroLPF, BaroMAF;
+real32 FakeBaroAltitude;
+real32 AltdT, AltdTR;
+
+real32 CalculateDensityAltitude(boolean FullMath, real32 P) {
+
+	if (FullMath)
+		return (1.0 - powf((P / 101325.0), 0.190295)) * 44330.0; // 5.5uS //66uS DP!
+	else
+		return (101325.0 - P) * 0.08406; // ~calibration to 200M // 0.25uS
+
+} // CalculateDensityAltitude
+
+void ZeroAltitude(void) {
+
+	FAltitude = OriginAltitude = BaroAltitude;
+	FROC = ROC = ROCP = Altitude = AltitudeP = AccZ = 0.0f;
+	ROCLPF.Primed = BaroLPF.Primed = BaroMAF.Primed = AccZMAF.Primed
+			= AccZLPF.Primed = false;
+} // ZeroAltitude
+
+// -----------------------------------------------------------
+
+// Generic I2C Baro
+
+void StartBaro(boolean ReadPressure) {
+
+	sioWriteBlock(SIOBaro, MS5611_ID, ReadPressure ? MS5611_PRESS : MS5611_TEMP
+			| MS5611_OSR, 0, 0);
+
+} // StartBaro
+
+// -----------------------------------------------------------
+
+// Measurement Specialities MS5611 Barometer
+
+void ReadBaroCalibration(void) {
+	uint8 i, B[2];
+
+	// clumsy but device does not have address auto increment
+
+	Delay1mS(3);
+
+	sioReadBlock(SIOBaro, MS5611_ID, MS5611_PROM, 2, B);
+	ms5611_ManufacturersData = ((uint16) B[0] << 8) | B[1];
+
+	for (i = 0; i < 8; i++) {
+		sioReadBlock(SIOBaro, MS5611_ID, MS5611_PROM + i * 2, 2, B);
+		ms5611_c[i] = ((uint16) B[0] << 8) | B[1];
+	}
+
+	M[5] = (int64) ms5611_c[5] << 8;
+
+	M[2] = (int64) ms5611_c[2] << 16;
+	M[4] = (int64) ms5611_c[4] >> 7;
+
+	M[1] = (int64) ms5611_c[1] << 15;
+	M[3] = (int64) ms5611_c[3] >> 8;
+
+} // ReadBaroCalibration
+
+
+real32 CompensateBaro(uint32 ut, uint32 up) {
+	int64 off2, sens2, delt, off, sens, ms5611t, ms5611dt;
+
+	ms5611dt = ut - M[5];
+
+	off = M[2] + M[4] * ms5611dt;
+	sens = M[1] + M[3] * ms5611dt;
+
+	ms5611t = 2000 + (((int64) ms5611_c[6] * ms5611dt) >> 23);
+	if (ms5611t < 2000) { // < 20C
+		delt = ms5611t - 2000;
+		delt = Sqr(delt);
+		off2 = (delt * 5) / 2;
+		sens2 = (delt * 10) / 8;
+		if (ms5611t < -1500) { // < -15C
+			delt = ms5611t + 1500;
+			delt = Sqr(delt);
+			off2 += delt * 7;
+			sens2 += (delt * 11) / 2;
+		}
+		off -= off2;
+		sens -= sens2;
+	}
+
+	BaroTemperature = (real32) ms5611t * 0.01f;
+	BaroPressureRaw = (real64) (up * sens - off * 2097152L) * 1.4551915e-11;
+
+	//return (real32) (((((int64) up * sens) >> 21) - off) >> 11) * 0.0625f;
+
+	return (BaroPressureRaw);
+
+} // CompensateBaro
+
+
+void UpdateAccZ(real32 AccZdT) {
+#define K_ACC_BIAS 0.9999f
+
+	AccZ = Limit1(GravityCompensatedAccZ(), GRAVITY_MPS_S * 2.0f);
+
+	if (State == InFlight) // assume average vertical acceleration is zero
+		NV.AccCal.DynamicAccBias[Z] = NV.AccCal.DynamicAccBias[Z] * K_ACC_BIAS
+				+ AccZ * (1.0 - K_ACC_BIAS);
+
+	AccZ = Smoothr32xn(&AccZMAF, MA_FILTER_LEN,
+			Limit1(GravityCompensatedAccZ(), GRAVITY_MPS_S * 2.0f));
+	AccZ = ALTFILTER(&AccZLPF, AccZ, AltLPFHz, AccZdT);
+
+	AccZ -= NV.AccCal.DynamicAccBias[Z];
+
+} // UpdateAccZ(void) {
+
+
+void GetBaro(void) {
+	static uint32 LastBaroUpdateuS = 0;
+	static uint32 BaroTempVal = 0;
+	static uint8 BaroPressCycles = 0;
+	real32 BarodT;
+	uint32 NowuS;
+	uint32 BaroVal;
+	uint8 B[3];
+
+	if (uSClock() > NextBaroUpdateuS) {
+
+		sioReadBlock(SIOBaro, MS5611_ID, 0, 3, B);
+		BaroVal = ((uint32) B[0] << 16) + ((uint32) B[1] << 8) + B[2];
+
+		if (AcquiringPressure) {
+
+			BaroPressure = CompensateBaro(BaroTempVal, BaroVal);
+			BaroAltitude = CalculateDensityAltitude(false, BaroPressure);
+			BaroAltitude = Limit(BaroAltitude, -100.0, 2000.0f);
+
+			NowuS = uSClock(); // should be no jitter in sioReadBlock?
+			BarodT = (NowuS - LastBaroUpdateuS) * 0.000001f;
+			LastBaroUpdateuS = NowuS;
+
+			BaroAltitude = Smoothr32xn(&BaroMAF, MA_FILTER_LEN, BaroAltitude);
+			BaroAltitude = ALTFILTER(&BaroLPF, BaroAltitude, AltLPFHz, BarodT);
+
+			UpdateAccZ(BarodT); // stale ~180uS
+
+			if (BaroWarmupCycles <= 0) {
+
+				// Ryan Beall CF
+				const real32 K_ROC = 0.0001f;
+				const real32 K_ALT = 0.008f;
+
+				FROC += (-AccZ) * BarodT;
+				FAltitude += FROC * BarodT;
+
+				real32 dAlt = BaroAltitude - FAltitude;
+				FROC += K_ROC * dAlt;
+				FAltitude += K_ALT * dAlt;
+
+			} else
+				BaroWarmupCycles--;
+
+			if (++BaroPressCycles > 20) {
+				BaroPressCycles = 0;
+				AcquiringPressure = false;
+			}
+		} else {
+			BaroTempVal = (BaroTempVal != 0) ? (uint32) ((uint64) BaroTempVal
+					* 127L + (uint64) BaroVal) >> 7 : BaroVal;
+
+			AcquiringPressure = true;
+		}
+		StartBaro(AcquiringPressure);
+
+		NextBaroUpdateuS = uSClock() + ms5611SampleIntervaluS[MS5611_OSR >> 1];
+	}
+
+} // GetBaro
+
+
+boolean BaroCheckCRC(void) {
+	uint16 crc = 0, zerocheck = 0;
+	uint8 i, k, crc_save;
+
+	crc_save = (uint8) (ms5611_c[7] & 0xf); // Save last 4 bit
+	ms5611_c[7] = 0xff00 & ms5611_c[7]; // Last byte must be cleared for crc calculation
+	for (i = 0; i < 16; i++) {
+		zerocheck = zerocheck | ms5611_c[i >> 1]; // To check for empty buffer
+		if (i % 2 == 1)
+			crc ^= (ms5611_c[i >> 1]) & 0x00ff;
+		else
+			crc ^= ms5611_c[i >> 1] >> 8;
+		for (k = 8; k > 0; k--)
+			if (crc & (0x8000))
+				crc = (crc << 1) ^ 0x3000;
+			else
+				crc = crc << 1;
+
+	}
+	crc = (crc >> 12) & 0xf; // crc = CRC code
+	return (crc_save == (uint8) crc && zerocheck != 0);
+
+} // BaroCheckCRC
+
+
+void InitBarometer(void) {
+	uint8 i;
+
+	ZeroAltitude();
+
+	i = MS5611_RESET;
+	sioWriteBlock(SIOBaro, MS5611_ID, 0, 1, &i);
+
+	ReadBaroCalibration();
+
+#if defined(V4_BOARD)
+	F.BaroActive = ms5611_ManufacturersData != 0;
+#else
+	F.BaroActive = true;
+#endif
+
+	AcquiringPressure = false; // temperature must be first
+	StartBaro(AcquiringPressure);
+	NextBaroUpdateuS = uSClock() + ms5611SampleIntervaluS[MS5611_OSR >> 1];
+
+	BaroWarmupCycles = 50 * MA_FILTER_LEN;
+	while (BaroWarmupCycles > 0) // just warming up the ms5611!
+		GetBaro();
+
+	DesiredAltitude = 0;
+	FAltitude = OriginAltitude = BaroAltitude;
+
+} // InitBarometer
+
+boolean IsBaroActive(void) {
+
+	F.BaroActive = true; // zzz sensible test?
+
+	return (F.BaroActive);
+} // IsBaroActive
+
+//____________________________________________________________________________
+
+// rangefinder
+
+
+RFStruct RF[] = { { 50, 0.4f, 5.0 }, //6.45f }, // MaxSonarcm
+		{ 70, 0.2f, 6.45f }, // SRFI2Ccm
+		{ 100, 0.2f, 7.65f }, // MaxSonarI2Ccm
+		{ 10, 0.2f, 1.5f }, // SharpIRGP2Y0A02YK
+		{ 10, 1.0f, 5.5f }, // SharpIRGP2Y0A710K
+		{ 0, 0, 0 } };
+
+void GetRangefinderAltitude(void);
+void InitRangefinder(void);
+
+real32 RangefinderAltitude;
+uint32 LastRangefinderUpdateuS = 0;
+real32 RFdT, RFdTR;
+uint8 RFType;
+real32 MaxSonarAltitude;
+
+void ReadMaxSonarI2C(void) {
+	uint8 B[2];
+
+	sioReadBlock(SIORF, MAXSONAR_ID, 0, 2, B); // 0
+	RangefinderAltitude = (real32) (((int32) B[0] << 8) + B[1]) * 0.01f;
+	sioWrite(SIORF, MAXSONAR_ID, 81, 1); // start read cm
+
+} // ReadMaxSonarI2C
+
+void ReadSRFI2C(void) {
+	uint8 B[2];
+
+	sioReadBlock(SIORF, SRFSONAR_ID, 2, 2, B); // 2 and 3
+	RangefinderAltitude = (real32) (((int32) B[0] << 8) + B[1]) * 0.01f;
+	sioWrite(SIORF, SRFSONAR_ID, 81, 1); // start read cm
+
+} // ReadSRFI2C
+
+real32 SharpRFLookup(real32 r, uint8 Sel) {
+	const real32 A[] = { 15.048f, 95.299 };
+	const real32 B[] = { -1.16f, -1.9197 };
+	const real32 M[] = { 0.757, 0.666 };
+
+	// MAJOR PROBLEM AS DISTANCE CURVE IS NOT MONOTONIC
+	//	if (RF[RFType].Min)
+
+	if (r > M[Sel])
+		r = M[Sel];
+
+	return (A[Sel] * powf(r, B[Sel])); // http://www.bot-thoughts.com/2012/09/curve-fitting-sharp-ir-rangers.html
+
+} //  SharpGP2Y0A02YKLookup
+
+
+void ReadRangefinder(void) {
+
+	switch (RFType) {
+	case MaxSonarcm:
+		RangefinderAltitude = analogRead(RangefinderAnalogSel) * 10.24f;
+		break;
+	case SRFI2Ccm:
+		ReadSRFI2C();
+		break;
+	case MaxSonarI2Ccm:
+		ReadMaxSonarI2C();
+		break;
+	case SharpIRGP2Y0A02YK:
+		RangefinderAltitude
+				= SharpRFLookup(analogRead(RangefinderAnalogSel), 0);
+		break;
+	case SharpIRGP2Y0A710K:
+		RangefinderAltitude
+				= SharpRFLookup(analogRead(RangefinderAnalogSel), 1);
+		break;
+	default:
+		RangefinderAltitude = 0.0f;
+		break;
+	} // switch
+
+} // ReadRangefinder
+
+void GetRangefinderAltitude(void) {
+#define RF_BUCKET
+#define RF_BUCKET_SIZE 10 // x 50mS
+	static int16 RFBucket = 0;
+	static boolean RFInRange = false;
+
+	if (F.RangefinderActive) {
+		if (mSClock() >= mS[RangefinderUpdate]) {
+			mSTimer(mSClock(), RangefinderUpdate, RF[RFType].intervalmS);
+
+			ReadRangefinder();
+
+			RFInRange = RangefinderAltitude <= RF[RFType].maxAlt;
+
+			//RFInRange = (RangefinderAltitude >= RF[RFType].minAlt)
+			//		&& (RangefinderAltitude <= RF[RFType].maxAlt);
+
+			//&& F.NearLevel;
+
+#if defined(RF_BUCKET)
+			if (RFInRange) {
+				RFBucket = Limit(RFBucket + 1, 0, RF_BUCKET_SIZE);
+				F.UsingRangefinderAlt = RFBucket >= RF_BUCKET_SIZE;
+			} else { // otherwise distrust - Maxbotix seems to return zero if there is a misrange fault
+				RFBucket = 0;
+				F.UsingRangefinderAlt = false;
+			}
+#else
+			F.UsingRangefinderAlt = RFInRange;
+#endif
+		}
+	} else
+		F.UsingRangefinderAlt = false;
+
+} // GetRangefinderAltitude
+
+
+void InitRangefinder(void) {
+
+	F.RangefinderActive = true; // optimistic
+
+	if (F.Emulation)
+		F.RangefinderActive = false;
+	else {
+		switch (RFType) {
+		case MaxSonarcm:
+			F.RangefinderActive = true; // analogRead(RangefinderAnalogSel) > 0.5f; // open circuit?
+			break;
+		case SRFI2Ccm:
+			sioWrite(SIORF, MAXSONAR_ID, 81, 1);
+			break;
+		case MaxSonarI2Ccm:
+			sioWrite(SIORF, SRFSONAR_ID, 81, 1);
+			break;
+		case SharpIRGP2Y0A02YK:
+			break;
+		case SharpIRGP2Y0A710K:
+			break;
+		case UnknownRF:
+		default:
+			F.RangefinderActive = false;
+			break;
+		} // switch
+		mSTimer(mSClock(), RangefinderUpdate, RF[RFType].intervalmS);
+	}
+
+	RangefinderAltitude = 0.0f;
+	GetRangefinderAltitude();
+
+} // InitRangefinder
+
+//___________________________________________________________________
+
+// altitude
+
+void SelectAltitudeSensor(void) {
+	static boolean WasUsingRF = false;
+
+	if (State != InFlight)
+		ZeroAltitude();
+	else {
+		AltitudeP = Altitude;
+		if (F.UsingRangefinderAlt) {
+
+			Altitude = RangefinderAltitude;
+
+			if (F.HoldingAlt && !WasUsingRF)
+				DesiredAltitude = Altitude;
+			WasUsingRF = true;
+		} else {
+#if defined(SUPPRESS_BEALL)
+			Altitude = BaroAltitude - OriginAltitude;
+#else
+			Altitude = FAltitude - OriginAltitude;
+#endif
+			if (F.HoldingAlt && WasUsingRF)
+				DesiredAltitude = Altitude;
+			WasUsingRF = false;
+		}
+	}
+
+} // SelectAltitudeSensor
+
+void UpdateAltitudeEstimates(void) {
+	static uint32 LastAltUpdatemS = 0;
+	uint32 NowmS;
+
+	GetBaro();
+	GetRangefinderAltitude();
+
+	NowmS = mSClock();
+	if (NowmS > mS[AltUpdate]) { // 5 cycles @ 10mS -> 50mS or 20Hz
+		mSTimer(mSClock(), AltUpdate, ALT_UPDATE_MS);
+
+		AltdT = (NowmS - LastAltUpdatemS) * 0.001f;
+		AltdTR = 1.0f / AltdT;
+		LastAltUpdatemS = NowmS;
+
+		SelectAltitudeSensor();
+
+		if (F.UsingRangefinderAlt) {
+			ROCP = ROC;
+			ROC = (Altitude - AltitudeP) * AltdTR;
+			ROC = SlewLimitLPFilter(ROCP, ROC, 10.0f, AltLPFHz, AltdT);
+
+			ROC = DeadZone(ROC, ALT_ROC_THRESHOLD_MPS);
+		} else {
+#if defined(SUPPRESS_BEALL)
+			ROC = (Altitude - AltitudeP) * AltdTR;
+			ROC = LPFilter(&ROCLPF, ROC, AltLPFHz, AltdT);
+#else
+			ROC = FROC;
+#endif
+		}
+
+#if defined(FRSKY_TELEMETRY_ONLY)
+		ROC = Limit1(ROC, 20.0f);
+#else
+		if (!IsFixedWing)
+			ROC = Limit1(ROC, ALT_MAX_ROC_MPS);
+#endif
+
+		StatsMax(Altitude, BaroAltitudeS);
+		StatsMinMax(ROC * 100.0f, MinROCS, MaxROCS);
+
+		F.NewAltitudeValue = true;
+	}
+
+} // UpdateAltitudeEstimates
+
+

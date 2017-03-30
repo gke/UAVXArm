@@ -1,0 +1,219 @@
+// ===============================================================================================
+// =                                UAVX Quadrocopter Controller                                 =
+// =                           Copyright (c) 2008 by Prof. Greg Egan                             =
+// =                 Original V3.15 Copyright (c) 2007 Ing. Wolfgang Mahringer                   =
+// =                     http://code.google.com/p/uavp-mods/ http://uavp.ch                      =
+// ===============================================================================================
+
+//    This is part of UAVX.
+
+//    UAVX is free software: you can redistribute it and/or modify it under the terms of the GNU 
+//    General Public License as published by the Free Software Foundation, either version 3 of the 
+//    License, or (at your option) any later version.
+
+//    UAVX is distributed in the hope that it will be useful,but WITHOUT ANY WARRANTY; without
+//    even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+//    See the GNU General Public License for more details.
+
+//    You should have received a copy of the GNU General Public License along with this program.  
+//    If not, see http://www.gnu.org/licenses/
+
+const uint32 MEASURE_MS = 10000;
+
+void TuneUpdateCoeffs(int32 a, real32 Tu, real32 Ku) {
+
+	// Kpa	Kia	Kpr	Kpd
+	// 20	3	25	45
+	// 0.25	0.005	0.285	0.0057
+	// 5	0.015	7.125	0.2565
+
+	real32 Kp_O, Kp, Kd, Wu;
+
+	Wu = 1.0f / Tu;
+
+	Kp_O = Wu * 0.1479f; // critically damped
+
+#if defined(ZN_COMP)
+	Kp = 0.8f * Ku;
+	Kd = 0.125f * Kp * Tu;
+#elif defined(XX_COMP)
+	Kp = 0.33f * Ku;
+	//Ki = 2.0f * Kp / Tu;
+	Kd = Kp / 3.0f * Tu; // some overshoot
+#else // Tyreus-Luyben
+	Kp = Ku / 2.2f;
+	//Ki = 2.2f * Tu;
+	Kd = Tu / 6.3f;
+#endif
+
+	// scale to legacy UAVP units
+	tune.T[a].Ku = Ku / IKp;
+	tune.T[a].Tu = Tu;
+
+	tune.T[a].O.Kp = Kp_O / OKp;
+	tune.T[a].I.Kp = Kp / IKp;
+	tune.T[a].I.Kd = Kd / IKd;
+
+	tune.T[a].FC = Wu / TWO_PI;
+
+} //  TuneUpdateCoeffs_ZN
+
+
+real32 TuneTrackPeriod(void) {
+
+	// try zero crossing for a start
+
+	return (0.05f);
+
+} // TuneTrackPeriod
+
+
+void Tune(void) {
+	static uint32 TuneStatePeriodmS = 0;
+	real32 Ku, Tu;
+	static real32 TuneKpTrim = 0.0f;
+	static boolean First = true;
+
+	if (TuningEnabled)
+		switch (TuneState) {
+		case startTuning:
+			if (State == InFlight) {
+
+				if (First) {
+					memset(&tune, 0, sizeof(tuneStruct));
+					TuneAxis = Yaw;
+					First = false;
+				}
+
+				if (++TuneAxis > Roll)
+					TuneAxis = Pitch;
+
+				TuneStatePeriodmS = mSClock() + MEASURE_MS;
+				TuneIteration = 0;
+				TuneKpTrim = TuneKpScale;
+
+				// zero out Kd and force rate mode on TuneAxis ONLY.
+
+				TuneState = Tuning;
+			}
+			break;
+		case Tuning:
+			if (State == InFlight) {
+				//	F.UsingRateControl = false; // force angle mode
+
+				Ku = (1.0f + (TuneKpScale - TuneKpTrim)) * A[TuneAxis].I.Kp;
+
+				// track period somehow - later
+				Tu = TuneTrackPeriod();
+
+				TuneUpdateCoeffs(TuneAxis, Tu, Ku);
+			}
+			if (mSClock() > TuneStatePeriodmS)
+				TuneState = stopTuning;
+			break;
+		case stopTuning:
+			if (!Armed() && (State == Starting))
+				TuneState = notTuning;
+			break;
+		case notTuning:
+		default:
+			break;
+		} // switch
+
+} // Tune
+
+
+void TuneUpdateCoeffs_OP(int32 a, real32 Tu, real32 Ku) {
+
+	real32 Wu, Wc, Zc, Kpu, Kp, Ki; //, Kd;
+	real32 Wc_O, Kp_O, Ki_O;
+
+	// Eventually get these settings from RelayTuningSettings
+	const real32 gain_ratio_r = 1.0f / 3.0f;
+	const real32 zero_ratio_r = 1.0f / 3.0f;
+	const real32 gain_ratio_p = 1.0f / 5.0f;
+	const real32 zero_ratio_p = 1.0f / 5.0f;
+
+	Wu = TWO_PI / Tu; // ultimate freq = output osc freq (rad/s)
+
+	Wc = Wu * gain_ratio_r; // target openloop crossover frequency (rad/s)
+	Zc = Wc * zero_ratio_r; // controller zero location (rad/s)
+	Kpu = 4.0f / (PI * Ku); // ultimate gain, i.e. the proportional gain for instablity
+	Kp = Kpu * gain_ratio_r; // proportional gain
+	Ki = Zc * Kp; // integral gain
+
+	// Now calculate gains for the outer loop knowing it is the integral of
+	// the inner loop -- the plant is position/velocity = scale*1/s
+	Wc_O = Wc * gain_ratio_p; // crossover of the attitude loop
+	Kp_O = Wc_O; // Kp of attitude
+	Ki_O = Wc_O * zero_ratio_p * Kp_O;
+
+	// scale to legacy UAVP units
+	tune.T[a].Ku = Ku / IKp;
+	tune.T[a].Tu = Tu;
+
+	tune.T[a].O.Kp = Kp_O / OKp;
+	tune.T[a].O.Ki = Ki_O / OKi;
+
+	tune.T[a].I.Kp = Kp / IKp;
+	tune.T[a].I.Ki = Ki / IKi;
+	//tune.T[a].I.Kd = Kd / IKd;
+
+	tune.T[a].FC = Wu / TWO_PI;
+
+
+} // TuneUpdateCoeffs_OP
+
+void PID(void) {
+	/*
+	 real32 Ku, Tu, Kp, Ki, Kd;
+
+	 Tu = 0.05f;
+	 Ku = 20.0f;
+
+	 Kp = 0.5f * Ku;
+	 Ki = 0.0f;
+	 Kd = 0.0f;
+
+	 Kp = 0.45f * Ku;
+	 Ki = 1.2f * Kp / Tu;
+	 Kd = 0.0f;
+
+	 Kp = 0.8f * Ku;
+	 Ki = 0.0f;
+	 Kd = 0.125f * Kp * Tu;
+
+	 Kp = 0.6f * Ku;
+	 Ki = 2.0f * Kp / Tu;
+	 Kd = 0.125f * Kp * Tu;
+
+	 Kp = 0.2f * Ku;
+	 Ki = 2.0f * Kp / Tu;
+	 Kd = 0.333f * Kp * Tu; // no overshoot
+
+	 Kp = 0.33f * Ku;
+	 Ki = 2.0f * Kp / Tu;
+	 Kd = 0.333f * Kp * Tu; // some overshoot
+
+	 Kp = 0.454f * Ku; // Tyreus-Luyben
+	 Ki = 2.2f * Tu;
+	 Kd = 0.1587f * Tu;
+	 */
+} // PID
+
+
+void CheckTune(void) {
+
+	if (F.EnableTuning) {
+		if (!TuningEnabled)
+		TuneState = startTuning;
+	} else {
+		if (TuningEnabled)
+		TuneState = stopTuning;
+	}
+
+	TuningEnabled = F.EnableTuning;
+
+} // CheckTune
+
+

@@ -1,0 +1,160 @@
+// ===============================================================================================
+// =                                UAVX Quadrocopter Controller                                 =
+// =                           Copyright (c) 2008 by Prof. Greg Egan                             =
+// =                 Original V3.15 Copyright (c) 2007 Ing. Wolfgang Mahringer                   =
+// =                     http://code.google.com/p/uavp-mods/ http://uavp.ch                      =
+// ===============================================================================================
+
+//    This is part of UAVX.
+
+//    UAVX is free software: you can redistribute it and/or modify it under the terms of the GNU 
+//    General Public License as published by the Free Software Foundation, either version 3 of the 
+//    License, or (at your option) any later version.
+
+//    UAVX is distributed in the hope that it will be useful,but WITHOUT ANY WARRANTY; without
+//    even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+//    See the GNU General Public License for more details.
+
+//    You should have received a copy of the GNU General Public License along with this program.  
+//    If not, see http://www.gnu.org/licenses/
+
+// Barometers
+
+#include "UAVX.h"
+
+#define MS4525_ID 0x28
+#define MS5525DSO_ID 0x77
+
+real32 Airspeed;
+real32 ASPressure;
+real32 ASTemperature, ASTemperatureHR;
+
+uint8 CurrASSensorType;
+
+enum ASStatusFlags {
+	ASNormal, ASStale, ASError
+};
+
+void ReadASDiffPressureI2C(void) {
+
+#define ASP_LEN 5
+	static int16 s = 0;
+	real32 a[ASP_LEN];
+
+	const real32 AirDensityMSL = 1.2041f; // @ 20C
+	const real32 PSIToPascal = 6894.75729;
+	real32 RawASPressure = 0;
+	real32 RawASTemperature = 0;
+	real32 RawASTemperatureHR = 0;
+	real32 ASP;
+	uint8 B[4];
+	const uint8 p = 2;
+
+	switch (p) {
+	case 0:
+		sioReadBlock(SIOAS, MS4525_ID, 0, 2, B);
+		RawASPressure = (B[1] & 0x3f) << 8 | B[0];
+		break;
+	case 1:
+		sioReadBlock(SIOAS, MS4525_ID, 0, 3, B);
+		RawASPressure = (B[1] & 0x3f) << 8 | B[0];
+		RawASTemperature = B[2] << 3;
+		break;
+	case 2:
+		sioReadBlock(SIOAS, MS4525_ID, 0, 4, B);
+		RawASPressure = (B[1] & 0x3f) << 8 | B[0];
+		RawASTemperatureHR = B[2] << 3 | (B[3] & 0b0111);
+		break;
+	}
+
+	uint8 ASStatus = (B[0] >> 6) & 0x03;
+	if (ASStatus == ASNormal) {
+
+		if (s >= ASP_LEN) {
+
+			ASP = median(a, ASP_LEN);
+			s = 0;
+
+			//ASPressure = -((RawASPressure - 0.1f*16383) * (P_max-P_min)/(0.8f*16383) + P_min);
+			ASP *= PSIToPascal;
+			ASTemperature = ((200.0f * RawASTemperature) / 2047) - 50;
+
+			//ASPressure = (double) ((RawASPressure - 819.15) / (14744.7));
+			ASPressure = (real32) RawASPressure * 1.052;
+			//ASPressure = ASPressure - 0.49060678;
+			ASPressure = Abs(ASPressure); // deals with port swap??
+			Airspeed = sqrt((ASPressure * 13789.5144) / 1.225); // @ 15C
+
+			Airspeed = sqrtf(2.0f * (ASPressure / AirDensityMSL));
+
+			//	return (1.0f - powf((P / 101325.0f), 0.190295f)) * 44330.0f; // 5.5uS //66uS DP!
+
+			ASTemperature = (real32) RawASTemperatureHR * 0.09770395701;
+			ASTemperature = ASTemperature - 50;
+
+		} else
+			a[s++] = RawASPressure;
+	} else {
+
+		// error
+
+	}
+
+	// does it freerun after init? sioWrite(SIOAS, MS4525_ID, 0, 0); // restart
+
+} // ReadAirspeedI2C
+
+uint32 NextASUpdatemS = 0;
+
+void InitASDiffPressureI2C(void) {
+
+	sioWrite(SIOAS, MS4525_ID, 0, 0); // 8.4mS to first data
+
+	NextASUpdatemS = mSClock() + 9;
+
+} // InitAirspeedI2C
+
+
+void UpdateAirspeed(void) {
+
+	if (mSClock() > NextASUpdatemS) { // use mS[]
+
+		NextASUpdatemS += 500; // make faster with filter and out of bound checks
+
+		switch (CurrASSensorType) {
+		case MS4525D0I2C:
+			//ReadASDiffPressureI2C();
+			break;
+		case MPXV7002DPAnalog:
+			break;
+		case ASThermopileAnalog:
+			break;
+		case ASGPSDerived:
+			break;
+		default:
+			break;
+		} // switch
+	}
+	Airspeed = 0.5f * (AS_MIN_MPS + AS_MAX_MPS);
+
+} // UpdateAirspeed
+
+void InitAirspeed(void) {
+
+	switch (CurrASSensorType) {
+	case MS4525D0I2C:
+		InitASDiffPressureI2C();
+		break;
+	case MPXV7002DPAnalog:
+		break;
+	case ASThermopileAnalog:
+		break;
+	case ASGPSDerived:
+		break;
+	default:
+		break;
+
+	}
+
+} // InitAirspeed
+

@@ -1,0 +1,521 @@
+// ===============================================================================================
+// =                                UAVX Quadrocopter ContRoller                                 =
+// =                           Copyright (c) 2008 by Prof. Greg Egan                             =
+// =                 Original V3.15 Copyright (c) 2007 Ing. Wolfgang Mahringer                   =
+// =                     http://code.google.com/p/uavp-mods/ http://uavp.ch                      =
+// ===============================================================================================
+
+//    This is part of UAVX.
+
+//    UAVX is free software: you can redistribute it and/or modify it under the terms of the GNU
+//    General Public License as published by the Free Software Foundation, either version 3 of the
+//    License, or (at your option) any later version.
+
+//    UAVX is distributed in the hope that it will be useful,but WITHOUT ANY WARRANTY; without
+//    even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+//    See the GNU General Public License for more details.
+
+//    You should have received a copy of the GNU General Public License aint32 with this program.
+//    If not, see http://www.gnu.org/licenses/
+
+
+#include "UAVX.h"
+
+#define MAX_YAW_RATE_RADPS DegreesToRadians(180) // above this rate AHRS compensation of heading is zero
+real32 dT, dTR, dTOn2, dTROn2;
+uint32 LastInertialUpdateuS = 0;
+real32 AccConfidenceSDevR = 5.0f;
+real32 AccConfidence;
+real32 AccZ;
+real32 MagConfidence;
+real32 EstMagHeading = 0.0f;
+
+real32 CalculateAccConfidence(real32 AccMag) {
+	// Gaussian decay in accelerometer value belief
+	static real32 c = 1.0f;
+
+	c
+			= HardFilter(c, expf(-0.5f * Sqr(Abs(AccMag - 1.0f) * AccConfidenceSDevR)));
+
+	return (c);
+} // CalculateAccConfidence
+
+
+real32 CalculateMagConfidence(void) {
+	// reduce confidence in mag for high yaw rates
+	real32 c;
+
+	if (State == InFlight) {
+		c = KpMagBase * (1.0f - Rate[Yaw] / MAX_YAW_RATE_RADPS); // linear for now
+		c = Limit(c, 0.0f, KpMagBase);
+	} else
+		c = KpMagBase * 10.0;
+
+	return (c);
+} // CalculateMagConfidence
+
+//=====================================================================================================
+// AHRS
+// S.O.H. Madgwick
+// 25th August 2010
+//=====================================================================================================
+// Description:
+//
+// Quaternion implementation of the 'DCM filter' [Mayhony et al].  Incorporates the magnetic distortion
+// compensation algorithms from my filter [Madgwick] which eliminates the need for a reference
+// direction of flux (bx bz) to be predefined and limits the effect of magnetic distortions to yaw
+// axis only.
+//
+// Gyroscope units are radians/second, accelerometer and magnetometer units are irrelevant as the
+// vector is normalised.
+//
+// adapted from John Ihlein's AQ version translated to Aerospace Coordinates
+//
+// integral terms removed and accelerometer & magnetometer confidence scheme by Prof. G.K. Egan 2012
+//
+//=====================================================================================================
+
+real32 KpAccBase = 2.0f; // was 5.0f;
+real32 KpAcc;
+real32 KpMagBase = 5.0f;
+real32 KpMag;
+
+real32 q0, q1, q2, q3;
+real32 q0q0, q0q1, q0q2, q0q3;
+real32 q1q1, q1q2, q1q3;
+real32 q2q2, q2q3;
+real32 q3q3;
+
+real32 bi00, bi01, bi02;
+real32 bi10, bi11, bi12;
+real32 bi20, bi21, bi22;
+
+void InitMadgwick(void) {
+
+	q0 = 1.0f; // cosf(MagHeading * 0.5f);
+	q1 = 0.0f;
+	q2 = 0.0f;
+	q3 = 0.0f; // sinf(MagHeading * 0.5f);
+
+	q0q0 = q0 * q0;
+	q0q1 = q0 * q1;
+	q0q2 = q0 * q2;
+	q0q3 = q0 * q3;
+	q1q1 = q1 * q1;
+	q1q2 = q1 * q2;
+	q1q3 = q1 * q3;
+	q2q2 = q2 * q2;
+	q2q3 = q2 * q3;
+	q3q3 = q3 * q3;
+
+} // InitMadgwick
+
+void VersanoCompensation(void) {
+#if defined(USE_VERSANO_GRAVITY_COMP)
+	// http://www.varesano.net/blog/fabio/simple-gravity-compensation-9-dom-imus
+	// compensate the accelerometer readings from gravity.
+
+	real32 cx, cy, cz;
+
+	// get expected direction of gravity from previous iteration!
+	cx = 2.0f * (q1q3 - q0q2);
+	cy = 2.0f * (q0q1 + q2q3);
+	cz = q0q0 - q1q1 - q2q2 + q3q3;
+
+	ax -= cx;
+	ay -= cy;
+	az -= cz;
+
+#endif
+}
+
+real32 GravityCompensatedAccZ(void) {
+
+	return 2.0f * (q1q3 - q0q2) * Acc[X] + 2.0f * (q0q1 + q2q3) * Acc[Y]
+			+ (q0q0 - q1q1 - q2q2 + q3q3) * Acc[Z] + GRAVITY_MPS_S;
+} // GravityCompensatedAccZ
+
+void UpdateMadgwickIMUHeading(void) {
+
+	EstMagHeading += Rate[Yaw] * dT;
+	EstMagHeading = Make2Pi(EstMagHeading);
+
+	GetMagnetometer();
+
+	if (F.NewMagValues) {
+		CalculateMagneticHeading();
+		if (F.Emulation || ((State == InFlight) && !F.HaveGPS))
+			MagHeading = EstMagHeading;
+		else
+			EstMagHeading = MagHeading;
+		Heading = (Make2Pi(MagHeading + MagVariation));
+	}
+
+} // UpdateMadgwickIMUHeading
+
+void UpdateBodyToInertialTransform(void) {
+
+	bi00 = q0q0 + q1q1 - q2q2 - q3q3; // yaw
+	//bi01 = 2.0f * (q1q2 - q0q3);
+	//bi02 = 2.0f * (q0q2 + q1q3);
+
+	bi10 = 2.0f * (q1q2 + q0q3);
+	//bi11 = q0q0 - q1q1 + q2q2 - q3q3; // yaw
+	//bi12 = 2.0f * (q2q3 - q0q1);
+
+	bi20 = 2.0f * (q1q3 - q0q2); // pitch gx
+	bi21 = 2.0f * (q0q1 + q2q3); // roll gy
+	bi22 = q0q0 - q1q1 - q2q2 + q3q3; // yaw gz
+
+	A[Roll].Angle = atan2f(bi21, bi22);
+	A[Pitch].Angle = -asinf(bi20);
+	A[Yaw].Angle = atan2f(bi10, bi00);
+
+} // UpdateBodyToInertialTransform
+
+
+// Normalise the accelerometer measurement
+
+// MadgwickGradientDescent
+//The following source code is an implementation of the orientation  lter for a MARG sensor
+//array including magnetic distortion and gyroscope drift compensation, in C. The code has
+//been  optimised  minimise  the  required  number  of  arithmetic  operations  at  the  expense  of
+//data  memory.   Each   lter  update  requires  277  scalar  arithmetic  operations  (51  additions,
+//57  subtracts,  155  multiplications,  14  divisions  and  5  square  roots).   The  implementation
+//requires 72 bytes of data memory for global variables and 260 bytes of data memory for local
+//variables during each  lter update function call.
+// Math library required for `sqrt'
+
+// System constants
+#define gyroMeasError DegreesToRadians(5)  // gyroscope measurement error in rad/s (shown as 5 deg/s)
+#define gyroMeasDrift DegreesToRadians(0.2) // gyroscope measurement error in rad/s/s (shown as 0.2f deg/s/s)
+#define beta sqrt(0.75f) * gyroMeasError // compute beta
+#define zeta sqrt(0.75f) * gyroMeasDrift // compute zeta
+void MadgwickGDUpdate(real32 gx, real32 gy, real32 gz, real32 ax, real32 ay,
+		real32 az, real32 mx, real32 my, real32 mz) {
+
+	real32 bx = 1, bz = 0; // reference direction of flux in earth frame
+
+	// local system variables
+	real32 normR; // reciprocal of vector norm
+	real32 qDotOmega0, qDotOmega1, qDotOmega2, qDotOmega3; // quaternion rate from gyroscopes elements
+	real32 f_1, f_2, f_3, f_4, f_5, f_6; // objective function elements
+	real32 J_11or24, J_12or23, J_13or22, J_14or21, J_32,
+			J_33, // objective function Jacobian elements
+			J_41, J_42, J_43, J_44, J_51, J_52, J_53, J_54, J_61, J_62, J_63,
+			J_64;
+	real32 qHatDot0, qHatDot1, qHatDot2, qHatDot3; // estimated direction of the gyroscope error
+	real32 wx, wy, wz; // estimated direction of the gyroscope error (angular)
+	real32 hx, hy, hz; // computed flux in the earth frame
+	// auxiliary variables to avoid repeated calculations
+	real32 q0on2 = 0.5f * q0;
+	real32 q1on2 = 0.5f * q1;
+	real32 q2on2 = 0.5f * q2;
+	real32 q3on2 = 0.5f * q3;
+	real32 q0by2 = 2.0f * q0;
+	real32 q1by2 = 2.0f * q1;
+	real32 q2by2 = 2.0f * q2;
+	real32 q3by2 = 2.0f * q3;
+	real32 bxby2 = 2.0f * bx;
+	real32 bzby2 = 2.0f * bz;
+	real32 bxby2q0 = 2.0f * bx * q0;
+	real32 bxby2q1 = 2.0f * bx * q1;
+	real32 bxby2q2 = 2.0f * bx * q2;
+	real32 bxby2q3 = 2.0f * bx * q3;
+	real32 bzby2q0 = 2.0f * bz * q0;
+	real32 bzby2q1 = 2.0f * bz * q1;
+	real32 bzby2q2 = 2.0f * bz * q2;
+	real32 bzby2q3 = 2.0f * bz * q3;
+	real32 q0q1;
+	real32 q0q2 = q0 * q2;
+	real32 q0q3;
+	real32 q1q2;
+	real32 q1q3 = q1 * q3;
+	real32 q2q3;
+	real32 mxby2 = 2.0f * mx;
+	real32 myby2 = 2.0f * my;
+	real32 mzby2 = 2.0f * mz;
+
+	// normalise the accelerometer measurement
+	normR = invSqrt(Sqr(ax) + Sqr(ay) + Sqr(az));
+	ax *= normR;
+	ay *= normR;
+	az *= normR;
+
+	// normalise the magnetometer measurement
+	normR = invSqrt(Sqr(mx) + Sqr(my) + Sqr(mz));
+	mx *= normR;
+	my *= normR;
+	mz *= normR;
+
+	// compute the objective function and Jacobian
+	f_1 = q1by2 * q3 - q0by2 * q2 - ax;
+	f_2 = q0by2 * q1 + q2by2 * q3 - ay;
+	f_3 = 1.0f - q1by2 * q1 - q2by2 * q2 - az;
+	f_4 = bxby2 * (0.5f - q2 * q2 - q3 * q3) + bzby2 * (q1q3 - q0q2) - mx;
+	f_5 = bxby2 * (q1 * q2 - q0 * q3) + bzby2 * (q0 * q1 + q2 * q3) - my;
+	f_6 = bxby2 * (q0q2 + q1q3) + bzby2 * (0.5f - Sqr(q1) - Sqr(q2)) - mz;
+	J_11or24 = q2by2; // J_11 negated in matrix multiplication
+	J_12or23 = 2.0f * q3;
+	J_13or22 = q0by2; // J_12 negated in matrix multiplication
+	J_14or21 = q1by2;
+	J_32 = 2.0f * J_14or21; // negated in matrix multiplication
+	J_33 = 2.0f * J_11or24; // negated in matrix multiplication
+	J_41 = bzby2q2; // negated in matrix multiplication
+	J_42 = bzby2q3;
+	J_43 = 2.0f * bxby2q2 + bzby2q0; // negated in matrix multiplication
+	J_44 = 2.0f * bxby2q3 - bzby2q1; // negated in matrix multiplication
+	J_51 = bxby2q3 - bzby2q1; // negated in matrix multiplication
+	J_52 = bxby2q2 + bzby2q0;
+	J_53 = bxby2q1 + bzby2q3;
+	J_54 = bxby2q0 - bzby2q2; // negated in matrix multiplication
+	J_61 = bxby2q2;
+	J_62 = bxby2q3 - 2.0f * bzby2q1;
+	J_63 = bxby2q0 - 2.0f * bzby2q2;
+	J_64 = bxby2q1;
+
+	// compute the gradient (matrix multiplication)
+	qHatDot0 = J_14or21 * f_2 - J_11or24 * f_1 - J_41 * f_4 - J_51 * f_5 + J_61
+			* f_6;
+	qHatDot1 = J_12or23 * f_1 + J_13or22 * f_2 - J_32 * f_3 + J_42 * f_4 + J_52
+			* f_5 + J_62 * f_6;
+	qHatDot2 = J_12or23 * f_2 - J_33 * f_3 - J_13or22 * f_1 - J_43 * f_4 + J_53
+			* f_5 + J_63 * f_6;
+	qHatDot3 = J_14or21 * f_1 + J_11or24 * f_2 - J_44 * f_4 - J_54 * f_5 + J_64
+			* f_6;
+
+	// normalise the gradient to estimate direction of the gyroscope error
+	normR = invSqrt(Sqr(qHatDot0) + Sqr(qHatDot1) + Sqr(qHatDot2)
+			+ Sqr(qHatDot3));
+	qHatDot0 *= normR;
+	qHatDot1 *= normR;
+	qHatDot2 *= normR;
+	qHatDot3 *= normR;
+
+	// compute angular estimated direction of the gyroscope error
+	wx = q0by2 * qHatDot1 - q1by2 * qHatDot0 - q2by2 * qHatDot3 + q3by2
+			* qHatDot2;
+	wy = q0by2 * qHatDot2 + q1by2 * qHatDot3 - q2by2 * qHatDot0 - q3by2
+			* qHatDot1;
+	wz = q0by2 * qHatDot3 - q1by2 * qHatDot2 + q2by2 * qHatDot1 - q3by2
+			* qHatDot0;
+
+	// compute and remove the gyroscope biases
+	gx -= wx * dT * zeta;
+	gy -= wy * dT * zeta;
+	gz -= wz * dT * zeta;
+
+	// compute the quaternion rate measured by gyroscopes
+	qDotOmega0 = -q1on2 * gx - q2on2 * gy - q3on2 * gz;
+	qDotOmega1 = q0on2 * gx + q2on2 * gz - q3on2 * gy;
+	qDotOmega2 = q0on2 * gy - q1on2 * gz + q3on2 * gx;
+	qDotOmega3 = q0on2 * gz + q1on2 * gy - q2on2 * gx;
+
+	// compute then integrate the estimated quaternion rate
+	q0 += (qDotOmega0 - (beta * qHatDot0)) * dT;
+	q1 += (qDotOmega1 - (beta * qHatDot1)) * dT;
+	q2 += (qDotOmega2 - (beta * qHatDot2)) * dT;
+	q3 += (qDotOmega3 - (beta * qHatDot3)) * dT;
+
+	// normalise quaternion
+	normR = invSqrt(Sqr(q0) + Sqr(q1) + Sqr(q2) + Sqr(q3));
+	q0 *= normR;
+	q1 *= normR;
+	q2 *= normR;
+	q3 *= normR;
+
+	// compute flux in the earth frame
+	q0q1 = q0 * q1; // recompute auxiliary variables
+	q0q2 = q0 * q2;
+	q0q3 = q0 * q3;
+	q2q3 = q2 * q3;
+	q1q2 = q1 * q2;
+	q1q3 = q1 * q3;
+
+	hx = mxby2 * (0.5f - q2 * q2 - q3 * q3) + myby2 * (q1q2 - q0q3) + mzby2
+			* (q1q3 + q0q2);
+	hy = mxby2 * (q1q2 + q0q3) + myby2 * (0.5f - q1 * q1 - q3 * q3) + mzby2
+			* (q2q3 - q0q1);
+	hz = mxby2 * (q1q3 - q0q2) + myby2 * (q2q3 + q0q1) + mzby2 * (0.5f - q1
+			* q1 - q2 * q2);
+
+	// normalise the flux vector to have only components in the x and z
+	bx = sqrt(Sqr(hx) + Sqr(hy));
+	bz = hz;
+
+} // MadgwickGDUpdate
+
+void MadgwickDCTUpdate(boolean AHRS, real32 gx, real32 gy, real32 gz,
+		real32 ax, real32 ay, real32 az, real32 mx, real32 my, real32 mz) {
+	// TODO: all arrays flattened although compiler could do this!
+
+	real32 NormR;
+
+	real32 q0i, q1i, q2i, q3i;
+	real32 hx, hy, hz;
+	real32 bx, bz;
+	real32 vx, vy, vz;
+	real32 wx, wy, wz;
+
+	// estimated direction of gravity (v)
+	vx = 2.0f * (q1q3 - q0q2);
+	vy = 2.0f * (q0q1 + q2q3);
+	vz = q0q0 - q1q1 - q2q2 + q3q3;
+
+	// error is sum of cross product between reference direction
+	// of fields and direction measured by sensors
+
+	real32 AccMag = sqrtf(Sqr(ax) + Sqr(ay) + Sqr(az));
+	AccConfidence = CalculateAccConfidence(AccMag * GRAVITY_MPS_S_R);
+
+	// renormalise to attempt to remove a little acc vibration noise
+	NormR = 1.0f / AccMag;
+	ax *= NormR;
+	ay *= NormR;
+	az *= NormR;
+
+	KpAcc = State == InFlight ? KpAccBase * AccConfidence : KpAccBase * 5.0f;
+	gx += (vy * az - vz * ay) * KpAcc;
+	gy += (vz * ax - vx * az) * KpAcc;
+	gz += (vx * ay - vy * ax) * KpAcc;
+
+	if (AHRS) {
+
+		GetMagnetometer();
+
+		if (F.NewMagValues) {
+			F.NewMagValues = false;
+
+			KpMag = CalculateMagConfidence();
+
+			NormR = invSqrt(Sqr(mx) + Sqr(my) + Sqr(mz));
+			mx *= NormR;
+			my *= NormR;
+			mz *= NormR;
+
+			// reference direction of flux
+			hx = 2.0f * (mx * (0.5f - q2q2 - q3q3) + my * (q1q2 - q0q3) + mz
+					* (q1q3 + q0q2));
+			hy = 2.0f * (mx * (q1q2 + q0q3) + my * (0.5f - q1q1 - q3q3) + mz
+					* (q2q3 - q0q1));
+			hz = 2.0f * (mx * (q1q3 - q0q2) + my * (q2q3 + q0q1) + mz * (0.5f
+					- q1q1 - q2q2));
+
+			bx = sqrtf(Sqr(hx) + Sqr(hy));
+			bz = hz;
+
+			// estimated direction of flux (w)
+			wx = 2.0f * (bx * (0.5f - q2q2 - q3q3) + bz * (q1q3 - q0q2));
+			wy = 2.0f * (bx * (q1q2 - q0q3) + bz * (q0q1 + q2q3));
+			wz = 2.0f * (bx * (q0q2 + q1q3) + bz * (0.5f - q1q1 - q2q2));
+
+			// time scaling is embedded in KpMag
+			gx += (my * wz - mz * wy) * KpMag;
+			gy += (mz * wx - mx * wz) * KpMag;
+			gz += (mx * wy - my * wx) * KpMag;
+		}
+	}
+
+	// integrate quaternion rate
+	q0i = (-q1 * gx - q2 * gy - q3 * gz) * dTOn2;
+	q1i = (q0 * gx + q2 * gz - q3 * gy) * dTOn2;
+	q2i = (q0 * gy - q1 * gz + q3 * gx) * dTOn2;
+	q3i = (q0 * gz + q1 * gy - q2 * gx) * dTOn2;
+	q0 += q0i;
+	q1 += q1i;
+	q2 += q2i;
+	q3 += q3i;
+
+	// normalize quaternion
+	NormR = invSqrt(Sqr(q0) + Sqr(q1) + Sqr(q2) + Sqr(q3));
+	q0 *= NormR;
+	q1 *= NormR;
+	q2 *= NormR;
+	q3 *= NormR;
+
+	q0q0 = q0 * q0;
+	q0q1 = q0 * q1;
+	q0q2 = q0 * q2;
+	q0q3 = q0 * q3;
+	q1q1 = q1 * q1;
+	q1q2 = q1 * q2;
+	q1q3 = q1 * q3;
+	q2q2 = q2 * q2;
+	q2q3 = q2 * q3;
+	q3q3 = q3 * q3;
+
+	UpdateBodyToInertialTransform();
+
+} // MadgwickDCTUpdate
+
+
+void UpdateMadgwick(void) {
+	int32 a;
+
+	if (F.Emulation) {
+		DoEmulation(); // produces ROC, Altitude etc.
+		MadgwickDCTUpdate(false, Rate[Roll], Rate[Pitch], Rate[Yaw], Acc[BF],
+				Acc[LR], Acc[UD], Mag[X], Mag[Y], Mag[Z]);
+	} else {
+		GetIMU();
+
+		if (CurrStateEst == MadgwickGD)
+			MadgwickGDUpdate(Rate[Roll], Rate[Pitch], Rate[Yaw], Acc[BF],
+					Acc[LR], Acc[UD], Mag[X], Mag[Y], Mag[Z]);
+		else
+			MadgwickDCTUpdate(CurrStateEst == MadgwickAHRS, Rate[Roll],
+					Rate[Pitch], Rate[Yaw], Acc[BF], Acc[LR], Acc[UD], Mag[X],
+					Mag[Y], Mag[Z]);
+	}
+
+	DoControl();
+
+	// one cycle delay OK
+	if (CurrStateEst == MadgwickIMU) //!AHRS || (CurrStateEst == MadgwickGD))
+		UpdateMadgwickIMUHeading();
+	else {
+		MagHeading = Make2Pi(A[Yaw].Angle);
+		Heading = Make2Pi(MagHeading + MagVariation);
+	}
+
+	UpdateGPS();
+	if (F.NewGPSPosition) {
+		F.NewGPSPosition = false;
+		for (a = NorthC; a <= DownC; a++) {
+			Nav.Pos[a] = GPS.Pos[a];
+			Nav.Vel[a] = GPS.Vel[a];
+		}
+		CheckNavEnable();
+	}
+
+	if (F.Emulation) {
+		RangefinderAltitude = BaroAltitude - OriginAltitude;
+		F.UsingRangefinderAlt = RangefinderAltitude <= RF[RFType].maxAlt;
+		//F.NearLevel &&
+	} else {
+		Airspeed = 0.5f * (AS_MIN_MPS + AS_MAX_MPS); // TODO: Airspeed call in altitude/atmosphere stuff
+		UpdateAltitudeEstimates();
+	}
+
+}// UpdateMadgwick
+
+//____________________________________________________________________________
+
+
+void CheckNavEnable(void) {
+
+	if ((mSClock() > mS[NavActiveTime]) && !F.NavigationActive) {
+		F.NavigationActive = true;
+		ResumeHoldingStation();
+		NavSwStateP = NavSwUnknown;
+	}
+
+	//	if (!F.NavigationEnabled)
+	//		AcquireHoldPosition();
+
+	F.GPSPosUpdated = true; // for telemetry
+	F.NewNavUpdate = F.NavigationEnabled && !F.Bypass;
+
+} // CheckNavEnable
+
+

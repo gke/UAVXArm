@@ -1,0 +1,1934 @@
+// ===============================================================================================
+// =                                UAVX Quadrocopter ContRoller                                 =
+// =                           Copyright (c) 2008 by Prof. Greg Egan                             =
+// =                 Original V3.15 Copyright (c) 2007 Ing. Wolfgang Mahringer                   =
+// =                     http://code.google.com/p/uavp-mods/ http://uavp.ch                      =
+// ===============================================================================================
+
+//    This is part of UAVX.
+
+//    UAVX is free software: you can redistribute it and/or modify it under the terms of the GNU
+//    General Public License as published by the Free Software Foundation, either version 3 of the
+//    License, or (at your option) any later version.
+
+//    UAVX is distributed in the hope that it will be useful,but WITHOUT ANY WARRANTY; without
+//    even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+//    See the GNU General Public License for more details.
+
+//    You should have received a copy of the GNU General Public License aint32 with this program.
+//    If not, see http://www.gnu.org/licenses/
+
+
+#include "UAVX.h"
+
+#define MAX_YAW_RATE_RADPS DegreesToRadians(180) // above this rate AHRS compensation of heading is zero
+real32 dT, dTR, dTOn2, dTROn2;
+uint32 LastInertialUpdateuS = 0;
+real32 AccConfidenceSDevR = 5.0f;
+real32 AccConfidence;
+real32 AccZ;
+real32 MagConfidence;
+real32 EstMagHeading = 0.0f;
+
+real32 CalculateAccConfidence(real32 AccMag) {
+	// Gaussian decay in accelerometer value belief
+	static real32 confp = 1.0f;
+	real32 conf, accNorm;
+
+	accNorm = AccMag * GRAVITY_MPS_S_R;
+	conf = expf(-0.5f * Sqr(Abs(accNorm - 1.0f) * AccConfidenceSDevR));
+	confp = HardFilter(confp, conf);
+
+	return (confp);
+} // CalculateAccConfidence
+
+
+real32 CalculateMagConfidence(void) {
+	// reduce confidence in mag for high yaw rates
+	real32 c;
+
+	if (State == InFlight) {
+		c = KpMagBase * (1.0f - Rate[Yaw] / MAX_YAW_RATE_RADPS); // linear for now
+		c = Limit(c, 0.0f, KpMagBase);
+	} else
+		c = KpMagBase * 10.0;
+
+	return (c);
+} // CalculateMagConfidence
+
+//=====================================================================================================
+// AHRS
+// S.O.H. Madgwick
+// 25th August 2010
+//=====================================================================================================
+// Description:
+//
+// Quaternion implementation of the 'DCM filter' [Mayhony et al].  Incorporates the magnetic distortion
+// compensation algorithms from my filter [Madgwick] which eliminates the need for a reference
+// direction of flux (bx bz) to be predefined and limits the effect of magnetic distortions to yaw
+// axis only.
+//
+// Gyroscope units are radians/second, accelerometer and magnetometer units are irrelevant as the
+// vector is normalised.
+//
+// adapted from John Ihlein's AQ version translated to Aerospace Coordinates
+//
+// integral terms removed and accelerometer & magnetometer confidence scheme by Prof. G.K. Egan 2012
+//
+//=====================================================================================================
+
+real32 KpAccBase = 2.0f; // was 5.0f;
+real32 KpAcc;
+real32 KpMagBase = 5.0f;
+real32 KpMag;
+
+real32 q0, q1, q2, q3;
+real32 q0q0, q0q1, q0q2, q0q3;
+real32 q1q1, q1q2, q1q3;
+real32 q2q2, q2q3;
+real32 q3q3;
+
+real32 bi00, bi01, bi02;
+real32 bi10, bi11, bi12;
+real32 bi20, bi21, bi22;
+
+void InitMadgwick(void) {
+
+	q0 = 1.0f; // cosf(MagHeading * 0.5f);
+	q1 = 0.0f;
+	q2 = 0.0f;
+	q3 = 0.0f; // sinf(MagHeading * 0.5f);
+
+	q0q0 = q0 * q0;
+	q0q1 = q0 * q1;
+	q0q2 = q0 * q2;
+	q0q3 = q0 * q3;
+	q1q1 = q1 * q1;
+	q1q2 = q1 * q2;
+	q1q3 = q1 * q3;
+	q2q2 = q2 * q2;
+	q2q3 = q2 * q3;
+	q3q3 = q3 * q3;
+
+} // InitMadgwick
+
+void VersanoCompensation(void) {
+#if defined(USE_VERSANO_GRAVITY_COMP)
+	// http://www.varesano.net/blog/fabio/simple-gravity-compensation-9-dom-imus
+	// compensate the accelerometer readings from gravity.
+
+	real32 cx, cy, cz;
+
+	// get expected direction of gravity from previous iteration!
+	cx = 2.0f * (q1q3 - q0q2);
+	cy = 2.0f * (q0q1 + q2q3);
+	cz = q0q0 - q1q1 - q2q2 + q3q3;
+
+	ax -= cx;
+	ay -= cy;
+	az -= cz;
+
+#endif
+}
+
+real32 GravityCompensatedAccZ(void) {
+
+	return 2.0f * (q1q3 - q0q2) * Acc[X] + 2.0f * (q0q1 + q2q3) * Acc[Y]
+			+ (q0q0 - q1q1 - q2q2 + q3q3) * Acc[Z] + GRAVITY_MPS_S;
+} // GravityCompensatedAccZ
+
+void UpdateMadgwickIMUHeading(void) {
+
+	EstMagHeading += Rate[Yaw] * dT;
+	EstMagHeading = Make2Pi(EstMagHeading);
+
+	GetMagnetometer();
+
+	if (F.NewMagValues) {
+		CalculateMagneticHeading();
+		if (F.Emulation || ((State == InFlight) && !F.HaveGPS))
+			MagHeading = EstMagHeading;
+		else
+			EstMagHeading = MagHeading;
+		Heading = (Make2Pi(MagHeading + MagVariation));
+	}
+
+} // UpdateMadgwickIMUHeading
+
+void UpdateBodyToInertialTransform(void) {
+
+	bi00 = q0q0 + q1q1 - q2q2 - q3q3; // yaw
+	//bi01 = 2.0f * (q1q2 - q0q3);
+	//bi02 = 2.0f * (q0q2 + q1q3);
+
+	bi10 = 2.0f * (q1q2 + q0q3);
+	//bi11 = q0q0 - q1q1 + q2q2 - q3q3; // yaw
+	//bi12 = 2.0f * (q2q3 - q0q1);
+
+	bi20 = 2.0f * (q1q3 - q0q2); // pitch gx
+	bi21 = 2.0f * (q0q1 + q2q3); // roll gy
+	bi22 = q0q0 - q1q1 - q2q2 + q3q3; // yaw gz
+
+	A[Roll].Angle = atan2f(bi21, bi22);
+	A[Pitch].Angle = -asinf(bi20);
+	A[Yaw].Angle = atan2f(bi10, bi00);
+
+} // UpdateBodyToInertialTransform
+
+
+// Normalise the accelerometer measurement
+
+// MadgwickGradientDescent
+//The following source code is an implementation of the orientation  lter for a MARG sensor
+//array including magnetic distortion and gyroscope drift compensation, in C. The code has
+//been  optimised  minimise  the  required  number  of  arithmetic  operations  at  the  expense  of
+//data  memory.   Each   lter  update  requires  277  scalar  arithmetic  operations  (51  additions,
+//57  subtracts,  155  multiplications,  14  divisions  and  5  square  roots).   The  implementation
+//requires 72 bytes of data memory for global variables and 260 bytes of data memory for local
+//variables during each  lter update function call.
+// Math library required for `sqrt'
+
+// System constants
+#define gyroMeasError DegreesToRadians(5)  // gyroscope measurement error in rad/s (shown as 5 deg/s)
+#define gyroMeasDrift DegreesToRadians(0.2) // gyroscope measurement error in rad/s/s (shown as 0.2f deg/s/s)
+#define beta sqrt(0.75f) * gyroMeasError // compute beta
+#define zeta sqrt(0.75f) * gyroMeasDrift // compute zeta
+void MadgwickGDUpdate(real32 gx, real32 gy, real32 gz, real32 ax, real32 ay,
+		real32 az, real32 mx, real32 my, real32 mz) {
+
+	real32 bx = 1, bz = 0; // reference direction of flux in earth frame
+
+	// local system variables
+	real32 normR; // reciprocal of vector norm
+	real32 qDotOmega0, qDotOmega1, qDotOmega2, qDotOmega3; // quaternion rate from gyroscopes elements
+	real32 f_1, f_2, f_3, f_4, f_5, f_6; // objective function elements
+	real32 J_11or24, J_12or23, J_13or22, J_14or21, J_32,
+			J_33, // objective function Jacobian elements
+			J_41, J_42, J_43, J_44, J_51, J_52, J_53, J_54, J_61, J_62, J_63,
+			J_64;
+	real32 qHatDot0, qHatDot1, qHatDot2, qHatDot3; // estimated direction of the gyroscope error
+	real32 wx, wy, wz; // estimated direction of the gyroscope error (angular)
+	real32 hx, hy, hz; // computed flux in the earth frame
+	// auxiliary variables to avoid repeated calculations
+	real32 q0on2 = 0.5f * q0;
+	real32 q1on2 = 0.5f * q1;
+	real32 q2on2 = 0.5f * q2;
+	real32 q3on2 = 0.5f * q3;
+	real32 q0by2 = 2.0f * q0;
+	real32 q1by2 = 2.0f * q1;
+	real32 q2by2 = 2.0f * q2;
+	real32 q3by2 = 2.0f * q3;
+	real32 bxby2 = 2.0f * bx;
+	real32 bzby2 = 2.0f * bz;
+	real32 bxby2q0 = 2.0f * bx * q0;
+	real32 bxby2q1 = 2.0f * bx * q1;
+	real32 bxby2q2 = 2.0f * bx * q2;
+	real32 bxby2q3 = 2.0f * bx * q3;
+	real32 bzby2q0 = 2.0f * bz * q0;
+	real32 bzby2q1 = 2.0f * bz * q1;
+	real32 bzby2q2 = 2.0f * bz * q2;
+	real32 bzby2q3 = 2.0f * bz * q3;
+	real32 q0q1;
+	real32 q0q2 = q0 * q2;
+	real32 q0q3;
+	real32 q1q2;
+	real32 q1q3 = q1 * q3;
+	real32 q2q3;
+	real32 mxby2 = 2.0f * mx;
+	real32 myby2 = 2.0f * my;
+	real32 mzby2 = 2.0f * mz;
+
+	// normalise the accelerometer measurement
+	normR = invSqrt(Sqr(ax) + Sqr(ay) + Sqr(az));
+	ax *= normR;
+	ay *= normR;
+	az *= normR;
+
+	// normalise the magnetometer measurement
+	normR = invSqrt(Sqr(mx) + Sqr(my) + Sqr(mz));
+	mx *= normR;
+	my *= normR;
+	mz *= normR;
+
+	// compute the objective function and Jacobian
+	f_1 = q1by2 * q3 - q0by2 * q2 - ax;
+	f_2 = q0by2 * q1 + q2by2 * q3 - ay;
+	f_3 = 1.0f - q1by2 * q1 - q2by2 * q2 - az;
+	f_4 = bxby2 * (0.5f - q2 * q2 - q3 * q3) + bzby2 * (q1q3 - q0q2) - mx;
+	f_5 = bxby2 * (q1 * q2 - q0 * q3) + bzby2 * (q0 * q1 + q2 * q3) - my;
+	f_6 = bxby2 * (q0q2 + q1q3) + bzby2 * (0.5f - Sqr(q1) - Sqr(q2)) - mz;
+	J_11or24 = q2by2; // J_11 negated in matrix multiplication
+	J_12or23 = 2.0f * q3;
+	J_13or22 = q0by2; // J_12 negated in matrix multiplication
+	J_14or21 = q1by2;
+	J_32 = 2.0f * J_14or21; // negated in matrix multiplication
+	J_33 = 2.0f * J_11or24; // negated in matrix multiplication
+	J_41 = bzby2q2; // negated in matrix multiplication
+	J_42 = bzby2q3;
+	J_43 = 2.0f * bxby2q2 + bzby2q0; // negated in matrix multiplication
+	J_44 = 2.0f * bxby2q3 - bzby2q1; // negated in matrix multiplication
+	J_51 = bxby2q3 - bzby2q1; // negated in matrix multiplication
+	J_52 = bxby2q2 + bzby2q0;
+	J_53 = bxby2q1 + bzby2q3;
+	J_54 = bxby2q0 - bzby2q2; // negated in matrix multiplication
+	J_61 = bxby2q2;
+	J_62 = bxby2q3 - 2.0f * bzby2q1;
+	J_63 = bxby2q0 - 2.0f * bzby2q2;
+	J_64 = bxby2q1;
+
+	// compute the gradient (matrix multiplication)
+	qHatDot0 = J_14or21 * f_2 - J_11or24 * f_1 - J_41 * f_4 - J_51 * f_5 + J_61
+			* f_6;
+	qHatDot1 = J_12or23 * f_1 + J_13or22 * f_2 - J_32 * f_3 + J_42 * f_4 + J_52
+			* f_5 + J_62 * f_6;
+	qHatDot2 = J_12or23 * f_2 - J_33 * f_3 - J_13or22 * f_1 - J_43 * f_4 + J_53
+			* f_5 + J_63 * f_6;
+	qHatDot3 = J_14or21 * f_1 + J_11or24 * f_2 - J_44 * f_4 - J_54 * f_5 + J_64
+			* f_6;
+
+	// normalise the gradient to estimate direction of the gyroscope error
+	normR = invSqrt(Sqr(qHatDot0) + Sqr(qHatDot1) + Sqr(qHatDot2)
+			+ Sqr(qHatDot3));
+	qHatDot0 *= normR;
+	qHatDot1 *= normR;
+	qHatDot2 *= normR;
+	qHatDot3 *= normR;
+
+	// compute angular estimated direction of the gyroscope error
+	wx = q0by2 * qHatDot1 - q1by2 * qHatDot0 - q2by2 * qHatDot3 + q3by2
+			* qHatDot2;
+	wy = q0by2 * qHatDot2 + q1by2 * qHatDot3 - q2by2 * qHatDot0 - q3by2
+			* qHatDot1;
+	wz = q0by2 * qHatDot3 - q1by2 * qHatDot2 + q2by2 * qHatDot1 - q3by2
+			* qHatDot0;
+
+	// compute and remove the gyroscope biases
+	gx -= wx * dT * zeta;
+	gy -= wy * dT * zeta;
+	gz -= wz * dT * zeta;
+
+	// compute the quaternion rate measured by gyroscopes
+	qDotOmega0 = -q1on2 * gx - q2on2 * gy - q3on2 * gz;
+	qDotOmega1 = q0on2 * gx + q2on2 * gz - q3on2 * gy;
+	qDotOmega2 = q0on2 * gy - q1on2 * gz + q3on2 * gx;
+	qDotOmega3 = q0on2 * gz + q1on2 * gy - q2on2 * gx;
+
+	// compute then integrate the estimated quaternion rate
+	q0 += (qDotOmega0 - (beta * qHatDot0)) * dT;
+	q1 += (qDotOmega1 - (beta * qHatDot1)) * dT;
+	q2 += (qDotOmega2 - (beta * qHatDot2)) * dT;
+	q3 += (qDotOmega3 - (beta * qHatDot3)) * dT;
+
+	// normalise quaternion
+	normR = invSqrt(Sqr(q0) + Sqr(q1) + Sqr(q2) + Sqr(q3));
+	q0 *= normR;
+	q1 *= normR;
+	q2 *= normR;
+	q3 *= normR;
+
+	// compute flux in the earth frame
+	q0q1 = q0 * q1; // recompute auxiliary variables
+	q0q2 = q0 * q2;
+	q0q3 = q0 * q3;
+	q2q3 = q2 * q3;
+	q1q2 = q1 * q2;
+	q1q3 = q1 * q3;
+
+	hx = mxby2 * (0.5f - q2 * q2 - q3 * q3) + myby2 * (q1q2 - q0q3) + mzby2
+			* (q1q3 + q0q2);
+	hy = mxby2 * (q1q2 + q0q3) + myby2 * (0.5f - q1 * q1 - q3 * q3) + mzby2
+			* (q2q3 - q0q1);
+	hz = mxby2 * (q1q3 - q0q2) + myby2 * (q2q3 + q0q1) + mzby2 * (0.5f - q1
+			* q1 - q2 * q2);
+
+	// normalise the flux vector to have only components in the x and z
+	bx = sqrt(Sqr(hx) + Sqr(hy));
+	bz = hz;
+
+} // MadgwickGDUpdate
+
+void MadgwickDCTUpdate(boolean AHRS, real32 gx, real32 gy, real32 gz,
+		real32 ax, real32 ay, real32 az, real32 mx, real32 my, real32 mz) {
+
+	real32 NormR;
+
+	real32 q0i, q1i, q2i, q3i;
+	real32 hx, hy, hz;
+	real32 bx, bz;
+	real32 vx, vy, vz;
+	real32 wx, wy, wz;
+
+	// estimated direction of gravity (v)
+	vx = 2.0f * (q1q3 - q0q2);
+	vy = 2.0f * (q0q1 + q2q3);
+	vz = q0q0 - q1q1 - q2q2 + q3q3;
+
+	// error is sum of cross product between reference direction
+	// of fields and direction measured by sensors
+
+	real32 AccMag = sqrtf(Sqr(ax) + Sqr(ay) + Sqr(az));
+	AccConfidence = CalculateAccConfidence(AccMag);
+
+	// renormalise to attempt to remove a little acc vibration noise
+	NormR = 1.0f / AccMag;
+	ax *= NormR;
+	ay *= NormR;
+	az *= NormR;
+
+	KpAcc = State == InFlight ? KpAccBase * AccConfidence : KpAccBase * 5.0f;
+	gx += (vy * az - vz * ay) * KpAcc;
+	gy += (vz * ax - vx * az) * KpAcc;
+	gz += (vx * ay - vy * ax) * KpAcc;
+
+	if (AHRS) {
+
+		GetMagnetometer();
+
+		if (F.NewMagValues) { // no compensation for latency
+			F.NewMagValues = false;
+
+			KpMag = CalculateMagConfidence();
+
+			NormR = invSqrt(Sqr(mx) + Sqr(my) + Sqr(mz));
+			mx *= NormR;
+			my *= NormR;
+			mz *= NormR;
+
+			// reference direction of flux
+			hx = 2.0f * (mx * (0.5f - q2q2 - q3q3) + my * (q1q2 - q0q3) + mz
+					* (q1q3 + q0q2));
+			hy = 2.0f * (mx * (q1q2 + q0q3) + my * (0.5f - q1q1 - q3q3) + mz
+					* (q2q3 - q0q1));
+			hz = 2.0f * (mx * (q1q3 - q0q2) + my * (q2q3 + q0q1) + mz * (0.5f
+					- q1q1 - q2q2));
+
+			bx = sqrtf(Sqr(hx) + Sqr(hy));
+			bz = hz;
+
+			// estimated direction of flux (w)
+			wx = 2.0f * (bx * (0.5f - q2q2 - q3q3) + bz * (q1q3 - q0q2));
+			wy = 2.0f * (bx * (q1q2 - q0q3) + bz * (q0q1 + q2q3));
+			wz = 2.0f * (bx * (q0q2 + q1q3) + bz * (0.5f - q1q1 - q2q2));
+
+			// time scaling is embedded in KpMag
+			gx += (my * wz - mz * wy) * KpMag;
+			gy += (mz * wx - mx * wz) * KpMag;
+			gz += (mx * wy - my * wx) * KpMag;
+		}
+	}
+
+	// integrate quaternion rate
+	q0i = (-q1 * gx - q2 * gy - q3 * gz) * dTOn2;
+	q1i = (q0 * gx + q2 * gz - q3 * gy) * dTOn2;
+	q2i = (q0 * gy - q1 * gz + q3 * gx) * dTOn2;
+	q3i = (q0 * gz + q1 * gy - q2 * gx) * dTOn2;
+	q0 += q0i;
+	q1 += q1i;
+	q2 += q2i;
+	q3 += q3i;
+
+	// normalize quaternion
+	NormR = invSqrt(Sqr(q0) + Sqr(q1) + Sqr(q2) + Sqr(q3));
+	q0 *= NormR;
+	q1 *= NormR;
+	q2 *= NormR;
+	q3 *= NormR;
+
+	q0q0 = q0 * q0;
+	q0q1 = q0 * q1;
+	q0q2 = q0 * q2;
+	q0q3 = q0 * q3;
+	q1q1 = q1 * q1;
+	q1q2 = q1 * q2;
+	q1q3 = q1 * q3;
+	q2q2 = q2 * q2;
+	q2q3 = q2 * q3;
+	q3q3 = q3 * q3;
+
+	UpdateBodyToInertialTransform();
+
+} // MadgwickDCTUpdate
+
+
+void UpdateMadgwick(void) {
+	int32 a;
+
+	if (F.Emulation) {
+		DoEmulation(); // produces ROC, Altitude etc.
+		MadgwickDCTUpdate(false, Rate[Roll], Rate[Pitch], Rate[Yaw], Acc[BF],
+				Acc[LR], Acc[UD], Mag[X], Mag[Y], Mag[Z]);
+	} else {
+		GetIMU();
+
+		if (CurrStateEst == MadgwickGD)
+			MadgwickGDUpdate(Rate[Roll], Rate[Pitch], Rate[Yaw], Acc[BF],
+					Acc[LR], Acc[UD], Mag[X], Mag[Y], Mag[Z]);
+		else
+			MadgwickDCTUpdate(CurrStateEst == MadgwickAHRS, Rate[Roll],
+					Rate[Pitch], Rate[Yaw], Acc[BF], Acc[LR], Acc[UD], Mag[X],
+					Mag[Y], Mag[Z]);
+	}
+
+	DoControl();
+
+	// one cycle delay OK
+	if (CurrStateEst == MadgwickIMU) //!AHRS || (CurrStateEst == MadgwickGD))
+		UpdateMadgwickIMUHeading();
+	else {
+		MagHeading = Make2Pi(A[Yaw].Angle);
+		Heading = Make2Pi(MagHeading + MagVariation);
+	}
+
+	UpdateGPS();
+	if (F.NewGPSPosition) {
+		F.NewGPSPosition = false;
+		for (a = NorthC; a <= DownC; a++) {
+			Nav.Pos[a] = GPS.Pos[a];
+			Nav.Vel[a] = GPS.Vel[a];
+		}
+		CheckNavEnable();
+	}
+
+	if (F.Emulation) {
+		RangefinderAltitude = BaroAltitude - OriginAltitude;
+		F.UsingRangefinderAlt = RangefinderAltitude <= RF[RFType].maxAlt;
+		//F.NearLevel &&
+	} else {
+		Airspeed = 0.5f * (AS_MIN_MPS + AS_MAX_MPS); // TODO: Airspeed call in altitude/atmosphere stuff
+		UpdateAltitudeEstimates();
+	}
+
+}// UpdateMadgwick
+
+//____________________________________________________________________________
+
+
+void CheckNavEnable(void) {
+
+	if ((mSClock() > mS[NavActiveTime]) && !F.NavigationActive) {
+		F.NavigationActive = true;
+		ResumeHoldingStation();
+		NavSwStateP = NavSwUnknown;
+	}
+
+	//	if (!F.NavigationEnabled)
+	//		AcquireHoldPosition();
+
+	F.GPSPosUpdated = true; // for telemetry
+	F.NewNavUpdate = F.NavigationEnabled && !F.Bypass;
+
+} // CheckNavEnable
+
+
+#if defined(MATRIXPILOT)
+
+++++++++++++++++++++++++++++++++
+
+// This file is part of MatrixPilot.
+//
+//    http://code.google.com/p/gentlenav/
+//
+// Copyright 2009-2011 MatrixPilot Team
+// See the AUTHORS.TXT file for a list of authors of MatrixPilot.
+//
+// MatrixPilot is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// MatrixPilot is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with MatrixPilot.  If not, see <http://www.gnu.org/licenses/>.
+
+
+#include "libDCM.h"
+#include "mathlibNAV.h"
+#include "deadReckoning.h"
+#include "gpsParseCommon.h"
+#include "../libUDB/heartbeat.h"
+#include "../libUDB/ADchannel.h"
+#include "../libUDB/magnetometer.h"
+#include "options_magnetometer.h"
+#include "mag_drift.h"
+#include "rmat.h"
+
+// These are the routines for maintaining a direction cosine matrix
+// that can be used to transform vectors between the earth and plane
+// coordinate systems. The 9 direction cosines in the matrix completely
+// define the orientation of the plane with respect to the earth.
+// The inverse of the matrix is equal to its transpose. This defines
+// the so-called orthogonality conditions, which impose 6 constraints on
+// the 9 elements of the matrix.
+
+// All numbers are stored in 2.14 format.
+// Vector and matrix libraries work in 1.15 format.
+// This combination allows values of matrix elements between -2 and +2.
+// Multiplication produces results scaled by 1/2.
+
+
+#define RMAX15 24576 //0b0110000000000000   // 1.5 in 2.14 format
+#define GGAIN SCALEGYRO*6*(RMAX*(1.0/HEARTBEAT_HZ)) // integration multiplier for gyros
+static real32 ggain[] = {GGAIN, GGAIN, GGAIN};
+
+static uint16 spin_rate = 0;
+static real32 spin_axis[] = {0, 0, RMAX};
+
+#if (BOARD_TYPE == AUAV3_BOARD || BOARD_TYPE == UDB5_BOARD || BOARD_TYPE == PX4_BOARD)
+// modified gains for MPU6000
+#define KPROLLPITCH (ACCEL_RANGE * 1280/3)
+#define KIROLLPITCH (ACCEL_RANGE * 3400 / HEARTBEAT_HZ)
+
+#elif (BOARD_TYPE == UDB4_BOARD)
+// Paul's gains for 6G accelerometers
+#define KPROLLPITCH (256*5)
+#define KIROLLPITCH (10240/HEARTBEAT_HZ) // 256
+#else
+#error Unsupported BOARD_TYPE
+#endif // BOARD_TYPE
+#define KPYAW 256*4
+//#define KIYAW 32
+#define KIYAW (1280/HEARTBEAT_HZ)
+
+#define GYROSAT 15000
+// threshold at which gyros may be saturated
+
+// rmat is the matrix of direction cosines relating
+// the body and earth coordinate systems.
+// The columns of rmat are the axis vectors of the plane,
+// as measured in the earth reference frame.
+// The rows of rmat are the unit vectors defining the body frame in the earth frame.
+// rmat therefore describes the body frame B relative to the Earth frame E
+// and in Craig's notation is represented as (B->E)R: LateX format: presupsub{E}{B}R
+// To transform a point from body frame to Earth frame, multiply from the left
+// with rmat.
+
+// rmat is initialized to the identity matrix in 2.14 real32 format
+
+#ifdef INITIALIZE_VERTICAL  // for VTOL vertical initialization
+real32 rmat[] = {RMAX, 0, 0, 0, 0, RMAX, 0, -RMAX, 0};
+#else // the usual case, horizontal initialization
+real32 rmat[] = {RMAX, 0, 0, 0, RMAX, 0, 0, 0, RMAX};
+#endif
+
+// rup is the rotational update matrix.
+// At each time step, the new rmat is equal to the old one, multiplied by rup.
+//real32 rup[] = { RMAX, 0, 0, 0, RMAX, 0, 0, 0, RMAX };
+
+// gyro rotation vector:
+real32 omegagyro[] = {0, 0, 0};
+static real32 omega[] = {0, 0, 0};
+
+// gyro correction vectors:
+static real32 omegacorrP[] = {0, 0, 0};
+static real32 omegacorrI[] = {0, 0, 0};
+
+// acceleration, as measured in GPS earth coordinate system
+real32 accelEarth[] = {0, 0, 0};
+
+//union longww accelEarthFiltered[] = { { 0 }, { 0 },  { 0 } };
+
+// correction vector integrators;
+static union longww gyroCorrectionIntegral[] = { {0}, {0}, {0}};
+
+// accumulator for computing adjusted omega:
+real32 omegaAccum[] = {0, 0, 0};
+
+// gravity, as measured in plane coordinate system
+#ifdef INITIALIZE_VERTICAL // VTOL vertical initialization
+static real32 gplane[] = {0, -GRAVITY, 0};
+int16 aero_force[] = {0 , GRAVITY , 0};
+#else  // horizontal initialization
+static real32 gplane[] = {0, 0, GRAVITY};
+int16 aero_force[] = {0 , 0 , -GRAVITY};
+#endif
+
+// horizontal velocity over ground, as measured by GPS (Vz = 0)
+real32 dirOverGndHGPS[] = {0, RMAX, 0};
+
+// horizontal direction over ground, as indicated by Rmatrix
+real32 dirOverGndHrmat[] = {0, RMAX, 0};
+
+// rotation angle equal to omega times integration factor:
+//real32 theta[] = { 0, 0, 0 };
+
+// matrix buffer:
+//real32 rbuff[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+// vector buffer
+static real32 errorRP[] = {0, 0, 0};
+static real32 errorYawground[] = {0, 0, 0};
+static real32 errorYawplane[] = {0, 0, 0};
+
+// measure of error in orthogonality, used for debugging purposes:
+static real32 error = 0;
+
+void yaw_drift_reset(void)
+{
+	errorYawground[0] = errorYawground[1] = errorYawground[2] = 0; // turn off yaw drift
+}
+
+void dcm_init_rmat(void)
+{
+#if (MAG_YAW_DRIFT == 1)
+	mag_drift_init();
+	//#if (DECLINATIONANGLE_VARIABLE == 1)
+	//	dcm_declination_angle.BB = DECLINATIONANGLE;
+	//#endif
+	//	declinationVector[0] = cosine((int8_t) (DECLINATIONANGLE >> 8));
+	//	declinationVector[1] = sine((int8_t) (DECLINATIONANGLE >> 8));
+#endif
+}
+
+static inline void read_gyros(void)
+{
+	// fetch the gyro signals and subtract the baseline offset,
+	// and adjust for variations in supply voltage
+	unsigned spin_rate_over_2;
+
+	omegagyro[0] = XRATE_VALUE;
+	omegagyro[1] = YRATE_VALUE;
+	omegagyro[2] = ZRATE_VALUE;
+
+	spin_rate = vector3_mag(omegagyro[0], omegagyro[1], omegagyro[2]);
+	spin_rate_over_2 = spin_rate >> 1;
+
+	if (spin_rate_over_2 > 0)
+	{
+		spin_axis[0] = __builtin_divsd(((int32)omegagyro[0]) << 13, spin_rate_over_2);
+		spin_axis[1] = __builtin_divsd(((int32)omegagyro[1]) << 13, spin_rate_over_2);
+		spin_axis[2] = __builtin_divsd(((int32)omegagyro[2]) << 13, spin_rate_over_2);
+	}
+}
+
+static inline void read_accel(void)
+{
+	gplane[0] = XACCEL_VALUE;
+	gplane[1] = YACCEL_VALUE;
+	gplane[2] = ZACCEL_VALUE;
+
+	aero_force[0] = - gplane[0];
+	aero_force[1] = - gplane[1];
+	aero_force[2] = - gplane[2];
+
+#ifdef CATAPULT_LAUNCH_ENABLE
+	if (gplane[1] < -(GRAVITY/2))
+	dcm_flags._.launch_detected = 1;
+#endif
+
+	// transform gplane from body frame to earth frame
+	// x component in earth frame is earth x unit vector (rmat[0,1,2]) dotted with gplane
+
+	// gplane is a vector that represents the gravity vector minus the acceleration vector,
+	// as seen in the body frame. Taking the dot products of gplane with the rows of the
+	// rotation matrix is the same thing as multiplying the rotation matrix times gplane vector,
+	// which is the same thing as transforming gplane into the earth frame,
+	// which gives us gravity minus acceleration in the earth frame,
+	// regardless of the orientation of the aircraft.
+	//
+	// We want acceleration minus gravity in the earth frame, so sign flip all three components.
+	// Going from UDB coordinates to Earth coordinates (east, north, up) requires us to apply
+	// another sign flip to x and z. So, taking the dot products and
+	// flipping only the sign of y, gives us acceleration minus gravity in the earth frame.
+	//
+	// The final step is to add gravity, which is equal to -GRAVITY, since gravity (which is down)
+	// is in the opposite direction to the earth up direction. so, the final step is to add -GRAVITY.
+	//
+	// See the following URL for further details of the frame reference conventions for UDB / MatrixPilot
+	// https://code.google.com/p/gentlenav/wiki/UDBCoordinateSystems
+	accelEarth[0] = +(VectorDotProduct(3, &rmat[0], gplane) << 1);
+	accelEarth[1] = -(VectorDotProduct(3, &rmat[3], gplane) << 1);
+	accelEarth[2] = +(-((int16)GRAVITY) + (VectorDotProduct(3, &rmat[6], gplane) << 1));
+
+	//	accelEarthFiltered[0].WW += ((((int32)accelEarth[0])<<16) - accelEarthFiltered[0].WW)>>5;
+	//	accelEarthFiltered[1].WW += ((((int32)accelEarth[1])<<16) - accelEarthFiltered[1].WW)>>5;
+	//	accelEarthFiltered[2].WW += ((((int32)accelEarth[2])<<16) - accelEarthFiltered[2].WW)>>5;
+}
+
+void udb_callback_read_sensors(void)
+{
+	read_gyros(); // record the average values for both DCM and for offset measurements
+	read_accel();
+}
+
+static int16 omegaSOG(int16 omega, int16 speed)
+{
+	// multiplies omega times speed, and scales appropriately
+	// omega in radians per second, speed in cm per second
+	union longww working;
+	speed = speed >> 3;
+	working.WW = __builtin_mulss(omega, speed);
+	if (((int16)working._.W1) > ((int16)CENTRIFSAT))
+	return RMAX;
+	else if (((int16)working._.W1) < ((int16)-CENTRIFSAT))
+	return - RMAX;
+	else
+	{
+		working.WW = working.WW>>5;
+		working.WW = __builtin_mulsu(working._.W0, CENTRISCALE);
+		working.WW = working.WW<<5;
+		return working._.W1;
+	}
+}
+
+#if (CENTRIFUGAL_WITHOUT_GPS == 1)
+static void adj_accel(int16 angleOfAttack)
+{
+	// Performs centrifugal compensation without a GPS.
+	// Based on the fact that the magnitude of the
+	// compensated gplane vector should be GRAVITY*GRAVITY.
+	// This produces another equation from which the
+	// product of airspeed time rotation rate can be reasonably estimated.
+	int16 omega_times_velocity; // it should be positive, but noise
+	// in the computations could produce neg
+	uint16 radical;
+	union longww accum;
+	int16 accelY;
+	int16 vertical_cross_rotation_axis;
+	int16 force_cross_rotation_axis;
+	int16 rotation_axis[2];
+
+	// Compute the X-Z rotation axis
+	// by normalizing the X-Z gyro vector
+	rotation_axis[0] = omegagyro[0];
+	rotation_axis[1] = omegagyro[2];
+	vector2_normalize(rotation_axis, rotation_axis);
+
+	// compute force cross rotation axis:
+	accum.WW = (__builtin_mulss(gplane[0], rotation_axis[1]) - __builtin_mulss( gplane[2] , rotation_axis[0] ) ) << 2;
+	force_cross_rotation_axis = accum._.W1;
+
+	// compute vertical cross rotation axis:
+	accum.WW = (__builtin_mulss(rmat[6], rotation_axis[1]) - __builtin_mulss(rmat[8], rotation_axis[0] ) ) << 2;
+	vertical_cross_rotation_axis = accum._.W1;
+
+	// compute the square root of the sum of the square of the
+	// force cross rotation, minus the square of the magnitude of the accelerometer vector,
+	// plus the square of GRAVITY
+
+	// Start by using rmat for accelY instead of the measured value.
+	// It is less sensitive to forward acceleration, which cannot be compensated without GPS.
+	accum.WW = (__builtin_mulsu( rmat[7], GRAVITY ) ) << 2;
+	accelY = accum._.W1;
+
+	// form the sum
+	accum.WW = __builtin_mulss(force_cross_rotation_axis, force_cross_rotation_axis)
+	+ __builtin_muluu(GRAVITY, GRAVITY)
+	- __builtin_mulss(gplane[0], gplane[0])
+	- __builtin_mulss(gplane[2], gplane[2])
+	- __builtin_mulss(accelY, accelY);
+	if (accum.WW < 0)
+	accum.WW = 0;
+
+	radical = sqrt_long((uint32)accum.WW);
+
+	// Now we are using the solution to quadratic equation in the theory,
+	// and there is some logic for selecting the positive or negative square root
+	if (force_cross_rotation_axis < 0)
+	omega_times_velocity = force_cross_rotation_axis + radical;
+	else
+	if (vertical_cross_rotation_axis < 0)
+	omega_times_velocity = force_cross_rotation_axis + radical;
+	else
+	omega_times_velocity = force_cross_rotation_axis - radical;
+
+	if (omega_times_velocity < 0)
+	omega_times_velocity = 0;
+
+	// now compute omega vector cross velocity vector and adjust
+	accum.WW = (__builtin_mulss(omega_times_velocity , rotation_axis[1] ) ) << 2;
+	gplane[0] = gplane[0] - accum._.W1;
+	accum.WW = (__builtin_mulss(omega_times_velocity , rotation_axis[0] ) ) << 2;
+	gplane[0] = gplane[0] + accum._.W1;
+}
+#else
+static void adj_accel(int16 angleOfAttack)
+{
+	union longww accum;
+	int16 air_speed_z;
+	// total (3D) airspeed in cm/sec is used to adjust for acceleration
+	// compute Z component of airspeed due to angle of attack
+	accum.WW = __builtin_mulsu(angleOfAttack, air_speed_3DGPS) << 2;
+	air_speed_z = accum._.W1;
+	// compute centrifugal and forward acceleration compensation
+	gplane[0] = gplane[0] - omegaSOG(omegaAccum[2], air_speed_3DGPS)+ omegaSOG(omegaAccum[1], air_speed_z);
+	gplane[2] = gplane[2] + omegaSOG(omegaAccum[0], air_speed_3DGPS);
+	gplane[1] = gplane[1] - omegaSOG(omegaAccum[0], air_speed_z) + ((uint16)(ACCELSCALE)) * forward_acceleration;
+}
+#endif // CENTRIFUGAL_WITHOUT_GPS
+// The update algorithm!!
+static void rupdate(void) {
+	// This is the key routine. It performs a small rotation
+	// on the direction cosine matrix, based on the gyro vector and correction.
+	// It uses vector and matrix routines furnished by Microchip.
+	real32 rup[9];
+	real32 theta[3];
+	real32 rbuff[9];
+	uint32 thetaSquare;
+	unsigned nonlinearAdjust;
+
+	VectorAdd(3, omegaAccum, omegagyro, omegacorrI);
+	VectorAdd(3, omega, omegaAccum, omegacorrP);
+	//	scale by the integration factors:
+	VectorMultiply(3, theta, omega, ggain); // Scalegain of 2
+	// diagonal elements of the update matrix:
+	rup[0] = rup[4] = rup[8]= RMAX;
+
+	// compute the square of rotation
+	thetaSquare = __builtin_mulss (theta[0], theta[0]) +
+	__builtin_mulss (theta[1], theta[1]) +
+	__builtin_mulss (theta[2], theta[2]);
+
+	// adjust gain by rotation_squared divided by 3
+	nonlinearAdjust = RMAX + ((uint16) (thetaSquare >>14))/3;
+
+	theta[0] = __builtin_mulsu (theta[0], nonlinearAdjust)>>14;
+	theta[1] = __builtin_mulsu (theta[1], nonlinearAdjust)>>14;
+	theta[2] = __builtin_mulsu (theta[2], nonlinearAdjust)>>14;
+
+	// construct the off-diagonal elements of the update matrix:
+	rup[1] = -theta[2];
+	rup[2] = theta[1];
+	rup[3] = theta[2];
+	rup[5] = -theta[0];
+	rup[6] = -theta[1];
+	rup[7] = theta[0];
+
+	// matrix multiply the rmatrix by the update matrix
+	MatrixMultiply(3, 3, 3, rbuff, rmat, rup);
+	// multiply by 2 and copy back from rbuff to rmat:
+	MatrixAdd(3, 3, rmat, rbuff, rbuff);
+}
+
+// The normalization algorithm
+static void normalize(void)
+{
+	//  This is the routine that maintains the orthogonality of the
+	//  direction cosine matrix, which is expressed by the identity
+	//  relationship that the cosine matrix multiplied by its
+	//  transpose should equal the identity matrix.
+	//  Small adjustments are made at each time step to assure orthogonality.
+
+	real32 norm; // actual magnitude
+	real32 renorm; // renormalization factor
+	real32 rbuff[9];
+	// compute -1/2 of the dot product between rows 1 and 2
+	error = - VectorDotProduct(3, &rmat[0], &rmat[3]); // note, 1/2 is built into 2.14
+	// scale rows 1 and 2 by the error
+	VectorScale(3, &rbuff[0], &rmat[3], error);
+	VectorScale(3, &rbuff[3], &rmat[0], error);
+	// update the first 2 rows to make them closer to orthogonal:
+	VectorAdd(3, &rbuff[0], &rbuff[0], &rmat[0]);
+	VectorAdd(3, &rbuff[3], &rbuff[3], &rmat[3]);
+	// use the cross product of the first 2 rows to get the 3rd row
+	VectorCross(&rbuff[6], &rbuff[0], &rbuff[3]);
+
+	// Use a Taylor's expansion for 1/sqrt(X*X) to avoid division in the renormalization
+
+	// rescale row1
+	norm = VectorPower(3, &rbuff[0]); // Scalegain of 0.5
+	renorm = RMAX15 - norm;
+	VectorScale(3, &rbuff[0], &rbuff[0], renorm);
+	VectorAdd(3, &rmat[0], &rbuff[0], &rbuff[0]);
+	// rescale row2
+	norm = VectorPower(3, &rbuff[3]);
+	renorm = RMAX15 - norm;
+	VectorScale(3, &rbuff[3], &rbuff[3], renorm);
+	VectorAdd(3, &rmat[3], &rbuff[3], &rbuff[3]);
+	// rescale row3
+	norm = VectorPower(3, &rbuff[6]);
+	renorm = RMAX15 - norm;
+	VectorScale(3, &rbuff[6], &rbuff[6], renorm);
+	VectorAdd(3, &rmat[6], &rbuff[6], &rbuff[6]);
+}
+
+static void roll_pitch_drift(void)
+{
+	VectorCross(errorRP, gplane, &rmat[6]);
+	//#ifdef CATAPULT_LAUNCH_ENABLE
+#define MAXIMUM_PITCH_ERROR ((real32)(GRAVITY*0.25))
+	// the following is done to limit the pitch error during a catapult launch
+	// it has no effect during normal conditions, because acceleration
+	// compensated gplane is approximately aligned with rmat[6] vector
+	if (errorRP[0] > MAXIMUM_PITCH_ERROR) errorRP[0] = MAXIMUM_PITCH_ERROR;
+	if (errorRP[0] < -MAXIMUM_PITCH_ERROR) errorRP[0] = -MAXIMUM_PITCH_ERROR;
+	//#endif // CATAPULT_LAUNCH_ENABLE
+}
+
+static void yaw_drift(void)
+{
+	// although yaw correction is done in horizontal plane,
+	// this is done in 3 dimensions, just in case we change our minds later
+	// form the horizontal direction over ground based on rmat
+	if (dcm_flags._.yaw_req)
+	{
+		if (ground_velocity_magnitudeXY > GPS_SPEED_MIN)
+		{
+			// vector cross product to get the rotation error in ground frame
+			VectorCross(errorYawground, dirOverGndHrmat, dirOverGndHGPS);
+			// convert to plane frame:
+			// *** Note: this accomplishes multiplication rmat transpose times errorYawground!!
+			MatrixMultiply(1, 3, 3, errorYawplane, errorYawground, rmat);
+		}
+		else
+		errorYawplane[0] = errorYawplane[1] = errorYawplane[2] = 0;
+
+		dcm_flags._.yaw_req = 0;
+	}
+}
+
+#define MAXIMUM_SPIN_DCM_INTEGRAL 20.0 // degrees per second
+static void PI_feedback(void)
+{
+	real32 errorRPScaled[3];
+	int16 kpyaw;
+	int16 kprollpitch;
+
+	// boost the KPs at high spin rate, to compensate for increased error due to calibration error
+	// above 50 degrees/second, scale by rotation rate divided by 50
+
+	if (spin_rate < ((uint16)(50.0 * DEGPERSEC)))
+	{
+		kpyaw = KPYAW;
+		kprollpitch = KPROLLPITCH;
+	}
+	else if (spin_rate < ((uint16)(500.0 * DEGPERSEC)))
+	{
+		kpyaw = ((uint16)((KPYAW * 8.0) / (50.0 * DEGPERSEC))) * (spin_rate >> 3);
+		kprollpitch = ((uint16)((KPROLLPITCH * 8.0) / (50.0 * DEGPERSEC))) * (spin_rate >> 3);
+	}
+	else
+	{
+		kpyaw = (int16)(10.0 * KPYAW);
+		kprollpitch = (int16)(10.0 * KPROLLPITCH);
+	}
+	VectorScale(3, omegacorrP, errorYawplane, kpyaw); // Scale gain = 2
+	VectorScale(3, errorRPScaled, errorRP, kprollpitch);// Scale gain = 2
+	VectorAdd(3, omegacorrP, omegacorrP, errorRPScaled);
+
+	// turn off the offset integrator while spinning, it doesn't work in that case,
+	// and it only causes trouble.
+
+	if (spin_rate < ((uint16) (MAXIMUM_SPIN_DCM_INTEGRAL * DEGPERSEC)))
+	{
+		gyroCorrectionIntegral[0].WW += (__builtin_mulss(errorRP[0], KIROLLPITCH)>>3);
+		gyroCorrectionIntegral[1].WW += (__builtin_mulss(errorRP[1], KIROLLPITCH)>>3);
+		gyroCorrectionIntegral[2].WW += (__builtin_mulss(errorRP[2], KIROLLPITCH)>>3);
+
+		gyroCorrectionIntegral[0].WW += (__builtin_mulss(errorYawplane[0], KIYAW)>>3);
+		gyroCorrectionIntegral[1].WW += (__builtin_mulss(errorYawplane[1], KIYAW)>>3);
+		gyroCorrectionIntegral[2].WW += (__builtin_mulss(errorYawplane[2], KIYAW)>>3);
+	}
+
+	omegacorrI[0] = gyroCorrectionIntegral[0]._.W1>>3;
+	omegacorrI[1] = gyroCorrectionIntegral[1]._.W1>>3;
+	omegacorrI[2] = gyroCorrectionIntegral[2]._.W1>>3;
+}
+
+static uint16 adjust_gyro_gain(uint16 old_gain, int16 gain_change)
+{
+	uint16 gain;
+	gain = old_gain + gain_change;
+	if (gain > (uint16)(1.1 * GGAIN))
+	gain = (uint16)(1.1 * GGAIN);
+
+	if (gain < (uint16)(0.9 * GGAIN))
+	gain = (uint16)(0.9 * GGAIN);
+
+	return gain;
+}
+
+#define GYRO_CALIB_TAU 10.0
+#define MINIMUM_SPIN_RATE_GYRO_CALIB 50.0 // degrees/second
+static void calibrate_gyros(void)
+{
+	real32 omegacorrPweighted[3];
+	int32 calib_accum;
+	int16 gain_change;
+	uint16 spin_rate_over2;
+
+	if (spin_rate > (uint16) (MINIMUM_SPIN_RATE_GYRO_CALIB * DEGPERSEC))
+	{
+		spin_rate_over2 = spin_rate>>1;
+		VectorMultiply(3, omegacorrPweighted, spin_axis, omegacorrP); // includes 1/2
+
+		calib_accum = __builtin_mulsu(omegacorrPweighted[0], (uint16)(0.025*GGAIN/GYRO_CALIB_TAU));
+		gain_change = __builtin_divsd(calib_accum, spin_rate_over2);
+		ggain[0] = adjust_gyro_gain(ggain[0], gain_change);
+
+		calib_accum = __builtin_mulsu(omegacorrPweighted[1], (uint16)(0.025*GGAIN/GYRO_CALIB_TAU));
+		gain_change = __builtin_divsd(calib_accum, spin_rate_over2);
+		ggain[1] = adjust_gyro_gain(ggain[1], gain_change);
+
+		calib_accum = __builtin_mulsu(omegacorrPweighted[2], (uint16)(0.025*GGAIN/GYRO_CALIB_TAU));
+		gain_change = __builtin_divsd(calib_accum, spin_rate_over2);
+		ggain[2] = adjust_gyro_gain(ggain[2], gain_change);
+	}
+}
+
+/*
+ void output_matrix(void)
+ {
+ // This routine makes the direction cosine matrix evident by setting
+ // the three servos to the three values in the matrix.
+ union longww accum;
+ accum.WW = __builtin_mulss(rmat[6], 4000);
+ //	PDC1 = 3000 + accum._.W1;
+ //	accum.WW = __builtin_mulss(rmat[7], 4000);
+ accum.WW = __builtin_mulss(rmat[3], 4000);
+ PDC2 = 3000 + accum._.W1;
+ accum.WW = __builtin_mulss(rmat[4], 4000);
+ PDC3 = 3000 + accum._.W1;
+ }
+ */
+
+/*
+ void output_IMUvelocity(void)
+ {
+ PDC1 = pulsesat(IMUvelocityx._.W1 + 3000);
+ PDC2 = pulsesat(IMUvelocityy._.W1 + 3000);
+ PDC3 = pulsesat(IMUvelocityz._.W1 + 3000);
+
+ //	PDC1 = pulsesat(accelEarth[0] + 3000);
+ //	PDC2 = pulsesat(accelEarth[1] + 3000);
+ //	PDC3 = pulsesat(accelEarth[2] + 3000);
+ }
+ */
+
+extern void mag_drift(real32 errorYawplane[]);
+
+void dcm_run_imu_step(int16 angleOfAttack)
+{
+	// update the matrix, renormalize it, adjust for roll and
+	// pitch drift, and send it to the servos.
+	dead_reckon(); // in libDCM:deadReconing.c
+	adj_accel(angleOfAttack); // local
+	rupdate(); // local
+	normalize(); // local
+	roll_pitch_drift(); // local
+#if (MAG_YAW_DRIFT == 1)
+	//	// TODO: validate: disabling mag_drift when airspeed greater than 5 m/sec
+	//	if ((magMessage == 7) && (air_speed_3DIMU < 500))
+	if (magMessage == 7)
+	//		mag_drift();            // local
+	mag_drift(errorYawplane); // in libDCM:mag_drift.c
+	else
+	yaw_drift(); // local
+
+#else
+	yaw_drift(); // local
+#endif
+	PI_feedback(); // local
+	calibrate_gyros(); // local
+}
+
+#endif
+
+// PX4 ===========================================================================
+
+#if defined(PX4)
+
+/****************************************************************************
+ *
+ *   Copyright (c) 2015 PX4 Development Team. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ * 3. Neither the name PX4 nor the names of its contributors may be
+ *    used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+ * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ ****************************************************************************/
+
+/*
+ * @file attitude_estimator_q_main.cpp
+ *
+ * Attitude estimator (quaternion based)
+ *
+ * @author Anton Babushkin <anton.babushkin@me.com>
+ */
+
+#include <px4_config.h>
+#include <px4_posix.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include <poll.h>
+#include <fcntl.h>
+#include <real32.h>
+#include <errno.h>
+#include <limits.h>
+#include <math.h>
+#include <uORB/uORB.h>
+#include <uORB/topics/sensor_combined.h>
+#include <uORB/topics/vehicle_attitude.h>
+#include <uORB/topics/control_state.h>
+#include <uORB/topics/vehicle_control_mode.h>
+#include <uORB/topics/vehicle_global_position.h>
+#include <uORB/topics/vision_position_estimate.h>
+#include <uORB/topics/att_pos_mocap.h>
+#include <uORB/topics/airspeed.h>
+#include <uORB/topics/parameter_update.h>
+#include <uORB/topics/estimator_status.h>
+#include <drivers/drv_hrt.h>
+
+#include <mathlib/mathlib.h>
+#include <mathlib/math/filter/LowPassFilter2p.hpp>
+#include <lib/geo/geo.h>
+
+#include <systemlib/systemlib.h>
+#include <systemlib/param/param.h>
+#include <systemlib/perf_counter.h>
+#include <systemlib/err.h>
+#include <systemlib/mavlink_log.h>
+
+extern "C" __EXPORT int attitude_estimator_q_main(int argc, char *argv[]);
+
+using math_Vector;
+using math_Matrix;
+using math_Quaternion;
+
+class AttitudeEstimatorQ;
+
+namespace attitude_estimator_q
+{
+	AttitudeEstimatorQ *instance;
+}
+
+class AttitudeEstimatorQ
+{
+public:
+	/**
+	 * Constructor
+	 */
+	AttitudeEstimatorQ();
+
+	/**
+	 * Destructor, also kills task.
+	 */
+	~AttitudeEstimatorQ();
+
+	/**
+	 * Start task.
+	 *
+	 * @return		OK on success.
+	 */
+	int start();
+
+	static void task_main_trampoline(int argc, char *argv[]);
+
+	void task_main();
+
+	void print();
+
+private:
+	static constexpr real32 _dt_max = 0.02;
+	boolean _task_should_exit = false; /**< if true, task should exit */
+	int _control_task = -1; /**< task handle for task */
+
+	int _sensors_sub = -1;
+	int _params_sub = -1;
+	int _vision_sub = -1;
+	int _mocap_sub = -1;
+	int _airspeed_sub = -1;
+	int _global_pos_sub = -1;
+	orb_advert_t _att_pub = nullptr;
+	orb_advert_t _ctrl_state_pub = nullptr;
+	orb_advert_t _est_state_pub = nullptr;
+
+	struct {
+		param_t w_acc;
+		param_t w_mag;
+		param_t w_ext_hdg;
+		param_t w_gyro_bias;
+		param_t mag_decl;
+		param_t mag_decl_auto;
+		param_t acc_comp;
+		param_t bias_max;
+		param_t ext_hdg_mode;
+		param_t airspeed_mode;
+	}_params_handles; /**< handles for interesting parameters */
+
+	real32 _w_accel = 0.0f;
+	real32 _w_mag = 0.0f;
+	real32 _w_ext_hdg = 0.0f;
+	real32 _w_gyro_bias = 0.0f;
+	real32 _mag_decl = 0.0f;
+	boolean _mag_decl_auto = false;
+	boolean _acc_comp = false;
+	real32 _bias_max = 0.0f;
+	int _ext_hdg_mode = 0;
+	int _airspeed_mode = 0;
+
+	Vector<3> _gyro;
+	Vector<3> _accel;
+	Vector<3> _mag;
+
+	vision_position_estimate_s _vision = {};
+	Vector<3> _vision_hdg;
+
+	att_pos_mocap_s _mocap = {};
+	Vector<3> _mocap_hdg;
+
+	airspeed_s _airspeed = {};
+
+	Quaternion _q;
+	Vector<3> _rates;
+	Vector<3> _gyro_bias;
+
+	vehicle_global_position_s _gpos = {};
+	Vector<3> _vel_prev;
+	Vector<3> _pos_acc;
+
+	/* Low pass filter for accel/gyro */
+	math_LowPassFilter2p _lp_accel_x;
+	math_LowPassFilter2p _lp_accel_y;
+	math_LowPassFilter2p _lp_accel_z;
+	math_LowPassFilter2p _lp_gyro_x;
+	math_LowPassFilter2p _lp_gyro_y;
+	math_LowPassFilter2p _lp_gyro_z;
+
+	hrt_abstime _vel_prev_t = 0;
+
+	boolean _inited = false;
+	boolean _data_good = false;
+	boolean _ext_hdg_good = false;
+
+	orb_advert_t _mavlink_log_pub = nullptr;
+
+	perf_counter_t _update_perf;
+	perf_counter_t _loop_perf;
+
+	void update_parameters(boolean force);
+
+	int update_subscriptions();
+
+	boolean init();
+
+	boolean update(real32 dt);
+
+	// Update magnetic declination (in rads) immediately changing yaw rotation
+	void update_mag_declination(real32 new_declination);
+};
+
+AttitudeEstimatorQ_AttitudeEstimatorQ() :
+_vel_prev(0, 0, 0),
+_pos_acc(0, 0, 0),
+_lp_accel_x(250.0f, 30.0f),
+_lp_accel_y(250.0f, 30.0f),
+_lp_accel_z(250.0f, 30.0f),
+_lp_gyro_x(250.0f, 30.0f),
+_lp_gyro_y(250.0f, 30.0f),
+_lp_gyro_z(250.0f, 30.0f)
+{
+	_params_handles.w_acc = param_find("ATT_W_ACC");
+	_params_handles.w_mag = param_find("ATT_W_MAG");
+	_params_handles.w_ext_hdg = param_find("ATT_W_EXT_HDG");
+	_params_handles.w_gyro_bias = param_find("ATT_W_GYRO_BIAS");
+	_params_handles.mag_decl = param_find("ATT_MAG_DECL");
+	_params_handles.mag_decl_auto = param_find("ATT_MAG_DECL_A");
+	_params_handles.acc_comp = param_find("ATT_ACC_COMP");
+	_params_handles.bias_max = param_find("ATT_BIAS_MAX");
+	_params_handles.ext_hdg_mode = param_find("ATT_EXT_HDG_M");
+	_params_handles.airspeed_mode = param_find("FW_ARSP_MODE");
+}
+
+/**
+ * Destructor, also kills task.
+ */
+AttitudeEstimatorQ_~AttitudeEstimatorQ()
+{
+	if (_control_task != -1) {
+		/* task wakes up every 100ms or so at the longest */
+		_task_should_exit = true;
+
+		/* wait for a second for the task to quit at our request */
+		unsigned i = 0;
+
+		do {
+			/* wait 20ms */
+			usleep(20000);
+
+			/* if we have given up, kill it */
+			if (++i > 50) {
+				px4_task_delete(_control_task);
+				break;
+			}
+		}while (_control_task != -1);
+	}
+
+	attitude_estimator_q_instance = nullptr;
+}
+
+int AttitudeEstimatorQ_start()
+{
+	ASSERT(_control_task == -1);
+
+	/* start the task */
+	_control_task = px4_task_spawn_cmd("attitude_estimator_q",
+			SCHED_DEFAULT,
+			SCHED_PRIORITY_MAX - 5,
+			2000,
+			(px4_main_t)&AttitudeEstimatorQ_task_main_trampoline,
+			nullptr);
+
+	if (_control_task < 0) {
+		warn("task start failed");
+		return -errno;
+	}
+
+	return OK;
+}
+
+void AttitudeEstimatorQ_print()
+{
+}
+
+void AttitudeEstimatorQ_task_main_trampoline(int argc, char *argv[])
+{
+	attitude_estimator_q_instance->task_main();
+}
+
+void AttitudeEstimatorQ_task_main()
+{
+
+#ifdef __PX4_POSIX
+	perf_counter_t _perf_accel(perf_alloc_once(PC_ELAPSED, "sim_accel_delay"));
+	perf_counter_t _perf_mpu(perf_alloc_once(PC_ELAPSED, "sim_mpu_delay"));
+	perf_counter_t _perf_mag(perf_alloc_once(PC_ELAPSED, "sim_mag_delay"));
+#endif
+
+	_sensors_sub = orb_subscribe(ORB_ID(sensor_combined));
+
+	_vision_sub = orb_subscribe(ORB_ID(vision_position_estimate));
+	_mocap_sub = orb_subscribe(ORB_ID(att_pos_mocap));
+
+	_airspeed_sub = orb_subscribe(ORB_ID(airspeed));
+
+	_params_sub = orb_subscribe(ORB_ID(parameter_update));
+	_global_pos_sub = orb_subscribe(ORB_ID(vehicle_global_position));
+
+	update_parameters(true);
+
+	hrt_abstime last_time = 0;
+
+	px4_pollfd_struct_t fds[1] = {};
+	fds[0].fd = _sensors_sub;
+	fds[0].events = POLLIN;
+
+	while (!_task_should_exit) {
+		int ret = px4_poll(fds, 1, 1000);
+
+		if (ret < 0) {
+			// Poll error, sleep and try again
+			usleep(10000);
+			PX4_WARN("Q POLL ERROR");
+			continue;
+
+		} else if (ret == 0) {
+			// Poll timeout, do nothing
+			PX4_WARN("Q POLL TIMEOUT");
+			continue;
+		}
+
+		update_parameters(false);
+
+		// Update sensors
+		sensor_combined_s sensors;
+
+		if (!orb_copy(ORB_ID(sensor_combined), _sensors_sub, &sensors)) {
+			// Feed validator with recent sensor data
+
+			if (sensors.timestamp > 0) {
+				// Filter gyro signal since it is not fildered in the drivers.
+				_gyro(0) = _lp_gyro_x.apply(sensors.gyro_rad[0]);
+				_gyro(1) = _lp_gyro_y.apply(sensors.gyro_rad[1]);
+				_gyro(2) = _lp_gyro_z.apply(sensors.gyro_rad[2]);
+			}
+
+			if (sensors.accelerometer_timestamp_relative != sensor_combined_s_RELATIVE_TIMESTAMP_INVALID) {
+				// Filter accel signal since it is not fildered in the drivers.
+				_accel(0) = _lp_accel_x.apply(sensors.accelerometer_m_s2[0]);
+				_accel(1) = _lp_accel_y.apply(sensors.accelerometer_m_s2[1]);
+				_accel(2) = _lp_accel_z.apply(sensors.accelerometer_m_s2[2]);
+
+				if (_accel.length() < 0.01f) {
+					PX4_DEBUG("WARNING: degenerate accel!");
+					continue;
+				}
+			}
+
+			if (sensors.magnetometer_timestamp_relative != sensor_combined_s_RELATIVE_TIMESTAMP_INVALID) {
+				_mag(0) = sensors.magnetometer_ga[0];
+				_mag(1) = sensors.magnetometer_ga[1];
+				_mag(2) = sensors.magnetometer_ga[2];
+
+				if (_mag.length() < 0.01f) {
+					PX4_DEBUG("WARNING: degenerate mag!");
+					continue;
+				}
+			}
+
+			_data_good = true;
+		}
+
+		// Update vision and motion capture heading
+		boolean vision_updated = false;
+		orb_check(_vision_sub, &vision_updated);
+
+		boolean mocap_updated = false;
+		orb_check(_mocap_sub, &mocap_updated);
+
+		if (vision_updated) {
+			orb_copy(ORB_ID(vision_position_estimate), _vision_sub, &_vision);
+			math_Quaternion q(_vision.q);
+
+			math_Matrix<3, 3> Rvis = q.to_dcm();
+			math_Vector<3> v(1.0f, 0.0f, 0.4f);
+
+			// Rvis is Rwr (robot respect to world) while v is respect to world.
+			// Hence Rvis must be transposed having (Rwr)' * Vw
+			// Rrw * Vw = vn. This way we have consistency
+			_vision_hdg = Rvis.transposed() * v;
+		}
+
+		if (mocap_updated) {
+			orb_copy(ORB_ID(att_pos_mocap), _mocap_sub, &_mocap);
+			math_Quaternion q(_mocap.q);
+			math_Matrix<3, 3> Rmoc = q.to_dcm();
+
+			math_Vector<3> v(1.0f, 0.0f, 0.4f);
+
+			// Rmoc is Rwr (robot respect to world) while v is respect to world.
+			// Hence Rmoc must be transposed having (Rwr)' * Vw
+			// Rrw * Vw = vn. This way we have consistency
+			_mocap_hdg = Rmoc.transposed() * v;
+		}
+
+		// Update airspeed
+		boolean airspeed_updated = false;
+		orb_check(_airspeed_sub, &airspeed_updated);
+
+		if (airspeed_updated) {
+			orb_copy(ORB_ID(airspeed), _airspeed_sub, &_airspeed);
+		}
+
+		// Check for timeouts on data
+		if (_ext_hdg_mode == 1) {
+			_ext_hdg_good = _vision.timestamp > 0 && (hrt_elapsed_time(&_vision.timestamp) < 500000);
+
+		} else if (_ext_hdg_mode == 2) {
+			_ext_hdg_good = _mocap.timestamp > 0 && (hrt_elapsed_time(&_mocap.timestamp) < 500000);
+		}
+
+		boolean gpos_updated;
+		orb_check(_global_pos_sub, &gpos_updated);
+
+		if (gpos_updated) {
+			orb_copy(ORB_ID(vehicle_global_position), _global_pos_sub, &_gpos);
+
+			if (_mag_decl_auto && _gpos.eph < 20.0f && hrt_elapsed_time(&_gpos.timestamp) < 1000000) {
+				/* set magnetic declination automatically */
+				update_mag_declination(math_radians(get_mag_declination(_gpos.lat, _gpos.lon)));
+			}
+		}
+
+		if (_acc_comp && _gpos.timestamp != 0 && hrt_absolute_time() < _gpos.timestamp + 20000 && _gpos.eph < 5.0f && _inited) {
+			/* position data is actual */
+			if (gpos_updated) {
+				Vector<3> vel(_gpos.vel_n, _gpos.vel_e, _gpos.vel_d);
+
+				/* velocity updated */
+				if (_vel_prev_t != 0 && _gpos.timestamp != _vel_prev_t) {
+					real32 vel_dt = (_gpos.timestamp - _vel_prev_t) / 1000000.0f;
+					/* calculate acceleration in body frame */
+					_pos_acc = _q.conjugate_inversed((vel - _vel_prev) / vel_dt);
+				}
+
+				_vel_prev_t = _gpos.timestamp;
+				_vel_prev = vel;
+			}
+
+		} else {
+			/* position data is outdated, reset acceleration */
+			_pos_acc.zero();
+			_vel_prev.zero();
+			_vel_prev_t = 0;
+		}
+
+		/* time from previous iteration */
+		hrt_abstime now = hrt_absolute_time();
+		real32 dt = (last_time > 0) ? ((now - last_time) / 1000000.0f) : 0.00001f;
+		last_time = now;
+
+		if (dt > _dt_max) {
+			dt = _dt_max;
+		}
+
+		if (!update(dt)) {
+			continue;
+		}
+
+		Vector<3> euler = _q.to_euler();
+
+		struct vehicle_attitude_s att = {};
+		att.timestamp = sensors.timestamp;
+
+		att.rollspeed = _rates(0);
+		att.pitchspeed = _rates(1);
+		att.yawspeed = _rates(2);
+
+		memcpy(&att.q[0], _q.data, sizeof(att.q));
+
+		/* the instance count is not used here */
+		int att_inst;
+		orb_publish_auto(ORB_ID(vehicle_attitude), &_att_pub, &att, &att_inst, ORB_PRIO_HIGH);
+
+		{
+			struct control_state_s ctrl_state = {};
+
+			ctrl_state.timestamp = sensors.timestamp;
+
+			/* attitude quaternions for control state */
+			ctrl_state.q[0] = _q(0);
+			ctrl_state.q[1] = _q(1);
+			ctrl_state.q[2] = _q(2);
+			ctrl_state.q[3] = _q(3);
+
+			ctrl_state.x_acc = _accel(0);
+			ctrl_state.y_acc = _accel(1);
+			ctrl_state.z_acc = _accel(2);
+
+			/* attitude rates for control state */
+			ctrl_state.roll_rate = _rates(0);
+
+			ctrl_state.pitch_rate = _rates(1);
+
+			ctrl_state.yaw_rate = _rates(2);
+
+			ctrl_state.airspeed_valid = false;
+
+			if (_airspeed_mode == control_state_s_AIRSPD_MODE_MEAS) {
+				// use measured airspeed
+				if (PX4_ISFINITE(_airspeed.indicated_airspeed_m_s) && hrt_absolute_time() - _airspeed.timestamp < 1e6
+						&& _airspeed.timestamp > 0) {
+					ctrl_state.airspeed = _airspeed.indicated_airspeed_m_s;
+					ctrl_state.airspeed_valid = true;
+				}
+			}
+
+			else if (_airspeed_mode == control_state_s_AIRSPD_MODE_EST) {
+				// use estimated body velocity as airspeed estimate
+				if (hrt_absolute_time() - _gpos.timestamp < 1e6) {
+					ctrl_state.airspeed = sqrtf(_gpos.vel_n * _gpos.vel_n + _gpos.vel_e * _gpos.vel_e + _gpos.vel_d * _gpos.vel_d);
+					ctrl_state.airspeed_valid = true;
+				}
+
+			} else if (_airspeed_mode == control_state_s_AIRSPD_MODE_DISABLED) {
+				// do nothing, airspeed has been declared as non-valid above, controllers
+				// will handle this assuming always trim airspeed
+			}
+
+			/* the instance count is not used here */
+			int ctrl_inst;
+			/* publish to control state topic */
+			orb_publish_auto(ORB_ID(control_state), &_ctrl_state_pub, &ctrl_state, &ctrl_inst, ORB_PRIO_HIGH);
+		}
+
+		{
+			//struct estimator_status_s est = {};
+
+			//est.timestamp = sensors.timestamp;
+
+			/* the instance count is not used here */
+			//int est_inst;
+			/* publish to control state topic */
+			// TODO handle attitude states in position estimators instead so we can publish all data at once
+			// or we need to enable more thatn just one estimator_status topic
+			// orb_publish_auto(ORB_ID(estimator_status), &_est_state_pub, &est, &est_inst, ORB_PRIO_HIGH);
+		}
+	}
+
+#ifdef __PX4_POSIX
+	perf_end(_perf_accel);
+	perf_end(_perf_mpu);
+	perf_end(_perf_mag);
+#endif
+
+	orb_unsubscribe(_sensors_sub);
+	orb_unsubscribe(_vision_sub);
+	orb_unsubscribe(_mocap_sub);
+	orb_unsubscribe(_airspeed_sub);
+	orb_unsubscribe(_params_sub);
+	orb_unsubscribe(_global_pos_sub);
+}
+
+void AttitudeEstimatorQ_update_parameters(boolean force)
+{
+	boolean updated = force;
+
+	if (!updated) {
+		orb_check(_params_sub, &updated);
+	}
+
+	if (updated) {
+		parameter_update_s param_update;
+		orb_copy(ORB_ID(parameter_update), _params_sub, &param_update);
+
+		param_get(_params_handles.w_acc, &_w_accel);
+		param_get(_params_handles.w_mag, &_w_mag);
+		param_get(_params_handles.w_ext_hdg, &_w_ext_hdg);
+		param_get(_params_handles.w_gyro_bias, &_w_gyro_bias);
+		real32 mag_decl_deg = 0.0f;
+		param_get(_params_handles.mag_decl, &mag_decl_deg);
+		update_mag_declination(math_radians(mag_decl_deg));
+		int32 mag_decl_auto_int;
+		param_get(_params_handles.mag_decl_auto, &mag_decl_auto_int);
+		_mag_decl_auto = mag_decl_auto_int != 0;
+		int32 acc_comp_int;
+		param_get(_params_handles.acc_comp, &acc_comp_int);
+		_acc_comp = acc_comp_int != 0;
+		param_get(_params_handles.bias_max, &_bias_max);
+		param_get(_params_handles.ext_hdg_mode, &_ext_hdg_mode);
+		param_get(_params_handles.airspeed_mode, &_airspeed_mode);
+	}
+}
+
+boolean AttitudeEstimatorQ_init()
+{
+	// Rotation matrix can be easily constructed from acceleration and mag field vectors
+	// 'k' is Earth Z axis (Down) unit vector in body frame
+	Vector<3> k = -_accel;
+	k.normalize();
+
+	// 'i' is Earth X axis (North) unit vector in body frame, orthogonal with 'k'
+	Vector<3> i = (_mag - k * (_mag * k));
+	i.normalize();
+
+	// 'j' is Earth Y axis (East) unit vector in body frame, orthogonal with 'k' and 'i'
+	Vector<3> j = k % i;
+
+	// Fill rotation matrix
+	Matrix<3, 3> R;
+	R.set_row(0, i);
+	R.set_row(1, j);
+	R.set_row(2, k);
+
+	// Convert to quaternion
+	_q.from_dcm(R);
+
+	// Compensate for magnetic declination
+	Quaternion decl_rotation;
+	decl_rotation.from_yaw(_mag_decl);
+	_q = decl_rotation * _q;
+
+	_q.normalize();
+
+	if (PX4_ISFINITE(_q(0)) && PX4_ISFINITE(_q(1)) &&
+			PX4_ISFINITE(_q(2)) && PX4_ISFINITE(_q(3)) &&
+			_q.length() > 0.95f && _q.length() < 1.05f) {
+		_inited = true;
+
+	} else
+	_inited = false;
+
+	return _inited;
+}
+
+boolean AttitudeEstimatorQ_update(real32 dt)
+{
+	if (!_inited) {
+
+		if (!_data_good)
+		return false;
+
+		return init();
+	}
+
+	Quaternion q_last = _q;
+
+	// Angular rate of correction
+	Vector<3> corr;
+	real32 spinRate = _gyro.length();
+
+	if (_ext_hdg_mode > 0 && _ext_hdg_good) {
+		if (_ext_hdg_mode == 1) {
+			// Vision heading correction
+			// Project heading to global frame and extract XY component
+			Vector<3> vision_hdg_earth = _q.conjugate(_vision_hdg);
+			real32 vision_hdg_err = _wrap_pi(atan2f(vision_hdg_earth(1), vision_hdg_earth(0)));
+			// Project correction to body frame
+			corr += _q.conjugate_inversed(Vector<3>(0.0f, 0.0f, -vision_hdg_err)) * _w_ext_hdg;
+		}
+
+		if (_ext_hdg_mode == 2) {
+			// Mocap heading correction
+			// Project heading to global frame and extract XY component
+			Vector<3> mocap_hdg_earth = _q.conjugate(_mocap_hdg);
+			real32 mocap_hdg_err = _wrap_pi(atan2f(mocap_hdg_earth(1), mocap_hdg_earth(0)));
+			// Project correction to body frame
+			corr += _q.conjugate_inversed(Vector<3>(0.0f, 0.0f, -mocap_hdg_err)) * _w_ext_hdg;
+		}
+	}
+
+	if (_ext_hdg_mode == 0 || !_ext_hdg_good) {
+		// Magnetometer correction
+		// Project mag field vector to global frame and extract XY component
+		Vector<3> mag_earth = _q.conjugate(_mag);
+		real32 mag_err = _wrap_pi(atan2f(mag_earth(1), mag_earth(0)) - _mag_decl);
+		real32 gainMult = 1.0f;
+		const real32 fifty_dps = 0.873f;
+
+		if (spinRate > fifty_dps) {
+			gainMult = fmin(spinRate / fifty_dps, 10.0f);
+		}
+
+		// Project magnetometer correction to body frame
+		corr += _q.conjugate_inversed(Vector<3>(0.0f, 0.0f, -mag_err)) * _w_mag * gainMult;
+	}
+
+	_q.normalize();
+
+	// Accelerometer correction
+	// Project 'k' unit vector of earth frame to body frame
+	// Vector<3> k = _q.conjugate_inversed(Vector<3>(0.0f, 0.0f, 1.0f));
+	// Optimized version with dropped zeros
+	Vector<3> k(
+			2.0f * (_q(1) * _q(3) - _q(0) * _q(2)),
+			2.0f * (_q(2) * _q(3) + _q(0) * _q(1)),
+			(_q(0) * _q(0) - _q(1) * _q(1) - _q(2) * _q(2) + _q(3) * _q(3))
+	);
+
+	corr += (k % (_accel - _pos_acc).normalized()) * _w_accel;
+
+	// Gyro bias estimation
+	if (spinRate < 0.175f) {
+		_gyro_bias += corr * (_w_gyro_bias * dt);
+
+		for (int i = 0; i < 3; i++) {
+			_gyro_bias(i) = math_constrain(_gyro_bias(i), -_bias_max, _bias_max);
+		}
+
+	}
+
+	_rates = _gyro + _gyro_bias;
+
+	// Feed forward gyro
+	corr += _rates;
+
+	// Apply correction to state
+	_q += _q.derivative(corr) * dt;
+
+	// Normalize quaternion
+	_q.normalize();
+
+	if (!(PX4_ISFINITE(_q(0)) && PX4_ISFINITE(_q(1)) &&
+					PX4_ISFINITE(_q(2)) && PX4_ISFINITE(_q(3)))) {
+		// Reset quaternion to last good state
+		_q = q_last;
+		_rates.zero();
+		_gyro_bias.zero();
+		return false;
+	}
+
+	return true;
+}
+
+void AttitudeEstimatorQ_update_mag_declination(real32 new_declination)
+{
+	// Apply initial declination or trivial rotations without changing estimation
+	if (!_inited || fabsf(new_declination - _mag_decl) < 0.0001f)
+	_mag_decl = new_declination;
+	else {
+		// Immediately rotate current estimation to avoid gyro bias growth
+		Quaternion decl_rotation;
+		decl_rotation.from_yaw(new_declination - _mag_decl);
+		_q = decl_rotation * _q;
+		_mag_decl = new_declination;
+	}
+}
+
+int attitude_estimator_q_main(int argc, char *argv[])
+{
+	if (argc < 2) {
+		warnx("usage: attitude_estimator_q {start|stop|status}");
+		return 1;
+	}
+
+	if (!strcmp(argv[1], "start")) {
+
+		if (attitude_estimator_q_instance != nullptr) {
+			warnx("already running");
+			return 1;
+		}
+
+		attitude_estimator_q_instance = new AttitudeEstimatorQ;
+
+		if (attitude_estimator_q_instance == nullptr) {
+			warnx("alloc failed");
+			return 1;
+		}
+
+		if (OK != attitude_estimator_q_instance->start()) {
+			delete attitude_estimator_q_instance;
+			attitude_estimator_q_instance = nullptr;
+			warnx("start failed");
+			return 1;
+		}
+
+		return 0;
+	}
+
+	if (!strcmp(argv[1], "stop")) {
+		if (attitude_estimator_q_instance == nullptr) {
+			warnx("not running");
+			return 1;
+		}
+
+		delete attitude_estimator_q_instance;
+		attitude_estimator_q_instance = nullptr;
+		return 0;
+	}
+
+	if (!strcmp(argv[1], "status")) {
+		if (attitude_estimator_q_instance) {
+			attitude_estimator_q_instance->print();
+			warnx("running");
+			return 0;
+
+		} else {
+			warnx("not running");
+			return 1;
+		}
+	}
+
+	warnx("unrecognized command");
+	return 1;
+}
+
+#endif

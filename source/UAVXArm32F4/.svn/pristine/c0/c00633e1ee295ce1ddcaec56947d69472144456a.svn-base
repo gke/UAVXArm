@@ -1,0 +1,132 @@
+// ===============================================================================================
+// =                                UAVX Quadrocopter Controller                                 =
+// =                           Copyright (c) 2008 by Prof. Greg Egan                             =
+// =                 Original V3.15 Copyright (c) 2007 Ing. Wolfgang Mahringer                   =
+// =                     http://code.google.com/p/uavp-mods/ http://uavp.ch                      =
+// ===============================================================================================
+
+//    This is part of UAVX.
+
+//    UAVX is free software: you can redistribute it and/or modify it under the terms of the GNU
+//    General Public License as published by the Free Software Foundation, either version 3 of the
+//    License, or (at your option) any later version.
+
+//    UAVX is distributed in the hope that it will be useful,but WITHOUT ANY WARRANTY; without
+//    even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+//    See the GNU General Public License for more details.
+
+//    You should have received a copy of the GNU General Public License along with this program.
+//    If not, see http://www.gnu.org/licenses/
+
+
+#ifndef _gps_h
+#define _gps_h
+
+enum GPSProtcols {
+	NMEAGPS, UBXBinGPS, UBXBinGPSInit, MTKBinGPS, MTKNMEAGPS, NoGPS
+};
+
+typedef struct {
+	int32 Raw, OriginRaw;
+	real32 Pos, PosP;
+	real32 Vel, VelP;
+} GPSCoord;
+
+typedef struct {
+	real32 lag;
+	uint16 year;
+	uint8 month;
+	uint8 day;
+	uint8 noofsats;
+	uint8 fix;
+	int32 missionTime, startTime;
+	int32 lastVelUpdatemS, lastPosUpdatemS;
+	real32 altitude, relAltitude, originAltitude, geoidheight;
+	real32 Pos[3], PosP[3], Vel[3], VelP[3], Raw[3], OriginRaw[3];
+	real32 longitudeCorrection;
+	real32 Distance, Direction;
+	int8 Hint;
+	real32 magHeading, magVariation;
+	uint32 iTOW;
+	real64 lat;
+	real64 lon;
+	real32 height; // above mean sea level (m)
+	real32 hAcc; // horizontal accuracy est (m)
+	real32 vAcc; // vertical accuracy est (m)
+	real32 velN; // north velocity (m/s)
+	real32 velE; // east velocity (m/s)
+	real32 velD; // down velocity (m/s)
+	real32 gspeed; // ground speed (m/s)
+	real32 heading; // deg
+	real32 sAcc; // speed accuracy est (m/s)
+	real32 cAcc; // course accuracy est (deg)
+	real32 pDOP; // position Dilution of Precision
+	real32 hDOP;
+	real32 vDOP; // zzz
+	real32 tDOP;
+	real32 nDOP; //zzz
+	real32 eDOP; // zzz
+	//real32 DOP[3];
+	real32 gDOP;
+
+	uint32 TPtowMS; // timepulse time of week (ms)
+	uint32 lastReceivedTPtowMS;
+
+	uint32 lastTimepulse;
+	//uint32 lastPosUpdate;
+	//uint32 lastVelUpdate;
+	uint32 lastMessage;
+	boolean gpsVelFlag; // gke
+	//int32 microsPerSecond;
+} GPSRec;
+
+GPSRec GPS;
+
+void UbxSaveConfig(uint8 s);
+
+void UpdateField(void);
+real32 GPSToM(int32 g);
+int32 MToGPS(real32 m);
+int32 ConvertInt(uint8, uint8);
+//int32 ConvertLatLonM(uint8, uint8);
+int32 ConvertUTime(uint8, uint8);
+void ParseGXRMCSentence(void);
+void ParseGXGGASentence(void);
+void SetGPSOrigin(void);
+void ParseGPSSentence(void);
+void RxGPSPacket(uint8);
+void UpdateGPS(void);
+void ShowGPSStatus(uint8 s);
+void InitGPS(void);
+
+#define MAXTAGINDEX 4
+#define GPSRXBUFFLENGTH 80
+typedef struct {
+	uint8 s[GPSRXBUFFLENGTH];
+	uint8 length;
+} NMEAStruct;
+
+#define MAX_NMEA_SENTENCES 4
+#define NMEA_TAG_INDEX 4
+
+enum GPSPackeType {
+	GPGGAPacketTag, GPRMCPacketTag, GNGGAPacketTag, GNRMCPacketTag, GPSUnknownPacketTag
+};
+
+extern NMEAStruct NMEA;
+extern const uint8 NMEATags[MAX_NMEA_SENTENCES][5];
+
+extern uint8 GPSPacketTag;
+extern real32 GPSdT, GPSdTR;
+extern uint32 LastGPSUpdatemS;
+extern uint8 nll, cc, lo, hi;
+extern boolean EmptyField;
+extern int16 ValidGPSSentences;
+extern real32 GPSLag;
+extern uint8 GPSType;
+
+extern uint8 ll, ss, tt, RxCh;
+extern uint8 RxCheckSum, GPSCheckSumChar, GPSTxCheckSum;
+
+#endif
+

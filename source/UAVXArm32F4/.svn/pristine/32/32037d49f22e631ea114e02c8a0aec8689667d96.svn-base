@@ -1,0 +1,131 @@
+// ===============================================================================================
+// =                                UAVX Quadrocopter Controller                                 =
+// =                           Copyright (c) 2008 by Prof. Greg Egan                             =
+// =                 Original V3.15 Copyright (c) 2007 Ing. Wolfgang Mahringer                   =
+// =                     http://code.google.com/p/uavp-mods/ http://uavp.ch                      =
+// ===============================================================================================
+
+//    This is part of UAVX.
+
+//    UAVX is free software: you can redistribute it and/or modify it under the terms of the GNU
+//    General Public License as published by the Free Software Foundation, either version 3 of the
+//    License, or (at your option) any later version.
+
+//    UAVX is distributed in the hope that it will be useful,but WITHOUT ANY WARRANTY; without
+//    even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+//    See the GNU General Public License for more details.
+
+//    You should have received a copy of the GNU General Public License along with this program.
+//    If not, see http://www.gnu.org/licenses/
+
+
+#ifndef _rc_h
+#define _rc_h
+
+#define RC_MAX_CHANNELS 20
+
+//#define RCFilter		MediumFilter
+#define RCFilter		SoftFilter
+//#define RCFilter		NoFilter
+
+#define RC_NO_CHANGE_TIMEOUT_MS 20000 // mS.
+#define RC_INIT_FRAMES 60 // number of initial RC frames to allow filters to settle
+#define RC_MARGIN_US	100 // could set zero or less for FrSky CPPM
+#define RC_MIN_WIDTH_US (1000-RC_MARGIN_US) // temporarily to prevent wraparound 900
+#define RC_MAX_WIDTH_US (2000+RC_MARGIN_US)
+#define RCWidthOK(n) ((n > RC_MIN_WIDTH_US)&&(n < RC_MAX_WIDTH_US))
+
+#define RC_GOOD_BUCKET_MAX 20
+#define RC_GOOD_RATIO 4
+
+//#define RC_THRES_STOP_STICK		FromPercent(2, RC_MAXIMUM)
+#define RC_THRES_START_STICK	FromPercent(1, RC_MAXIMUM)
+
+#define THROTTLE_MAXIMUM FromPercent(90, RC_MAXIMUM)
+
+#define RC_FRAME_TIMEOUT_US 25000
+#define RC_SIGNAL_TIMEOUT_US  (RC_FRAME_TIMEOUT_US * 5)
+#define RC_THR_MAX  RC_MAXIMUM
+
+// PPM
+#define MIN_PPM_SYNC_PAUSE_US 2800 // 8x2+2=18 FrSky broken
+// Spektrum
+#define MIN_SPEK_SYNC_PAUSE_US 5000
+#define SPEK_MAX_CHANNEL 7
+#define SPEK_FRAME_SIZE 16
+
+typedef struct {
+	uint8 Pin;
+	int32 PrevEdge;
+	boolean PrevState;
+	boolean State;
+	int32 RisingEdge;
+	int32 FallingEdge;
+	int32 Raw;
+	int32 SpekRaw;
+} RCInpDef;
+
+void CheckSpektrumSBus(void);
+void DoRCSerial(uint32 Now);
+void DoSpektrum(void);
+void Spek1024LoopBack(void);
+extern uint8 SpekChanShift;
+extern uint8 SpekChanMask;
+extern uint8 spekFrame[];
+
+// Futaba SBus
+#define SBUS_FRAME_SIZE 25
+#define MIN_SBUS_SYNC_PAUSE_US 4000
+
+void DoSBus(void);
+void SBusLoopBack(void);
+extern uint8 SBus[];
+extern uint8 SBusIndex;
+
+// General
+void InitRC(void);
+void InitRCPins(uint8 PPMInputs);
+void CheckRC(void);
+void MapRC(void);
+void CheckSticksHaveChanged(void);
+void UpdateControls(void);
+void CaptureTrims(void);
+void CheckThrottleMoved(void);
+void ReceiverTest(uint8 s);
+void UpdateRCMap(void);
+
+// ISR
+
+void RCSerialISR(uint32 Now);
+void RCParallelISR(TIM_TypeDef *tim);
+void SpektrumSBusISR(uint8 ch);
+
+extern volatile uint8 RCFrame[];
+extern uint8 FrameIndex;
+
+extern RCInpDef RCInp[];
+extern uint32 RCLastFrameuS;
+extern uint32 RCSyncWidthuS;
+extern uint32 RCFrameIntervaluS;
+extern uint8 Channel;
+extern int8 SignalCount;
+extern uint8 Map[], RMap[];
+extern real32 RC[], RCp[];
+
+extern uint8 DiscoveredRCChannels;
+extern real32 MaxCruiseThrottle, DesiredThrottle, IdleThrottle,
+		InitialThrottle, StickThrottle;
+extern real32 DesiredRoll, DesiredPitch, DesiredYaw;
+extern real32 CurrMaxRollPitchStick;
+extern real32 DesiredCamPitchTrim;
+extern real32 ThrLow, ThrHigh, ThrNeutral;
+extern uint8 NoOfControls;
+extern int8 RCStart;
+
+extern uint8 CurrRCType;
+extern uint16 LostFrameCount;
+extern uint8 RSSIDeltang;
+
+#endif
+
+

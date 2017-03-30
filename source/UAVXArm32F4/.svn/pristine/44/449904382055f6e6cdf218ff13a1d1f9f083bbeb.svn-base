@@ -1,0 +1,837 @@
+// ===============================================================================================
+// =                                UAVX Quadrocopter Controller                                 =
+// =                           Copyright (c) 2008 by Prof. Greg Egan                             =
+// =                 Original V3.15 Copyright (c) 2007 Ing. Wolfgang Mahringer                   =
+// =                     http://code.google.com/p/uavp-mods/ http://uavp.ch                      =
+// ===============================================================================================
+
+//    This is part of UAVX.
+
+//    UAVX is free software: you can redistribute it and/or modify it under the terms of the GNU 
+//    General Public License as published by the Free Software Foundation, either version 3 of the 
+//    License, or (at your option) any later version.
+
+//    UAVX is distributed in the hope that it will be useful,but WITHOUT ANY WARRANTY; without
+//    even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+//    See the GNU General Public License for more details.
+
+//    You should have received a copy of the GNU General Public License along with this program.  
+//    If not, see http://www.gnu.org/licenses/
+
+// Compass
+
+#include "UAVX.h"
+
+#define HMC5XXX_CONFIG_A 	0x00
+#define HMC5XXX_CONFIG_B 	0x01
+#define HMC5XXX_MODE 		0x02
+#define HMC5XXX_DATA 		0x03
+#define HMC5XXX_TEMP 		0x31
+#define HMC5XXX_STATUS 		0x09
+#define HMC5XXX_TAG 		0x0a
+
+real32 MagTemperature = 0.0f;
+real32 MagVariation = 0.0f;
+real32 MagVariationWMM2010 = 0.0f;
+real32 MagHeading, Heading, DesiredHeading, HeadingE, CompassOffset;
+//DesiredHeading,
+uint8 MagnetometerType;
+real32 MagdT;
+
+real32 Mag[3];
+int16 RawMag[3];
+real32 d[MAG_MAX_SAMPLES][3];
+volatile uint16 MagSample;
+uint16 SphereIterations;
+
+void WriteVerifyMag(uint8 a, uint8 v) {
+	// idea due to Bill Nesbitt from AQ - seems he also found
+	// write transactions to the HMC5XXX to be problematic
+	// although it may have just been MPU6500 feed through
+	// low cost so leave TODO
+	uint8 r;
+
+	do {
+		Delay1mS(10);
+		sioWrite(SIOMag, HMC5XXX_ID, a, v);
+		Delay1mS(10);
+		r = sioRead(SIOMag, HMC5XXX_ID, a);
+	} while (r != v);
+
+} // WriteVerifyMag
+
+boolean ReadMagnetometer(void) {
+	int16 RawTemp = 0;
+	boolean r;
+
+	sioReadBlocki16vataddr(SIOMag, HMC5XXX_ID, HMC5XXX_DATA, 3, RawMag, true);
+
+	if (spiDevUsed[SIOMag])
+		sioReadBlocki16vataddr(SIOMag, HMC5XXX_ID, HMC5XXX_TEMP, 1, &RawTemp,
+				true);
+
+	MagTemperature = (real32) RawTemp * 0.0078125 + 25.0f;
+
+	r = (RawMag[0] != -4096) && (RawMag[1] != -4096) && (RawMag[2] != -4096);
+	if (!r)
+		NV.Stats[CompassFailS]++;
+
+	return (r);
+} // ReadMagnetometer
+
+
+void GetMagnetometer(void) {
+	uint32 NowmS;
+	static uint32 LastMagUpdateuS = 0;
+	int32 a;
+
+	NowmS = mSClock();
+	if (NowmS >= mS[MagnetometerUpdate]) {
+		mSTimer(NowmS, MagnetometerUpdate, MAG_TIME_MS);
+
+		RawMag[MX] = -4096;
+
+		MagdT = dTUpdate(uSClock(), &LastMagUpdateuS);
+
+		if (ReadMagnetometer()) {
+
+			if (F.InvertMagnetometer) {
+				Mag[BF] = -(real32) RawMag[MX] * NV.MagCal.Scale[MX];
+				Mag[LR] = -(real32) RawMag[MY] * NV.MagCal.Scale[MY];
+				Mag[UD] = (real32) RawMag[MZ] * NV.MagCal.Scale[MZ];
+			} else {
+				Mag[BF] = (real32) RawMag[MY] * NV.MagCal.Scale[MY];
+				Mag[LR] = (real32) RawMag[MX] * NV.MagCal.Scale[MX];
+				Mag[UD] = -(real32) RawMag[MZ] * NV.MagCal.Scale[MZ];
+			}
+
+			TrackMaxMin();
+
+#if defined(INC_MAG_HIST)
+			if (State == InFlight) {
+				if (MagSample < MAG_MAX_HIST_SAMPLES) {
+					d[MagSample][BF] = Mag[BF];
+					d[MagSample][LR] = Mag[LR];
+					d[MagSample][UD] = Mag[UD];
+					MagSample++;
+				}
+			} else
+#endif
+			MagSample = 0;
+
+			for (a = X; a <= Z; a++)
+				Mag[a] -= NV.MagCal.Bias[a];
+
+			real32 NormR = invSqrt(Sqr(Mag[0]) + Sqr(Mag[1]) + Sqr(Mag[2]));
+			for (a = X; a <= Z; a++)
+				Mag[a] *= NormR;
+
+			F.NewMagValues = true;
+		} else
+			F.NewMagValues = false;
+	}
+
+	F.MagnetometerFailure = !F.MagnetometerCalibrated;
+
+} // GetMagnetometer
+
+
+void CalculateMagneticHeading(void) {
+	real32 xh, yh;
+	real32 cR, sR, cP, sP;
+
+	if (F.NewMagValues) {
+		F.NewMagValues = false;
+
+		cR = cosf(-A[Roll].Angle);
+		sR = sinf(-A[Roll].Angle);
+		cP = cosf(A[Pitch].Angle);
+		sP = sinf(A[Pitch].Angle);
+
+		xh = Mag[BF] * cP + sP * (Mag[UD] * cR - Mag[LR] * sR);
+		yh = Mag[LR] * cR + Mag[UD] * sR;
+
+		MagHeading = -atan2f(yh, xh);
+	}
+
+} // CalculateMagneticHeading
+
+
+#define HMC58X3_R_CONFA 0
+#define HMC58X3_R_CONFB 1
+#define HMC58X3_R_MODE 2
+#define HMC58X3_X_SELF_TEST_GAUSS (+1.16f)       // X axis level when bias current is applied.
+#define HMC58X3_Y_SELF_TEST_GAUSS (+1.16f)       // Y axis level when bias current is applied.
+#define HMC58X3_Z_SELF_TEST_GAUSS (+1.08f)       // Z axis level when bias current is applied.
+#define SELF_TEST_LOW_LIMIT  (243.0f / 390.0f)    // Low limit when gain is 5.
+#define SELF_TEST_HIGH_LIMIT (575.0f / 390.0f)    // High limit when gain is 5.
+#define HMC_POS_BIAS 1
+#define HMC_NEG_BIAS 2
+
+void InitMagnetometer(void) {
+	uint32 FatalTimeoutmS;
+
+	const uint8 Samples = 20;
+	uint8 ActualSamples;
+	uint8 i, a;
+
+	FatalTimeoutmS = mSClock() + 10000;
+	do {
+		F.MagnetometerActive = MagnetometerIsActive();
+		Delay1mS(10);
+	} while (!(mSClock() > FatalTimeoutmS) && !F.MagnetometerActive);
+
+	NV.MagCal.Scale[BF] = NV.MagCal.Scale[LR] = NV.MagCal.Scale[UD] = 0.0f;
+
+	if (F.MagnetometerActive) {
+
+		WriteVerifyMag(HMC5XXX_CONFIG_A, 0x11); // Set positive bias
+		Delay1mS(50);
+		WriteVerifyMag(HMC5XXX_CONFIG_B, 0xA0); // Gain
+		Delay1mS(100);
+
+		sioWrite(SIOMag, HMC5XXX_ID, HMC5XXX_MODE, 0x01); // Perform single conversion
+		Delay1mS(50);
+		ReadMagnetometer(); // discard initial values
+
+		ActualSamples = 0;
+
+		for (i = 0; i < Samples; i++) {
+			sioWrite(SIOMag, HMC5XXX_ID, HMC5XXX_MODE, 0x01); // Perform single conversion
+			Delay1mS(50);
+
+			if (ReadMagnetometer()) {
+				NV.MagCal.Scale[MX] += Abs(1264.4f / RawMag[MX]);
+				NV.MagCal.Scale[MY] += Abs(1264.4f / RawMag[MY]);
+				NV.MagCal.Scale[MZ] += Abs(1177.2f / RawMag[MZ]);
+				ActualSamples++;
+			}
+
+			Delay1mS(20);
+		}
+
+		if (ActualSamples > 0) {
+			for (a = X; a <= Z; a++)
+				NV.MagCal.Scale[a] /= (real32) (Samples * 2);
+
+			Delay1mS(50);
+
+			if (spiDevUsed[SIOMag])
+				WriteVerifyMag(HMC5XXX_CONFIG_A, 0xf8); // Temp Comp, 75Hz normal mode 8 sample/measurement
+			else
+				WriteVerifyMag(HMC5XXX_CONFIG_A, 0x78); // 75Hz normal mode 8 sample/measurement
+			Delay1mS(50);
+			WriteVerifyMag(HMC5XXX_CONFIG_B, 0x00); // 0.88Ga increase gain with large dip angles
+			Delay1mS(50);
+			sioWrite(SIOMag, HMC5XXX_ID, HMC5XXX_MODE, 0x00); // Set continuous mode
+			Delay1mS(50);
+
+			mSTimer(mSClock(), MagnetometerUpdate, MAG_TIME_MS);
+
+			F.NewMagValues = false;
+
+			do {
+				GetMagnetometer();
+			} while (!F.NewMagValues);
+
+			CheckMagnetometerIsCalibrated();
+
+		} else
+			F.NewMagValues = F.MagnetometerActive = false;
+	} else
+		F.NewMagValues = false;
+
+} // InitMagnetometer
+
+void CheckMagnetometerIsCalibrated(void) {
+	boolean r;
+	int32 a;
+
+	r = true;
+	for (a = X; a <= Z; a++)
+		r &= (NV.MagCal.Population[0][a] == 0) && (NV.MagCal.Population[1][a]
+				== 0);
+	F.MagnetometerCalibrated = !r;
+
+} // CheckMagnetometerIsCalibrated
+
+void InitMagnetometerBias(void) {
+	int32 a;
+
+	// Nominal x/y 766, z 660 @1Ga
+	for (a = X; a <= Z; a++) {
+		NV.MagCal.Population[0][a] = NV.MagCal.Population[1][a] = 0;
+		NV.MagCal.Bias[a] = NV.MagCal.Bias2[a] = 0.0f;
+		NV.MagCal.Max[a] = -1000.0f;
+		NV.MagCal.Min[a] = 1000.0f;
+	}
+
+} // InitMagnetometerBias
+
+void CalibrateHMC5XXX(uint8 s) {
+	uint16 i;
+	real32 MagOrigin[3];
+
+	LEDOn(LEDBlueSel);
+
+	if (F.MagnetometerActive) {
+
+		InitMagnetometerBias();
+
+		i = 0;
+		while (i < MAG_MAX_SAMPLES) {
+
+			mSTimer(mSClock(), MagnetometerUpdate, MAG_TIME_MS);
+			while (mSClock() < mS[MagnetometerUpdate]) {
+			};
+
+			LEDToggle(LEDBlueSel);
+
+			if (ReadMagnetometer()) {
+
+				if (F.InvertMagnetometer) {
+					d[i][BF] = -(real32) RawMag[MX] * NV.MagCal.Scale[MX];
+					d[i][LR] = -(real32) RawMag[MY] * NV.MagCal.Scale[MY];
+					d[i][UD] = (real32) RawMag[MZ] * NV.MagCal.Scale[MZ];
+				} else {
+					d[i][BF] = (real32) RawMag[MY] * NV.MagCal.Scale[MY];
+					d[i][LR] = (real32) RawMag[MX] * NV.MagCal.Scale[MX];
+					d[i][UD] = -(real32) RawMag[MZ] * NV.MagCal.Scale[MZ];
+				}
+
+				TrackMaxMin();
+				i++;
+			}
+		}
+		// Actually it will be an ellipsoid due to hard iron effects
+		SphereIterations = SphereFit(d, MAG_MAX_SAMPLES, 200, 0.01f,
+				NV.MagCal.Population, MagOrigin, &NV.MagCal.Magnitude);
+
+		for (i = 0; i < 3; i++)
+			NV.MagCal.Bias[i] = MagOrigin[i];
+
+		DoBeep(8, 1);
+		UpdateNV();
+		LEDOff(LEDBlueSel);
+		F.MagnetometerCalibrated = true;
+	}
+
+#if defined(V4_BOARD)
+	SendAckPacket(s, UAVXMiscPacketTag, F.MagnetometerCalibrated);
+#endif
+} // CalibrateHMC5XXX
+
+
+void CalibrateMagnetometer(uint8 s) {
+	uint8 ch;
+
+	TxString(
+			s,
+			"\r\nCalibrate magnetometer - Click CONTINUE to confirm you wish to calibrate or CANCEL\r\n");
+
+	do {
+		ch = PollRxChar(TelemetrySerial);
+	} while ((ch != 'x') && (ch != 'z'));
+
+	if (ch == 'x') {
+
+		TxString(TelemetrySerial,
+				"\r\nRotate in all directions including upside down until the Beep\r\n");
+
+		CalibrateHMC5XXX(s);
+
+		if (!F.MagnetometerCalibrated)
+			TxString(TelemetrySerial, "\r\nCALIBRATION FAILED\r\n");
+
+	} else
+		TxString(TelemetrySerial, "\r\nCancelled");
+
+} // CalibrateMagnetometer
+
+
+void UpdateMagHist(void) {
+#if defined(INC_MAG_HIST)
+	uint16 P[2][3];
+	real32 MagOrigin[3], MagRadius;
+	int16 Temp;
+	int32 a;
+
+	if (MagSample >= MAG_MAX_HIST_SAMPLES) {
+		//	Probe(0);
+
+		SphereFit(d, MAG_MAX_HIST_SAMPLES, 50, 0.01f, P, MagOrigin, &MagRadius);
+
+		for (a = X; a <= Z; a++) {
+			Temp = Limit((int16)(MagOrigin[a]-NV.MagCal.Bias[a])
+					+ MAG_HALF_HIST, 0, MAG_MAX_HIST);
+			NV.MagCal.Stats[Temp][a]++;
+		}
+		Temp = Limit((int16)(MagRadius-NV.MagCal.Magnitude)
+				+ MAG_HALF_HIST, 0, MAG_MAX_HIST);
+		NV.MagCal.Stats[Temp][3]++;
+		MagSample = 0;
+
+		//	Probe(1);
+	}
+#endif // INC_MAG_HIST
+} // UpdateMagHist
+
+void TrackMaxMin(void) {
+	int32 a;
+
+	for (a = X; a <= Z; a++) {
+		if (RawMag[a] < NV.MagCal.Min[a])
+			NV.MagCal.Min[a] = MediumFilter(NV.MagCal.Min[a], RawMag[a]);
+		else if (RawMag[a] > NV.MagCal.Max[a])
+			NV.MagCal.Max[a] = MediumFilter(NV.MagCal.Max[a], RawMag[a]);
+
+		NV.MagCal.Bias2[a] = (NV.MagCal.Max[a] + NV.MagCal.Min[a]) * 0.5f;
+		NV.MagCal.Scale2[a] = (NV.MagCal.Max[0] - NV.MagCal.Bias2[0])
+				/ (NV.MagCal.Max[a] - NV.MagCal.Bias2[a]);
+	}
+} // TrackMaxMin
+
+
+boolean MagnetometerIsActive(void) {
+	boolean r;
+	uint8 v = 0;
+
+	sioReadBlock(SIOMag, HMC5XXX_ID, HMC5XXX_TAG, 1, &v);
+
+	r = v == 'H';
+
+	return (r);
+} //  MagnetometerActive
+
+#if defined(MAGSTUFF)
+
+/**
+ * Perform an update of the @ref MagBias based on
+ * Magnetometer Offset Cancellation: Theory and Implementation,
+ * revisited William Premerlani, October 14, 2011
+ */
+static void mag_calibration_prelemari(MagnetometerData *mag)
+{
+	// Constants, to possibly go into a UAVO
+	static const real32 MIN_NORM_DIFFERENCE = 50;
+
+	static real32 B2[3] = {0, 0, 0};
+
+	MagBiasData magBias;
+	MagBiasGet(&magBias);
+
+	// Remove the current estimate of the bias
+	mag->x -= magBias.x;
+	mag->y -= magBias.y;
+	mag->z -= magBias.z;
+
+	// First call
+	if (B2[0] == 0 && B2[1] == 0 && B2[2] == 0) {
+		B2[0] = mag->x;
+		B2[1] = mag->y;
+		B2[2] = mag->z;
+		return;
+	}
+
+	real32 B1[3] = {mag->x, mag->y, mag->z};
+	real32 norm_diff = sqrtf(powf(B2[0] - B1[0],2) + powf(B2[1] - B1[1],2) + powf(B2[2] - B1[2],2));
+	if (norm_diff > MIN_NORM_DIFFERENCE) {
+		real32 norm_b1 = sqrtf(B1[0]*B1[0] + B1[1]*B1[1] + B1[2]*B1[2]);
+		real32 norm_b2 = sqrtf(B2[0]*B2[0] + B2[1]*B2[1] + B2[2]*B2[2]);
+		real32 scale = insSettings.MagBiasNullingRate * (norm_b2 - norm_b1) / norm_diff;
+		real32 b_error[3] = {(B2[0] - B1[0]) * scale, (B2[1] - B1[1]) * scale, (B2[2] - B1[2]) * scale};
+
+		magBias.x += b_error[0];
+		magBias.y += b_error[1];
+		magBias.z += b_error[2];
+
+		MagBiasSet(&magBias);
+
+		// Store this value to compare against next update
+		B2[0] = B1[0]; B2[1] = B1[1]; B2[2] = B1[2];
+	}
+}
+
+/**
+ * Perform an update of the @ref MagBias based on an algorithm
+ * we developed that tries to drive the magnetometer length to
+ * the expected value.  This algorithm seems to work better
+ * when not turning a lot.
+ */
+static void mag_calibration_fix_length(MagnetometerData *mag)
+{
+	MagBiasData magBias;
+	MagBiasGet(&magBias);
+
+	// Remove the current estimate of the bias
+	mag->x -= magBias.x;
+	mag->y -= magBias.y;
+	mag->z -= magBias.z;
+
+	HomeLocationData homeLocation;
+	HomeLocationGet(&homeLocation);
+
+	AttitudeActualData attitude;
+	AttitudeActualGet(&attitude);
+
+	const real32 Rxy = sqrtf(homeLocation.Be[0]*homeLocation.Be[0] + homeLocation.Be[1]*homeLocation.Be[1]);
+	const real32 Rz = homeLocation.Be[2];
+
+	const real32 rate = insSettings.MagBiasNullingRate;
+	real32 R[3][3];
+	real32 B_e[3];
+	real32 xy[2];
+	real32 delta[3];
+
+	// Get the rotation matrix
+	Quaternion2R(&attitude.q1, R);
+
+	// Rotate the mag into the NED frame
+	B_e[0] = R[0][0] * mag->x + R[1][0] * mag->y + R[2][0] * mag->z;
+	B_e[1] = R[0][1] * mag->x + R[1][1] * mag->y + R[2][1] * mag->z;
+	B_e[2] = R[0][2] * mag->x + R[1][2] * mag->y + R[2][2] * mag->z;
+
+	real32 cy = cosf(attitude.Yaw * DEG2RAD);
+	real32 sy = sinf(attitude.Yaw * DEG2RAD);
+
+	xy[0] = cy * B_e[0] + sy * B_e[1];
+	xy[1] = -sy * B_e[0] + cy * B_e[1];
+
+	real32 xy_norm = sqrtf(xy[0]*xy[0] + xy[1]*xy[1]);
+
+	delta[0] = -rate * (xy[0] / xy_norm * Rxy - xy[0]);
+	delta[1] = -rate * (xy[1] / xy_norm * Rxy - xy[1]);
+	delta[2] = -rate * (Rz - B_e[2]);
+
+	if (delta[0] == delta[0] && delta[1] == delta[1] && delta[2] == delta[2]) {
+		magBias.x += delta[0];
+		magBias.y += delta[1];
+		magBias.z += delta[2];
+		MagBiasSet(&magBias);
+	}
+}
+
+real32 magFieldEarth[3];
+
+extern real32 udb_magFieldBody[3];
+extern real32 udb_magOffset[3];
+
+real32 magFieldBodyPrevious[3];
+real32 rmatPrevious[9];
+
+real32 magFieldEarthNormalizedPrevious[3];
+real32 magAlignment[3] = {0 , 0 , 0};
+
+real32 magFieldBodyMagnitudePrevious;
+real32 magFieldBodyPrevious[3];
+
+void RotVector2RotMat( real32 rotation_matrix[] , real32 rotation_vector[] )
+{
+	//	rotation vector represents a rotation in vector form.
+	//	around an axis equal to the normalized value of the vector.
+	//	It is assumed that rotation_vector already includes a factor of sin(alpha/2)
+	//  maximum rotation is plus minus 180 degrees.
+	real32 cos_alpha;
+	real32 cos_half_alpha;
+	real32 cos_half_alpha_rotation_vector[3];
+	union longww sin_half_alpha_sqr = {0};
+	int matrix_index;
+
+	//	compute the square of sine of half alpha
+	for ( matrix_index = 0; matrix_index <= 3; matrix_index++ )
+		sin_half_alpha_sqr.WW += __builtin_mulss( rotation_vector[matrix_index] , rotation_vector[matrix_index] );
+
+	if ( sin_half_alpha_sqr.WW > ( (long) RMAX*RMAX - 1))
+		sin_half_alpha_sqr.WW = (long) RMAX*RMAX - 1;
+
+	//	compute cos_half_alpha
+	cos_half_alpha = sqrt_long( (long) RMAX*RMAX - sin_half_alpha_sqr.WW );
+
+	//	compute cos_alpha
+	sin_half_alpha_sqr.WW *= 8;
+	cos_alpha = RMAX - sin_half_alpha_sqr._.W1;
+
+	//	scale rotation_vector by 2*cos_half_alpha
+	VectorScale ( 3 , cos_half_alpha_rotation_vector , rotation_vector , cos_half_alpha );
+	for ( matrix_index = 0; matrix_index <= 3; matrix_index++ )
+		cos_half_alpha_rotation_vector[matrix_index] *= 4;
+
+	//	compute 2 times rotation_vector times its transpose
+	MatrixMultiply( 3 , 1 , 3 , rotation_matrix , rotation_vector , rotation_vector );
+	for ( matrix_index = 0; matrix_index <= 8; matrix_index++ )
+		rotation_matrix[matrix_index] *= 4;
+
+	rotation_matrix[0] += cos_alpha;
+	rotation_matrix[4] += cos_alpha;
+	rotation_matrix[8] += cos_alpha;
+
+	rotation_matrix[1] -= cos_half_alpha_rotation_vector[2];
+	rotation_matrix[2] += cos_half_alpha_rotation_vector[1];
+	rotation_matrix[3] += cos_half_alpha_rotation_vector[2];
+	rotation_matrix[5] -= cos_half_alpha_rotation_vector[0];
+	rotation_matrix[6] -= cos_half_alpha_rotation_vector[1];
+	rotation_matrix[7] += cos_half_alpha_rotation_vector[0];
+
+	return;
+}
+
+void mag_drift()
+{
+	int mag_error;
+	int vector_index;
+	real32 magFieldEarthNormalized[3];
+	real32 magFieldEarthHorzNorm[2];
+	real32 magAlignmentError[3];
+	real32 rmat2Transpose[9];
+	real32 R2TR1RotationVector[3];
+	real32 R2TAlignmentErrorR1[3];
+	real32 rmatBufferA[9];
+	real32 rmatBufferB[9];
+	real32 magAlignmentAdjustment[3];
+	real32 vectorBuffer[3];
+	real32 magFieldBodyMagnitude;
+	real32 offsetEstimate[3];
+
+	// the following compensates for magnetometer drift by adjusting the timing
+	// of when rmat is read
+	mag_latency_counter --;
+	if ( mag_latency_counter == 0 )
+	{
+		VectorCopy ( 9 , rmatDelayCompensated , rmat );
+		mag_latency_counter = 10; // not really needed, but its good insurance
+	}
+
+	if ( MagDriftReq )
+	{
+		if ( dcm_flags._.first_mag_reading == 1 )
+		{
+			align_rmat_to_mag();
+			VectorCopy ( 9 , rmatDelayCompensated , rmat );
+		}
+
+		mag_latency_counter = 10 - MAG_LATENCY_COUNT; // setup for the next reading
+
+		//		Compute magnetic offsets
+		magFieldBodyMagnitude = vector3_mag( udb_magFieldBody[0], udb_magFieldBody[1], udb_magFieldBody[2] );
+		VectorSubtract( 3, vectorBuffer , udb_magFieldBody , magFieldBodyPrevious );
+		vector3_normalize( vectorBuffer , vectorBuffer );
+		VectorScale( 3 , offsetEstimate , vectorBuffer , magFieldBodyMagnitude - magFieldBodyMagnitudePrevious );
+
+		//		Compute and apply the magnetometer alignment adjustment in the body frame
+		RotVector2RotMat( rmatBufferA , magAlignment );
+		vectorBuffer[0] = VectorDotProduct( 3 , &rmatBufferA[0] , udb_magFieldBody ) << 1;
+		vectorBuffer[1] = VectorDotProduct( 3 , &rmatBufferA[3] , udb_magFieldBody ) << 1;
+		vectorBuffer[2] = VectorDotProduct( 3 , &rmatBufferA[6] , udb_magFieldBody ) << 1;
+
+		//		Compute the mag field in the earth frame
+		magFieldEarth[0] = VectorDotProduct( 3 , &rmatDelayCompensated[0] , vectorBuffer )<<1;
+		magFieldEarth[1] = VectorDotProduct( 3 , &rmatDelayCompensated[3] , vectorBuffer )<<1;
+		magFieldEarth[2] = VectorDotProduct( 3 , &rmatDelayCompensated[6] , vectorBuffer )<<1;
+
+		//		Normalize the magnetic vector to RMAT
+		vector3_normalize ( magFieldEarthNormalized , magFieldEarth );
+		vector2_normalize ( magFieldEarthHorzNorm , magFieldEarth );
+
+		//		Use the magnetometer to detect yaw drift
+		mag_error = VectorDotProduct( 2 , magFieldEarthHorzNorm , declinationVector );
+		VectorScale( 3 , errorYawplane , &rmat[6] , mag_error ); // Scalegain = 1/2
+
+		//		Do the computations needed to compensate for magnetometer misalignment
+
+		//		Determine the apparent shift in the earth's magnetic field:
+		VectorCross( magAlignmentError, magFieldEarthNormalizedPrevious , magFieldEarthNormalized );
+
+		//		Compute R2 transpose
+		MatrixTranspose( 3 , 3 , rmat2Transpose , rmatDelayCompensated );
+
+		//		Compute 1/2 of R2tranpose times R1
+		MatrixMultiply( 3 , 3 , 3 , rmatBufferA , rmat2Transpose , rmatPrevious );
+
+		//		Convert to a rotation vector, take advantage of 1/2 from the previous step
+		R2TR1RotationVector[0] = rmatBufferA[7] - rmatBufferA[5];
+		R2TR1RotationVector[1] = rmatBufferA[2] - rmatBufferA[6];
+		R2TR1RotationVector[2] = rmatBufferA[3] - rmatBufferA[1];
+
+		//		Compute 1/4 of RT2*Matrix(error-vector)*R1
+		rmatBufferA[0] = rmatBufferA[4] = rmatBufferA[8]=0;
+		rmatBufferA[7] = magAlignmentError[0];
+		rmatBufferA[5] = -magAlignmentError[0];
+		rmatBufferA[2] = magAlignmentError[1];
+		rmatBufferA[6] = -magAlignmentError[1];
+		rmatBufferA[3] = magAlignmentError[2];
+		rmatBufferA[1] = -magAlignmentError[2];
+		MatrixMultiply( 3 , 3 , 3 , rmatBufferB , rmatBufferA , rmatDelayCompensated );
+		MatrixMultiply( 3 , 3 , 3 , rmatBufferA , rmat2Transpose , rmatBufferB );
+
+		//		taking advantage of factor of 1/4 in the two matrix multiplies, compute
+		//		1/2 of the vector representation of the rotation
+		R2TAlignmentErrorR1[0] = ( rmatBufferA[7] - rmatBufferA[5] );
+		R2TAlignmentErrorR1[1] = ( rmatBufferA[2] - rmatBufferA[6] );
+		R2TAlignmentErrorR1[2] = ( rmatBufferA[3] - rmatBufferA[1] );
+
+		//		compute the estimate of the residual misalignment
+		VectorCross( magAlignmentAdjustment , R2TR1RotationVector , R2TAlignmentErrorR1 );
+
+		if ( !FirstMagPass )
+		{
+
+			udb_magOffset[0] = udb_magOffset[0] + ( ( offsetEstimate[0] + 2 ) >> 2 );
+			udb_magOffset[1] = udb_magOffset[1] + ( ( offsetEstimate[1] + 2 ) >> 2 );
+			udb_magOffset[2] = udb_magOffset[2] + ( ( offsetEstimate[2] + 2 ) >> 2 );
+
+			for ( vector_index = 0; vector_index < 3; vector_index++ )
+			{
+				magAlignment[vector_index] = magAlignment[vector_index] - ( magAlignmentAdjustment[vector_index] >> 4 );
+				if ( abs(magAlignment[vector_index]) > RMAX )
+					magAlignment[vector_index] = magAlignment[vector_index] > 0 ? RMAX : -RMAX;
+			}
+		}
+		else
+			FirstMagPass = false;
+
+		VectorCopy ( 3 , magFieldEarthNormalizedPrevious , magFieldEarthNormalized );
+		VectorCopy ( 9 , rmatPrevious , rmatDelayCompensated );
+		VectorCopy ( 3 , magFieldBodyPrevious , udb_magFieldBody );
+		magFieldBodyMagnitudePrevious = magFieldBodyMagnitude;
+
+		MagDriftReq = false;
+	}
+	return;
+}
+
+#endif
+
+// Least squares fit of a sphere to 3D data, ImaginaryZ's blog,
+// Miscellaneous banter, Useful mathematics, game programming tools and the occasional kink or two.
+// 22 April 2011.
+// http: imaginaryz.blogspot.com.au/2011/04/least-squares-fit-sphere-to-3d-data.html
+
+// Substantially rewritten for UAVXArm by Prof. G.K. Egan (C) 2012.
+
+uint16 SphereFit(real32 d[][3], uint16 N, uint16 MaxIterations, real32 Err,
+		uint16 Population[][3], real32 SphereOrigin[], real32 * SphereRadius) {
+
+	int32 a;
+	uint16 i, Iterations;
+	real32 s[3], s2[3], s3[3], sum[3], sum2[3], sum3[3];
+	real32 x2sum[3], y2sum[3], z2sum[3];
+	real32 xy_sum, xz_sum, yz_sum;
+	real32 xy, xz, yz, x2z, y2x, y2z, z2x, x2y, z2y;
+	real32 qs, qb, q0, q1, q2;
+	real32 r2, c[3], c2[3], Delta[3], Denom[3];
+	real32 f0, f1, f2, f3, f4;
+	real32 di2[3];
+	real32 SizeR;
+
+	for (a = X; a <= Z; a++) {
+		s[a] = s2[a] = s3[a] = sum[a] = x2sum[a] = y2sum[a] = z2sum[a] = 0.0f;
+		Population[0][a] = Population[1][a] = 0;
+	}
+
+	xy_sum = xz_sum = yz_sum = 0.0f;
+
+	for (i = 0; i < N; i++) {
+
+		for (a = X; a <= Z; a++) {
+			di2[a] = Sqr(d[i][a]);
+			s[a] += d[i][a];
+			s2[a] += di2[a];
+			s3[a] += di2[a] * d[i][a];
+			Population[d[i][a] > 0.0f][a]++;
+		}
+
+		xy_sum += d[i][X] * d[i][Y];
+		xz_sum += d[i][X] * d[i][Z];
+		yz_sum += d[i][Y] * d[i][Z];
+
+		x2sum[Y] += di2[X] * d[i][Y];
+		x2sum[Z] += di2[X] * d[i][Z];
+
+		y2sum[X] += di2[Y] * d[i][X];
+		y2sum[Z] += di2[Y] * d[i][Z];
+
+		z2sum[X] += di2[Z] * d[i][X];
+		z2sum[Y] += di2[Z] * d[i][Y];
+	}
+
+	SizeR = 1.0f / (real32) N;
+	for (a = X; a <= Z; a++) {
+		sum[a] = s[a] * SizeR; //sum( X[n] )
+		sum2[a] = s2[a] * SizeR; //sum( X[n]^2 )
+		sum3[a] = s3[a] * SizeR; //sum( X[n]^3 )
+	}
+
+	xy = xy_sum * SizeR; //sum( X[n] * Y[n] )
+	xz = xz_sum * SizeR; //sum( X[n] * Z[n] )
+	yz = yz_sum * SizeR; //sum( Y[n] * Z[n] )
+
+	x2y = x2sum[Y] * SizeR; //sum( X[n]^2 * Y[n] )
+	x2z = x2sum[Z] * SizeR; //sum( X[n]^2 * Z[n] )
+	y2x = y2sum[X] * SizeR; //sum( Y[n]^2 * X[n] )
+	y2z = y2sum[Z] * SizeR; //sum( Y[n]^2 * Z[n] )
+	z2x = z2sum[X] * SizeR; //sum( Z[n]^2 * X[n] )
+	z2y = z2sum[Y] * SizeR; //sum( Z[n]^2 * Y[n] )
+
+	//Reduction of multiplications
+	f0 = sum2[X] + sum2[Y] + sum2[Z];
+	f1 = 0.5f * f0;
+	f2 = -8.0f * (sum3[X] + y2x + z2x);
+	f3 = -8.0f * (x2y + sum3[Y] + z2y);
+	f4 = -8.0f * (x2z + y2z + sum3[Z]);
+
+	for (a = X; a <= Z; a++) {
+		c[a] = sum[a];
+		c2[a] = Sqr(c[a]);
+	}
+
+	qs = c2[X] + c2[Y] + c2[Z];
+	qb = -2.0f * (Sqr(c[X]) + Sqr(c[Y]) + Sqr(c[Z]));
+	r2 = f0 + qb + qs;
+	q0 = 0.5f * (qs - r2);
+	q1 = f1 + q0;
+	q2 = 8.0f * (qs - r2 + qb + f0);
+
+	Iterations = 0;
+	do {
+		for (a = X; a <= Z; a++) {
+			Denom[a] = q2 + 16.0f * (c2[a] - 2.0f * c[a] * sum[a] + sum2[a]);
+			if (Denom[a] == 0.0f)
+				Denom[a] = 1.0f;
+		}
+
+		Delta[X] = -((f2 + 16.0f * (c[Y] * xy + c[Z] * xz + sum[X] * (-c2[X]
+				- q0) + c[X] * (sum2[X] + q1 - c[Z] * sum[Z] - c[Y] * sum[Y])))
+				/ Denom[X]);
+		Delta[Y] = -((f3 + 16.0f * (c[X] * xy + c[Z] * yz + sum[Y] * (-c2[Y]
+				- q0) + c[Y] * (sum2[Y] + q1 - c[X] * sum[X] - c[Z] * sum[Z])))
+				/ Denom[Y]);
+		Delta[Z] = -((f4 + 16.0f * (c[X] * xz + c[Y] * yz + sum[Z] * (-c2[Z]
+				- q0) + c[Z] * (sum2[Z] + q1 - c[X] * sum[X] - c[Y] * sum[Y])))
+				/ Denom[Z]);
+
+		for (a = X; a <= Z; a++) {
+			c[a] += Delta[a];
+			c2[a] = Sqr(c[a]);
+		}
+
+		qs = c2[X] + c2[Y] + c2[Z];
+		qb = -2.0f * (c[X] * sum[X] + c[Y] * sum[Y] + c[Z] * sum[Z]);
+		r2 = f0 + qb + qs;
+		q0 = 0.5f * (qs - r2);
+		q1 = f1 + q0;
+		q2 = 8.0f * (qs - r2 + qb + f0);
+
+		Iterations++;
+	} while ((Iterations < MaxIterations) && ((Sqr(Delta[X]) + Sqr(Delta[Y])
+			+ Sqr(Delta[Z])) > Err));
+
+	for (a = X; a <= Z; a++)
+		SphereOrigin[a] = c[a];
+
+	*SphereRadius = sqrtf(r2);
+
+	return (Iterations);
+}
+// SphereFit
+
+

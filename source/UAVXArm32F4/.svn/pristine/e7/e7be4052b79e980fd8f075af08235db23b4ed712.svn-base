@@ -1,0 +1,320 @@
+// Based on ArduSoar by Peter Braswell and Samuel Tabor
+
+
+#include "UAVX.h"
+
+#include "ExtendedKalmanFilter.h"
+
+// EKF
+#define INIT_STRENGTH_COVARIANCE 0.0049f
+#define INIT_RADIUS_COVARIANCE 2500.0f
+#define INIT_POS_COVARIANCE 300.0f
+#define THERMAL_Q1 0.001f
+#define THERMAL_Q2 0.03f
+#define THERMAL_R 0.45f
+
+// Filters
+#define K_AS 0.05f // hard filtering
+#define K_TE  0.03f // hard filtering
+#define DEF_LOITER_RADIUS_M 60.0f
+
+/*
+ typedef struct {
+ real32 Pos[3];
+ real32 Velocity;
+ int16 Loiter;
+ real32 OrbitRadius;
+ real32 OrbitAltitude;
+ real32 OrbitVelocity;
+ uint8 Action;
+ } WPStruct;
+ */
+
+WPStruct TH = { { 0, 0, 0 }, AIRSPEED_MIN_MPS, 10000, DEF_LOITER_RADIUS_M,
+		ALT_MAX_M, AIRSPEED_MIN_MPS, navGlide };
+
+#define F(o, n, k) (k * n + (1.0f - k) * o)
+
+uint32 PrevKFUpdatemS = 0;
+
+boolean ThrottleSuppressed = false;
+boolean Thermalling = false;
+
+real32 SoarNorthP, SoarEastP;
+
+real32 Vario;
+real32 VarioFilt;
+
+real32 ThermalStrength;
+boolean Thermalling;
+real32 ThermalRadius;
+SoaringStates SoaringState = Gliding;
+
+real32 MacCready(real32 Alt) {
+	const real32 XP[] = { 500, 3000 };
+	const real32 YP[] = { 0, 4 };
+	const int16 n = 2;
+	int16 i;
+
+	// Linear interpolation (without extrap)
+	if (Alt <= XP[0])
+		return YP[0];
+	else if (Alt >= XP[n - 1])
+		return YP[n - 1];
+	else
+		for (i = 0; i < n; i++) {
+			if (Alt >= XP[i])
+				return (((Alt - XP[i]) * (YP[i + 1] - YP[i]) / (XP[i + 1]
+						- XP[i])) + YP[i]);
+		}
+
+	return -1.0; // never happens
+
+} // MacCready
+
+boolean ThermalOK(void) {
+	ThermalStrength = (ekf.X[0] * exp(-Sqr(ThermalRadius / ekf.X[1])))
+			+ EXP_THERMAL_SINK_MPS;
+
+	return ThermalStrength >= MacCready(Altitude);
+} // ThermalOK
+
+
+boolean InAltitudeBand(void) {
+
+	return (Altitude >= AltMinM) && (Altitude <= AltMaxM);
+} // InAltitudeBand
+
+
+boolean SuppressThrottle(void) {
+
+	if (ThrottleSuppressed && (Altitude < AltMinM))
+		ThrottleSuppressed = false;
+	else if (!ThrottleSuppressed && (Altitude > AltCutoffM)) {
+		ThrottleSuppressed = true;
+		VarioFilt = 0; // zooming on motor climb
+		//zzz spdHgt->reset_pitch_I(); // zero pitch integral
+		mSTimer(mSClock(), CruiseTimeout, CRUISE_MIN_MS);
+	};
+
+	return ThrottleSuppressed;
+
+} // SuppressThrottle
+
+boolean CommenceThermalling(void) {
+	return (mSClock() > mS[CruiseTimeout]) && (VarioFilt > THERMAL_MIN_MPS)
+			&& InAltitudeBand();
+	//&& (StickThrottle <= IdleThrottle); // zzz
+} // CommenceThermalling
+
+
+boolean RevertToCruise(void) {
+
+	return (mSClock() > mS[ThermalTimeout]) && (!InAltitudeBand()
+			|| !ThermalOK());
+
+} // RevertToCruise
+
+
+void InitThermalling(void) {
+	real32 R[1][1] = { { Sqr(THERMAL_R) }, };
+	const real32 cov_q1 = Sqr(THERMAL_Q1);
+	const real32 cov_q2 = Sqr(THERMAL_Q2);
+	real32 Q[4][4] = { { cov_q1, 0, 0, 0 }, { 0, cov_q2, 0, 0 }, { 0, 0,
+			cov_q2, 0 }, { 0, 0, 0, cov_q2 } };
+	real32 P[4][4] = { { INIT_STRENGTH_COVARIANCE, 0, 0, 0 }, { 0,
+			INIT_RADIUS_COVARIANCE, 0, 0 }, { 0, 0, INIT_POS_COVARIANCE, 0 }, {
+			0, 0, 0, INIT_POS_COVARIANCE } };
+
+	// New state vector filter will be reset. Thermal location is placed in front of a/c
+	real32 XR[] = { INIT_THERMAL_STRENGTH, INIT_THERMAL_RADIUS_M,
+			THERMAL_DIST_AHEAD_M * cosf(Heading), THERMAL_DIST_AHEAD_M * sinf(
+					Heading) };
+	// Also reset covariance matrix p so filter is not affected by previous data
+	EKFreset(XR, P, Q, R);
+
+	SoarNorthP = Nav.Pos[NorthC];
+	SoarEastP = Nav.Pos[EastC];
+
+	PrevKFUpdatemS = mSClock();
+	mSTimer(mSClock(), ThermalTimeout, THERMAL_MIN_MS);
+
+} // InitThermalling
+
+
+void InitCruising(void) {
+	mSTimer(mSClock(), CruiseTimeout, CRUISE_MIN_MS);
+	ThrottleSuppressed = true; // glide initially
+} // InitCruising
+
+void UpdateThermalEstimate(void) {
+
+	//invoked when F.NewNavUpdate
+
+	uint32 NowmS = mSClock();
+
+	real32 dx = Nav.Pos[NorthC] - SoarNorthP;
+	real32 dy = Nav.Pos[EastC] - SoarEastP;
+
+#if defined(HAVE_WIND_ESTIMATE)
+	// Wind correction
+	real32 KFdT = (NowmS - PrevKFUpdatemS) * 0.001f;
+	Vector3f wind; // = _ahrs.wind_estimate();
+	real32 dx_w = wind.x * KFdT;
+	real32 dy_w = wind.y * KFdT;
+	dx -= dx_w;
+	dy -= dy_w;
+#else
+	real32 dx_w = 0.0f;
+	real32 dy_w = 0.0f;
+#endif
+
+	// write log - save the data.
+	SoaringTune.mS = NowmS;
+	SoaringTune.state = SoaringState;
+	SoaringTune.vario = Vario;
+	SoaringTune.dx = dx;
+	SoaringTune.dy = dy;
+	SoaringTune.x0 = ekf.X[0]; // strength
+	SoaringTune.x1 = ekf.X[1]; // radius
+	SoaringTune.x2 = ekf.X[2]; // North
+	SoaringTune.x3 = ekf.X[3]; // East
+	SoaringTune.lat = MToGPS(Nav.Pos[NorthC] + ekf.X[2])
+			+ GPS.OriginRaw[NorthC];
+	SoaringTune.lon = MToGPS((Nav.Pos[EastC] + ekf.X[3])
+			/ GPS.longitudeCorrection) + GPS.OriginRaw[EastC];
+	SoaringTune.alt = Altitude;
+	SoaringTune.dx_w = dx_w;
+	SoaringTune.dy_w = dy_w;
+
+	EKFupdate(Vario, dx, dy); // update the filter
+
+	SoarNorthP = Nav.Pos[NorthC];
+	SoarEastP = Nav.Pos[EastC];
+
+	PrevKFUpdatemS = NowmS;
+
+} // UpdateThermalEstimate
+
+
+real32 CorrectNettoRate(real32 Vario, real32 Roll, real32 Airspeed) {
+	/* Netto variometer
+
+	 A second type of compensated variometer is the Netto or airmass variometer.
+	 In addition to TE compensation, the Netto variometer adjusts for the intrinsic
+	 sink rate of the glider at a given speed (the polar curve) adjusted for the
+	 wing loading due to water ballast. The Netto variometer will always read zero
+	 in still air. This provides the pilot with the accurate measurement of air
+	 mass vertical movement critical for final glides (the last glide to the ultimate
+	 destination location).
+
+	 The Relative Netto Variometer indicates the vertical speed the glider would
+	 achieve IF it flies at thermalling speed - independent of current air speed and
+	 attitude. This reading is calculated as the Netto reading minus the glider's
+	 minimum sink.
+
+	 When the glider circles to thermal, the pilot needs to know the glider's
+	 vertical speed instead of that of the air mass. The Relative Netto Variometer
+	 (or sometimes the super Netto) includes a g-sensor to detect thermalling.
+
+	 When thermalling, the sensor will detect acceleration (gravity plus centrifugal)
+	 above 1 g and tell the relative netto variometer to stop subtracting the
+	 sailplane's wing load-adjusted polar sink rate for the duration. Some earlier
+	 nettos used a manual switch instead of the g sensor.
+	 */
+	real32 CL0; // CL0 = 2*W/(rho*S*V^2)
+	real32 C1; // C1 = CD0/CL0
+	real32 C2; // C2 = CDi0/CL0 = B*CL0
+	real32 Netto;
+	real32 cRoll;
+
+	CL0 = POLAR_K / Sqr(Airspeed);
+	C1 = POLAR_CD0 / CL0; // angle to overcome zero-lift drag
+	C2 = POLAR_B * CL0; // angle to overcome lift induced drag at zero bank
+
+	cRoll = 1.0f - 0.5f * Sqr(Roll); // first two terms of mclaurin series for cos(phi)
+	Netto = Vario + Airspeed * (C1 + C2 / Sqr(cRoll)); // effect of aircraft drag removed
+
+	return Netto;
+
+} // CorrectNettoRate
+
+
+void UpdateVario(void) {
+
+	real32 Headroom, AltitudeLost;
+
+	if (F.UsingWPNavigation) {
+		Headroom = WP.Pos[DownC] + (-VRS_ALT_DIFF_M);
+		AltitudeLost = (WPDistance(&WP) / GPS.gspeed)
+				* (-EXP_THERMAL_SINK_MPS);
+		AltCutoffM = AltitudeLost * 1.5f + Headroom;
+		AltMaxM = AltitudeLost * 2.0f + Headroom;
+		AltMinM = VRS_SAFETY_ALT_M; //(real32) NV.P[CurrPS][NavRTHAlt] + (-VRS_ALT_DIFF_M);
+	} else {
+		AltCutoffM = ALT_CUTOFF_M;
+		AltMaxM = ALT_MAX_M;
+		AltMinM = ALT_MIN_M;
+	}
+
+#if defined(HAVE_AIRSPEED)
+	Airspeed = 0.0f; ???
+#else
+	Airspeed = 0.5f * (AIRSPEED_MIN_MPS + AIRSPEED_MAX_MPS);
+#endif
+
+	//#define USE_NETTO
+#if defined(USE_NETTO)
+	static uint32 PrevThermalUpdatemS = 0;
+	static real32 TEP = 0.0f;
+	static real32 AirspeedFilt = 0.0f;
+
+	AirspeedFilt = F(AirspeedFilt, Airspeed, K_AS);
+	real32 TE = Altitude + 0.5f * Sqr(AirspeedFilt) / GRAVITY_MPS_S;
+	real32 SinkRate = CorrectNettoRate(0.0f, A[Roll].Angle, AirspeedFilt);
+
+	Vario = SinkRate + (TE - TEP) / ((mSClock() - PrevThermalUpdatemS) * 0.001f);
+	VarioFilt = F(VarioFilt, Vario, K_TE);
+
+	TEP = TE;
+
+	PrevThermalUpdatemS = mSClock();
+#else
+	Vario = VarioFilt = ROC;
+#endif
+
+} // UpdateVario
+
+
+void DoGlider(void) {
+
+	switch (NavState) {
+	case UsingThermal:
+		if (RevertToCruise()) {
+			mSTimer(mSClock(), CruiseTimeout, CRUISE_MIN_MS);
+			PrevWPNo = -1; // force CaptureWPHeading
+			NavState = PrevNavState;
+		} else {
+			UpdateThermalEstimate();
+			TH.Pos[NorthC] = Nav.Pos[NorthC] + ekf.X[2];
+			TH.Pos[EastC] = Nav.Pos[EastC] + ekf.X[3];
+			//F.OrbitingWP = true;
+			Navigate(&TH);
+		}
+		break;
+	case Cruising:
+	default:
+		if (CommenceThermalling()) { // after cruise timeout
+			InitThermalling();
+			SuppressThrottle();
+			F.Soaring = true;
+			PrevNavState = NavState;
+			mSTimer(mSClock(), ThermalTimeout, THERMAL_MIN_MS);
+			NavState = UsingThermal;
+		}
+		break;
+	}
+
+} // DoGlider
+
+

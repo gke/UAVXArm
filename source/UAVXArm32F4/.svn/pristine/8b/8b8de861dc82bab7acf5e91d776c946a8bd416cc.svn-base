@@ -1,0 +1,249 @@
+// DO NOT FORMAT  DO NOT FORMAT DO NOT FORMAT DO NOT FORMAT DO NOT FORMAT DO NOT FORMAT DO NOT FORMAT
+// ===============================================================================================
+// =                                UAVX Quadrocopter Controller                                 =
+// =                           Copyright (c) 2008 by Prof. Greg Egan                             =
+// =                 Original V3.15 Copyright (c) 2007 Ing. Wolfgang Mahringer                   =
+// =                     http://code.google.com/p/uavp-mods/ http://uavp.ch                      =
+// ===============================================================================================
+
+//    This is part of UAVX.
+
+//    UAVX is free software: you can redistribute it and/or modify it under the terms of the GNU 
+//    General Public License as published by the Free Software Foundation, either version 3 of the 
+//    License, or (at your option) any later version.
+
+//    UAVX is distributed in the hope that it will be useful,but WITHOUT ANY WARRANTY; without
+//    even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+//    See the GNU General Public License for more details.
+
+//    You should have received a copy of the GNU General Public License along with this program.  
+//    If not, see http://www.gnu.org/licenses/
+
+
+const int8 DefaultParams[3][MAX_PARAMETERS] = { { // MULTICOPTERS BRUSHLESS
+		20, // RollKpRate, 					01
+				0, // AltPosKi,			02
+				25, // RollKpAngle,			03
+				RollStickArming, // ArmingMode,04
+				40, // RollIntLimit,		05
+
+				20, // PitchKpRate,			06
+				21, // AltPosKp,			07
+				25, // PitchKpAngle			08
+				UnknownRF, // RFUsed,		09
+				40, // PitchIntLimit,		10
+
+				20, // YawKpRate, 			11
+				45, // RollKdRate,			12
+				MadgwickIMU, // IMU,		13
+				0, // AltVelKd,				14 // 40 matlab
+				CompoundPPM, // RCType,		15
+
+				UseRTHDescendMask,
+				// ConfigBits,				16c
+				1, // RxThrottleCh,			17
+				51, // LowVoltThres,		18c
+				10, // CamRollKp,			19c
+				50, // CruiseThr,			20c
+
+				2, // StickHysteresis,		21c
+				0, // RollPitchMix,			22c
+				10, // PercentIdleThr,		23c
+				3, // RollKiAngle,			24
+				3, // PitchKiAngle,			25
+				10, // CamPitchKp,			26c
+				8, // YawKpAngle(Compass),	27
+				45, // PitchKdRate,			28
+				20, // NavKpVel,			29
+				14, // AltVelKp,			30
+
+				30, // Horizon,	    		31
+				50, // MadgwickKpMag,	    32
+				15, // NavRTHAlt,			33
+				13, // NavMagVar,			34c 13 Melbourne
+				UAVXArm32IMU, // SensorHint,35c
+				ESCPWM, // ESCType,			36c
+				7, // RxChannels,			37c
+				2, // RxRollCh,				38
+				20, // MadgwickKpAcc,		39c
+				1, // CamRollTrim,			40c
+
+				3, // NavKiVelLimit,		41
+				3, // RxPitchCh,			42
+				4, // RxYawCh,				43
+				QuadXAF, // AFType,			44c
+				UAVXTelemetry, // TelemetryType,	45c
+				10, // MaxDescentRateDmpS, 	46
+				15, // DescentDelayS,		47
+				MPU_RA_DLPF_BW_98, // GyroLPF,		48
+				4, // NavCrossTrackKp,		49
+				5, // RxGearCh,				50c
+
+				6, // RxAux1Ch,				51
+				0, // ServoSense			52c
+				4, // AccConfSD,			53c
+				22, // BatteryCapacity,		54c
+				7, // RxAux2Ch,				55c
+				8, // RxAux3Ch,				56
+				20, // NavKpPos,			57
+
+				10, // AltLPFHz,			58
+				50, // Balance,				59
+				9, // RxAux4Ch,				60
+				5, // NavKiVel,				61
+
+				UBXBinGPS, // GPSProtocol,	62
+				0, // AltThrottleFF,		63
+				10 // StickScaleYaw,		64
+		}, { // MULTICOPTERS DC MOTORS
+		20, // RollKpRate, 			01
+				4, // AltPosKi,			02
+				25, // RollKpAngle,			03
+				RollStickArming, // ArmingMode,04
+				40, // RollIntLimit,		05
+
+				20, // PitchKpRate,			06
+				20, // AltPosKp,			07
+				25, // PitchKpAngle			08
+				UnknownRF, // RFUsed,		09
+				40, // PitchIntLimit,		10
+
+				40, // YawKpRate, 			11
+				45, // RollKdRate,			12
+				MadgwickIMU, // IMU,		13
+				50, // AltVelKd,			14
+				RCUnknown, // RCType,		15
+
+				UseRTHDescendMask,
+				// ConfigBits,				16c
+				1, // RxThrottleCh,			17
+				17, // LowVoltThres,		18c
+				10, // CamRollKp,			19c
+				50, // CruiseThr,			20c
+
+				2, // StickHysteresis, 		21c
+				0, // RollPitchMix,			22c
+				10, // PercentIdleThr,		23c
+				3, // RollKiAngle,			24
+				3, // PitchKiAngle,			25
+				10, // CamPitchKp,			26c
+				8, // YawKpAngle(Compass),	27
+				45, // PitchKdRate,			28
+				20, // NavKpVel,			29
+				25, // AltVelKp,			30
+
+				30, // Horizon,	    		31
+				50, // MadgwickKpMag,	    32
+				10, // NavRTHAlt,			33
+				13, // NavMagVar,			34c 13 Melbourne
+				UAVXArm32IMU,// SensorHint, 35c
+				ESCPWM, // ESCType,			36c
+				7, // RxChannels,			37c
+				2, // RxRollCh,				38
+				20, // MadgwickKpAcc,		39c
+				1, // CamRollTrim,			40c
+
+				3, // NavKiVelLimit,		41
+				3, // RxPitchCh,			42
+				4, // RxYawCh,				43
+				QuadXAF, // AFType,			44c
+				UAVXTelemetry, // TelemetryType,	45c
+				10, // MaxDescentRateDmpS, 	46
+				0, // DescentDelayS,		47
+				MPU_RA_DLPF_BW_98, // GyroLPF,		48
+				4, // NavCrossTrackKp,		49
+				5, // RxGearCh,				50c
+
+				6, // RxAux1Ch,				51
+				0, // ServoSense			52c
+				4, // AccConfSD,			53c
+				3, // BatteryCapacity,		54c
+				7, // RxAux2Ch,				55c
+				8, // RxAux3Ch,				56
+				20, // NavKpPos,			57
+
+				10, // AltLPF,				58
+				50, // Balance,				59
+				9, // RxAux4Ch,				60
+				5, // NavKiVel,				61
+
+				UBXBinGPS, // GPSProtocol,	62
+				0, // AltThrottleFF,		63
+				10 // StickScaleYaw,		64
+		}, { // FIXED WING
+				20, // RollKpRate, 					01
+						0, // AltPosKi,			02
+						25, // RollKpAngle,			03
+						RollStickArming, // ArmingMode,04
+						40, // RollIntLimit,		05
+
+						10, // PitchKpRate,			06
+						21, // AltPosKp,			07
+						25, // PitchKpAngle			08
+						UnknownRF, // RFUsed,		09
+						40, // PitchIntLimit,		10
+
+						10, // YawKpRate, 			11
+						23, // RollKdRate,			12
+						MadgwickIMU, // IMU,		13
+						0, // AltVelKd,				14 // 40 matlab
+						CompoundPPM, // RCType,		15
+
+						UseRTHDescendMask,
+						// ConfigBits,				16c
+						1, // RxThrottleCh,			17
+						51, // LowVoltThres,		18c
+						10, // CamRollKp,			19c
+						50, // CruiseThr,			20c
+
+						2, // StickHysteresis,		21c
+						0, // RollPitchMix,			22c
+						10, // PercentIdleThr,		23c
+						3, // RollKiAngle,			24
+						3, // PitchKiAngle,			25
+						10, // CamPitchKp,			26c
+						16, // YawKpAngle(Compass),	27
+						23, // PitchKdRate,			28
+						20, // NavKpVel,			29
+						14, // AltVelKp,			30
+
+						5, // Horizon,	    		31
+						50, // MadgwickKpMag,	    32
+						15, // NavRTHAlt,			33
+						13, // NavMagVar,			34c 13 Melbourne
+						UAVXArm32IMU, // SensorHint,35c
+						ESCPWM, // ESCType,			36c
+						7, // RxChannels,			37c
+						2, // RxRollCh,				38
+						20, // MadgwickKpAcc,		39c
+						1, // CamRollTrim,			40c
+
+						3, // NavKiVelLimit,		41
+						3, // RxPitchCh,			42
+						4, // RxYawCh,				43
+						QuadXAF, // AFType,			44c
+						UAVXTelemetry, // TelemetryType,	45c
+						10, // MaxDescentRateDmpS, 	46
+						15, // DescentDelayS,		47
+						MPU_RA_DLPF_BW_98, // GyroLPF,		48
+						4, // NavCrossTrackKp,		49
+						5, // RxGearCh,				50c
+
+						6, // RxAux1Ch,				51
+						0, // ServoSense			52c
+						4, // AccConfSD,			53c
+						22, // BatteryCapacity,		54c
+						7, // RxAux2Ch,				55c
+						8, // RxAux3Ch,				56
+						20, // NavKpPos,			57
+
+						10, // AltLPFHz,			58
+						50, // Balance,				59
+						9, // RxAux4Ch,				60
+						5, // NavKiVel,				61
+
+						UBXBinGPS, // GPSProtocol,	62
+						0, // AltThrottleFF,		63
+						10 // StickScaleYaw,		64
+		} };
+

@@ -1,0 +1,166 @@
+// DO NOT FORMAT  DO NOT FORMAT DO NOT FORMAT DO NOT FORMAT DO NOT FORMAT DO NOT FORMAT DO NOT FORMAT
+// ===============================================================================================
+// =                                UAVX Quadrocopter Controller                                 =
+// =                           Copyright (c) 2008 by Prof. Greg Egan                             =
+// =                 Original V3.15 Copyright (c) 2007 Ing. Wolfgang Mahringer                   =
+// =                     http://code.google.com/p/uavp-mods/ http://uavp.ch                      =
+// ===============================================================================================
+
+//    This is part of UAVX.
+
+//    UAVX is free software: you can redistribute it and/or modify it under the terms of the GNU 
+//    General Public License as published by the Free Software Foundation, either version 3 of the 
+//    License, or (at your option) any later version.
+
+//    UAVX is distributed in the hope that it will be useful,but WITHOUT ANY WARRANTY; without
+//    even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+//    See the GNU General Public License for more details.
+
+//    You should have received a copy of the GNU General Public License along with this program.  
+//    If not, see http://www.gnu.org/licenses/
+
+// Brushless, Brushed, Aileron, Elevon
+
+const ParamStruct_t
+		DefaultParams[] = { //
+						{ RollAngleKp, { 25, 25, 25, 25 } }, //  03
+						{ RollAngleKi, { 3, 3, 3, 3 } }, //  24
+						{ RollIntLimit, { 40, 40, 40, 40 } }, //  05
+						{ RollRateKp, { 20, 20, 6, 6 } }, //  01
+						{ RollRateKd, { 45, 45, 22, 22 } }, //  12
+
+						{ PitchAngleKp, { 25, 25, 25, 25 } }, //  08
+						{ PitchAngleKi, { 3, 3, 3, 3 } }, //  25
+						{ PitchIntLimit, { 40, 40, 40, 40 } }, //  10
+						{ PitchRateKp, { 20, 20, 6, 6 } }, //  06
+						{ PitchRateKd, { 45, 45, 20, 20 } }, //  28
+
+						{ YawAngleKp, { 8, 8, 16, 16 } }, // (Compass) 27
+						{ YawRateKp, { 20, 20, 20, 20 } }, //  11
+
+						// Altitude Hold
+						{ AltPosKp, { 21, 21, 21, 21 } }, //  07
+						{ AltPosKi, { 0, 0, 0, 0 } }, //  02
+						{ AltVelKp, { 14, 14, 14, 14, } }, //  30
+						{ AltVelKd, { 0, 0, 0, 0 } }, //  14
+						{ AltLPF, { 10, 10, 10, 10 } }, //  *10 58
+						{ MaxAltHoldComp, { 40, 40, 10, 10 } }, //  67
+						{ AltCompDecayTime, { 15, 15, 15, 15 } }, //  22
+
+						{ RFUsed,
+								{ UnknownRF, UnknownRF, UnknownRF, UnknownRF } }, // 09
+
+						// Camera (Legacy)
+						{ CamRollKp, { 10, 10, 0, 0 } }, //  19c
+						{ CamRollTrim, { 0, 0, 0, 0 } }, //  40c
+						{ CamPitchKp, { 10, 10, 10, 10 } }, //  26c
+
+						// Estimator
+						{ StateEst, { MadgwickIMU, MadgwickIMU, MadgwickIMU,
+								MadgwickIMU } }, // IMU 13
+						{ MadgwickKpMag, { 50, 50, 50, 50 } }, //  32
+						{ MadgwickKpAcc, { 20, 20, 20, 20 } }, //  39c
+						{ AccConfSD, { 4, 4, 4, 4 } }, //  53c
+						{ SensorHint, { UAVXArm32IMU, UAVXArm32IMU,
+								UAVXArm32IMU, UAVXArm32IMU } }, // ,35c
+						{ GyroLPF, { MPU_RA_DLPF_BW_98, MPU_RA_DLPF_BW_98,
+								MPU_RA_DLPF_BW_98, MPU_RA_DLPF_BW_98 } }, // GyroLPF 48
+
+						// Rx
+						{ RCType, { CompoundPPM, CompoundPPM, CompoundPPM,
+								CompoundPPM } }, //  15
+						{ RCChannels, { 7, 7, 7, 7 } }, //  37c
+						{ RxThrottleCh, { 1, 1, 1, 1 } }, //  17
+						{ RxRollCh, { 2, 2, 2, 2 } }, //  38
+						{ RxPitchCh, { 3, 3, 3, 3 } }, //  42
+						{ RxYawCh, { 4, 4, 4, 4 } }, //  43
+						{ RxGearCh, { 5, 5, 5, 5 } }, //  50c
+						{ RxAux1Ch, { 6, 6, 6, 6 } }, //  51
+						{ RxAux2Ch, { 7, 7, 7, 7 } }, //  55c
+						{ RxAux3Ch, { 8, 8, 8, 8 } }, // 56
+						{ RxAux4Ch, { 9, 9, 9, 9 } }, //  60
+						{ RxAux5Ch, { 10, 10, 10, 10 } }, //  94
+						{ RxAux6Ch, { 11, 11, 11, 11 } }, //  95
+						{ RxAux7Ch, { 12, 12, 12, 12 } }, //  96
+						{ ServoSense, { 0, } }, //  52c
+
+						// Navigation
+						{ GPSProtocol, { UBXBinGPS, UBXBinGPS, UBXBinGPS,
+								UBXBinGPS } }, // GPSProtocol 62
+						{ NavPosKp, { 20, 20, 20, 20 } }, //  57
+						{ NavVelKp, { 20, 20, 20, 20 } }, //  29
+						{ NavVelKi, { 5, 5, 5, 5 } }, //  61
+						{ NavVelIntLimit, { 3, 3, 12, 12 } }, //  or NavMaxVel 41
+
+						{ NavCrossTrackKp, { 4, 4, 4, 4 } }, //  49
+
+						{ NavRTHAlt, { 15, 10, 30, 30 } }, //  33
+						{ BestROC, { 2, 2, 3, 3 } }, // 73
+						{ MaxDescentRateDmpS, { 10, 10, 25, 25 } }, //  46
+						{ DescentDelayS, { 15, 15, 15, 15 } }, //  47
+
+						{ NavMagVar, { 13, 13, 13, 13 } }, //  34c 13 Melbourne
+						{ AirspeedSensorType, { NoASSensor, NoASSensor,
+								NoASSensor, NoASSensor } }, //  72
+
+						// Control
+						{ AltThrottleFF, { 0, 0, 0, 0 } }, //  % 63
+						{ StickScaleRollPitch, { 10, 10, 10, 10 } }, //  *10 75
+						{ StickScaleYaw, { 10, 10, 10, 10 } }, //  *10 64
+						{ Horizon, { 30, 30, 0, 0 } }, //  % 31
+						{ Balance, { 50, 50, 50, 50 } }, //  % 59
+						{ StickHysteresis, { 2, 2, 2, 2 } }, //  % 21c
+						{ CruiseThr, { 50, 50, 30, 30 } }, //  20c
+						{ PercentIdleThr, { 10, 10, 0, 0 } }, //  23c
+
+						// Fixed Wing
+						{ FWRollPitchFF, { 0, 0, 25, 25 } }, //  % 65
+						{ FWPitchThrottleFF, { 0, 0, 10, 10 } }, //  % 66
+						{ FWAileronDifferential, { 0, 0, 30, 0 } }, //  % 71
+
+						{ FWBestClimbAngle, { 0, 0, 15, 15 } }, //  *10 68
+						{ FWGlideAngleOffset, { 0, 0, 0, 0 } }, //  *10 69
+						{ FWFlapDecayTime, { 0, 0, 15, 0 } }, //  *10 70
+
+						// Configuration
+						{ ArmingMode, { RollStickArming, RollStickArming,
+								RollStickArming, RollStickArming } }, //  04
+						{ Config1Bits, { UseRTHDescendMask, UseRTHDescendMask,
+								UseRapidDescentMask, 0 } }, //  16c
+						{ Config2Bits, { 0, 0, UseManualAltHoldMask,
+								UseManualAltHoldMask } }, //  74
+						{ AFType, { QuadXAF, QuadXAF, AileronSpoilerFlapsAF,
+								ElevonAF } }, // ,44c
+						{ TelemetryType, { UAVXTelemetry, UAVXTelemetry,
+								FrSkyTelemetry, MAVLinkTelemetry } }, //  45c
+						{ ESCType, { ESCSyncPWM, DCMotorsWithIdle, ESCPWM,
+								ESCPWM } }, //  36c
+
+						// Battery
+						{ LowVoltThres, { 51, 17, 51, 51 } }, //  MAGIC NUMBERS 18c
+						{ BatteryCapacity, { 22, 22, 22, 22 } }, //  *100 mAH 54c
+
+						// Unused
+						{ P76, { 0, } }, // 76,
+						{ P77, { 0, } }, // 77,
+						{ P78, { 0, } }, // 78,
+						{ P79, { 0, } }, // 79,
+						{ P80, { 0, } }, // 80,
+						{ P81, { 0, } }, // 81,
+						{ P82, { 0, } }, // 82,
+						{ P83, { 0, } }, // 83,
+						{ P84, { 0, } }, // 84,
+						{ P85, { 0, } }, // 85,
+						{ P86, { 0, } }, // 86,
+						{ P87, { 0, } }, // 87,
+						{ P88, { 0, } }, // 88,
+						{ P89, { 0, } }, // 89,
+						{ P90, { 0, } }, // 90,
+						{ P91, { 0, } }, // 91,
+						{ P92, { 0, } }, // 92,
+						{ P93, { 0, } }, // 93
+
+				};
+
+const uint8 NoDefaultEntries = sizeof(DefaultParams) / sizeof(ParamStruct_t);
+

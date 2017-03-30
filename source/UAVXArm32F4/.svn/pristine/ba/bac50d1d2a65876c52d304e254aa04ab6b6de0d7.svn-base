@@ -1,0 +1,640 @@
+// ===============================================================================================
+// =                                UAVX Quadrocopter Controller                                 =
+// =                           Copyright (c) 2008 by Prof. Greg Egan                             =
+// =                 Original V3.15 Copyright (c) 2007 Ing. Wolfgang Mahringer                   =
+// =                     http://code.google.com/p/uavp-mods/ http://uavp.ch                      =
+// ===============================================================================================
+
+//    This is part of UAVX.
+
+//    UAVX is free software: you can redistribute it and/or modify it under the terms of the GNU 
+//    General Public License as published by the Free Software Foundation, either version 3 of the 
+//    License, or (at your option) any later version.
+
+//    UAVX is distributed in the hope that it will be useful,but WITHOUT ANY WARRANTY; without
+//    even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+//    See the GNU General Public License for more details.
+
+//    You should have received a copy of the GNU General Public License along with this program.  
+//    If not, see http://www.gnu.org/licenses/
+
+
+// From TauPilot
+
+// Due to Korken with implementation in TauLabs by James Cotton (C) 2014
+// Heavily modified for use in UAVX without some of the call complications
+
+#define AF_NUMX 13
+#define AF_NUMP 43
+
+const uint32 SYSTEM_IDENT_PERIOD_MS = 75;
+const uint32 PREPARE_MS = 2000;
+const uint32 MEASURE_MS = 30000;
+
+const real32 HFGain = 0.01f; // user values from params 0..0.03
+const real32 Damping = 1.1f; // user values from params 0.5..1.5
+
+// Prediction step for EKF on control inputs to quad that
+// learns the system properties
+// @param X the current tune state estimate which is updated in place
+// @param P the current co-variance matrix, updated in place
+// @param[in] the current control inputs (pitch, roll, yaw)
+// @param[in] the gyro measurements
+
+
+void af_predict(real32 X[AF_NUMX],
+		real32 P[AF_NUMP], const real32 u_in[3], const real32 gyro[3],
+		const real32 dT_s) {
+	uint16 i;
+
+	const real32 Ts = dT_s;
+	real32 Ts2 = Sqr(Ts);
+	real32 Ts3 = Ts2 * Ts;
+	real32 Ts4 = Sqr(Ts2);
+
+	// for convenience and clarity code below uses the named versions of
+	// the tune state variables
+	real32 w1 = X[0]; // roll rate estimate
+	real32 w2 = X[1]; // pitch rate estimate
+	real32 w3 = X[2]; // yaw rate estimate
+	real32 u1 = X[3]; // scaled roll torque
+	real32 u2 = X[4]; // scaled pitch torque
+	real32 u3 = X[5]; // scaled yaw torque
+	const real32 e_b1 = expf(X[6]); // roll torque scale
+	const real32 b1 = X[6];
+	const real32 e_b2 = expf(X[7]); // pitch torque scale
+	const real32 b2 = X[7];
+	const real32 e_b3 = expf(X[8]); // yaw torque scale
+	const real32 b3 = X[8];
+	const real32 e_Tau = expf(X[9]); // time response of the motors
+	const real32 Tau = X[9];
+	const real32 bias1 = X[10]; // bias in the roll torque
+	const real32 bias2 = X[11]; // bias in the pitch torque
+	const real32 bias3 = X[12]; // bias in the yaw torque
+
+	// inputs to the system (roll, pitch, yaw)
+	const real32 u1_in = u_in[0];
+	const real32 u2_in = u_in[1];
+	const real32 u3_in = u_in[2];
+
+	// measurements from gyro
+	const real32 gyro_x = gyro[0];
+	const real32 gyro_y = gyro[1];
+	const real32 gyro_z = gyro[2];
+
+	// update named variables because we want to use predicted
+	// values below
+	w1 = X[0] = w1 - Ts * bias1 * e_b1 + Ts * u1 * e_b1;
+	w2 = X[1] = w2 - Ts * bias2 * e_b2 + Ts * u2 * e_b2;
+	w3 = X[2] = w3 - Ts * bias3 * e_b3 + Ts * u3 * e_b3;
+	real32 Ts_e_TauR = 1.0f / (Ts + e_Tau);
+	u1 = X[3] = ((Ts * u1_in) + (u1 * e_Tau)) * Ts_e_TauR;
+	u2 = X[4] = ((Ts * u2_in) + (u2 * e_Tau)) * Ts_e_TauR;
+	u3 = X[5] = ((Ts * u3_in) + (u3 * e_Tau)) * Ts_e_TauR;
+	// X[6] to X[12] unchanged
+
+	// *** filter parameters *** ALL SET UP FOR DEG/SEC!!!!!!
+	const real32 q_w = 1e-4f;
+	const real32 q_ud = 1e-4f;
+	const real32 q_B = 1e-5f;
+	const real32 qau = 1e-5f;
+	const real32 q_bias = 1e-19f;
+	const real32 s_a = 3000.0f; // 50? expected gyro noise was 3000.0f degrees/sec
+
+	const real32 Q[AF_NUMX] = { q_w, q_w, q_w, q_ud, q_ud, q_ud, q_B, q_B, q_B,
+			qau, q_bias, q_bias, q_bias };
+
+	real32 D[AF_NUMP];
+	for (i = 0; i < AF_NUMP; i++)
+		D[i] = P[i];
+
+	const real32 e_Tau2 = Sqr(e_Tau);
+	const real32 e_Tau3 = e_Tau * e_Tau2;
+	const real32 e_Tau4 = Sqr(e_Tau2);
+	const real32 Ts_e_Tau2 = Sqr(Ts + e_Tau);
+	const real32 Ts_e_Tau2R = 1.0f / Ts_e_Tau2;
+	const real32 Ts_e_Tau4R = 1.0f / Sqr(Ts_e_Tau2);
+
+	// co-variance propagation - D is stored copy of covariance
+	P[0] = D[0] + Q[0] + 2.0f * Ts * e_b1 * (D[3] - D[28] - D[9] * bias1 + D[9]
+			* u1) + Ts2 * (e_b1 * e_b1) * (D[4] - 2.0f * D[29] + D[32] - 2.0f
+			* D[10] * bias1 + 2.0f * D[30] * bias1 + 2.0f * D[10] * u1 - 2.0f
+			* D[30] * u1 + D[11] * Sqr(bias1) + D[11] * Sqr(u1) - 2.0f * D[11]
+			* bias1 * u1);
+	P[1] = D[1] + Q[1] + 2.0f * Ts * e_b2 * (D[5] - D[33] - D[12] * bias2
+			+ D[12] * u2) + Ts2 * (e_b2 * e_b2) * (D[6] - 2.0f * D[34] + D[37]
+			- 2.0f * D[13] * bias2 + 2.0f * D[35] * bias2 + 2.0f * D[13] * u2
+			- 2.0f * D[35] * u2 + D[14] * Sqr(bias2) + D[14] * Sqr(u2) - 2.0f
+			* D[14] * bias2 * u2);
+	P[2] = D[2] + Q[2] + 2.0f * Ts * e_b3 * (D[7] - D[38] - D[15] * bias3
+			+ D[15] * u3) + Ts2 * (e_b3 * e_b3) * (D[8] - 2.0f * D[39] + D[42]
+			- 2.0f * D[16] * bias3 + 2.0f * D[40] * bias3 + 2.0f * D[16] * u3
+			- 2.0f * D[40] * u3 + D[17] * Sqr(bias3) + D[17] * (u3 * u3) - 2.0f
+			* D[17] * bias3 * u3);
+	P[3] = (D[3] * e_Tau2 + D[3] * Ts * e_Tau + D[4] * Ts * (e_b1 * e_Tau2)
+			- D[29] * Ts * (e_b1 * e_Tau2) + D[4] * Ts2 * (e_b1 * e_Tau)
+			- D[29] * Ts2 * (e_b1 * e_Tau) + D[18] * Ts * u1 * e_Tau - D[18]
+			* Ts * u1_in * e_Tau - D[10] * Ts * bias1 * (e_b1 * e_Tau2) - D[10]
+			* Ts2 * bias1 * (e_b1 * e_Tau) + D[10] * Ts * u1 * (e_b1 * e_Tau2)
+			+ D[10] * Ts2 * u1 * (e_b1 * e_Tau) + D[21] * Ts2 * u1 * (e_b1
+			* e_Tau) - D[31] * Ts2 * u1 * (e_b1 * e_Tau) - D[21] * Ts2 * u1_in
+			* (e_b1 * e_Tau) + D[31] * Ts2 * u1_in * (e_b1 * e_Tau) + D[24]
+			* Ts2 * Sqr(u1) * (e_b1 * e_Tau) - D[24] * Ts2 * bias1 * u1 * (e_b1
+			* e_Tau) + D[24] * Ts2 * bias1 * u1_in * (e_b1 * e_Tau) - D[24]
+			* Ts2 * u1 * u1_in * (e_b1 * e_Tau)) * Ts_e_Tau2R;
+	P[4] = (Q[3] * Ts4 + D[4] * e_Tau4 + Q[3] * e_Tau4 + 2.0f * D[4] * Ts
+			* e_Tau3 + 4 * Q[3] * Ts * e_Tau3 + 4.0f * Q[3] * Ts3 * e_Tau
+			+ D[4] * Ts2 * e_Tau2 + 6.0f * Q[3] * Ts2 * e_Tau2 + 2.0f * D[21]
+			* Ts2 * u1 * e_Tau2 - 2.0f * D[21] * Ts2 * u1_in * e_Tau2 + D[27]
+			* Ts2 * Sqr(u1) * e_Tau2 + D[27] * Ts2 * Sqr(u1_in) * e_Tau2 + 2.0f
+			* D[21] * Ts * u1 * e_Tau3 - 2.0f * D[21] * Ts * u1_in * e_Tau3
+			- 2.0f * D[27] * Ts2 * u1 * u1_in * e_Tau2) * Ts_e_Tau4R;
+	P[5] = (D[5] * e_Tau2 + D[5] * Ts * e_Tau + D[6] * Ts * (e_b2 * e_Tau2)
+			- D[34] * Ts * (e_b2 * e_Tau2) + D[6] * Ts2 * (e_b2 * e_Tau)
+			- D[34] * Ts2 * (e_b2 * e_Tau) + D[19] * Ts * u2 * e_Tau - D[19]
+			* Ts * u2_in * e_Tau - D[13] * Ts * bias2 * (e_b2 * e_Tau2) - D[13]
+			* Ts2 * bias2 * (e_b2 * e_Tau) + D[13] * Ts * u2 * (e_b2 * e_Tau2)
+			+ D[13] * Ts2 * u2 * (e_b2 * e_Tau) + D[22] * Ts2 * u2 * (e_b2
+			* e_Tau) - D[36] * Ts2 * u2 * (e_b2 * e_Tau) - D[22] * Ts2 * u2_in
+			* (e_b2 * e_Tau) + D[36] * Ts2 * u2_in * (e_b2 * e_Tau) + D[25]
+			* Ts2 * Sqr(u2) * (e_b2 * e_Tau) - D[25] * Ts2 * bias2 * u2 * (e_b2
+			* e_Tau) + D[25] * Ts2 * bias2 * u2_in * (e_b2 * e_Tau) - D[25]
+			* Ts2 * u2 * u2_in * (e_b2 * e_Tau)) * Ts_e_Tau2R;
+	P[6] = (Q[4] * Ts4 + D[6] * e_Tau4 + Q[4] * e_Tau4 + 2.0f * D[6] * Ts
+			* e_Tau3 + 4 * Q[4] * Ts * e_Tau3 + 4.0f * Q[4] * Ts3 * e_Tau
+			+ D[6] * Ts2 * e_Tau2 + 6.0f * Q[4] * Ts2 * e_Tau2 + 2.0f * D[22]
+			* Ts2 * u2 * e_Tau2 - 2.0f * D[22] * Ts2 * u2_in * e_Tau2 + D[27]
+			* Ts2 * Sqr(u2) * e_Tau2 + D[27] * Ts2 * Sqr(u2_in) * e_Tau2 + 2.0f
+			* D[22] * Ts * u2 * e_Tau3 - 2.0f * D[22] * Ts * u2_in * e_Tau3
+			- 2.0f * D[27] * Ts2 * u2 * u2_in * e_Tau2) * Ts_e_Tau4R;
+	P[7] = (D[7] * e_Tau2 + D[7] * Ts * e_Tau + D[8] * Ts * (e_b3 * e_Tau2)
+			- D[39] * Ts * (e_b3 * e_Tau2) + D[8] * Ts2 * (e_b3 * e_Tau)
+			- D[39] * Ts2 * (e_b3 * e_Tau) + D[20] * Ts * u3 * e_Tau - D[20]
+			* Ts * u3_in * e_Tau - D[16] * Ts * bias3 * (e_b3 * e_Tau2) - D[16]
+			* Ts2 * bias3 * (e_b3 * e_Tau) + D[16] * Ts * u3 * (e_b3 * e_Tau2)
+			+ D[16] * Ts2 * u3 * (e_b3 * e_Tau) + D[23] * Ts2 * u3 * (e_b3
+			* e_Tau) - D[41] * Ts2 * u3 * (e_b3 * e_Tau) - D[23] * Ts2 * u3_in
+			* (e_b3 * e_Tau) + D[41] * Ts2 * u3_in * (e_b3 * e_Tau) + D[26]
+			* Ts2 * (u3 * u3) * (e_b3 * e_Tau) - D[26] * Ts2 * bias3 * u3
+			* (e_b3 * e_Tau) + D[26] * Ts2 * bias3 * u3_in * (e_b3 * e_Tau)
+			- D[26] * Ts2 * u3 * u3_in * (e_b3 * e_Tau)) * Ts_e_Tau2R;
+	P[8] = (Q[5] * Ts4 + D[8] * e_Tau4 + Q[5] * e_Tau4 + 2.0f * D[8] * Ts
+			* e_Tau3 + 4 * Q[5] * Ts * e_Tau3 + 4.0f * Q[5] * Ts3 * e_Tau
+			+ D[8] * Ts2 * e_Tau2 + 6.0f * Q[5] * Ts2 * e_Tau2 + 2.0f * D[23]
+			* Ts2 * u3 * e_Tau2 - 2.0f * D[23] * Ts2 * u3_in * e_Tau2 + D[27]
+			* Ts2 * (u3 * u3) * e_Tau2 + D[27] * Ts2 * Sqr(u3_in) * e_Tau2
+			+ 2.0f * D[23] * Ts * u3 * e_Tau3 - 2.0f * D[23] * Ts * u3_in
+			* e_Tau3 - 2.0f * D[27] * Ts2 * u3 * u3_in * e_Tau2) * Ts_e_Tau4R;
+	P[9] = D[9] - Ts * (D[30] * e_b1 - D[10] * e_b1 + D[11] * e_b1 * (bias1
+			- u1));
+	P[10] = (e_Tau * (D[10] * Ts + D[10] * e_Tau + D[24] * Ts * u1 - D[24] * Ts
+			* u1_in)) * Ts_e_Tau2R;
+	P[11] = D[11] + Q[6];
+	P[12] = D[12] - Ts * (D[35] * e_b2 - D[13] * e_b2 + D[14] * e_b2 * (bias2
+			- u2));
+	P[13] = (e_Tau * (D[13] * Ts + D[13] * e_Tau + D[25] * Ts * u2 - D[25] * Ts
+			* u2_in)) * Ts_e_Tau2R;
+	P[14] = D[14] + Q[7];
+	P[15] = D[15] - Ts * (D[40] * e_b3 - D[16] * e_b3 + D[17] * e_b3 * (bias3
+			- u3));
+	P[16] = (e_Tau * (D[16] * Ts + D[16] * e_Tau + D[26] * Ts * u3 - D[26] * Ts
+			* u3_in)) * Ts_e_Tau2R;
+	P[17] = D[17] + Q[8];
+	P[18] = D[18] - Ts * (D[31] * e_b1 - D[21] * e_b1 + D[24] * e_b1 * (bias1
+			- u1));
+	P[19] = D[19] - Ts * (D[36] * e_b2 - D[22] * e_b2 + D[25] * e_b2 * (bias2
+			- u2));
+	P[20] = D[20] - Ts * (D[41] * e_b3 - D[23] * e_b3 + D[26] * e_b3 * (bias3
+			- u3));
+	P[21] = (e_Tau * (D[21] * Ts + D[21] * e_Tau + D[27] * Ts * u1 - D[27] * Ts
+			* u1_in)) * Ts_e_Tau2R;
+	P[22] = (e_Tau * (D[22] * Ts + D[22] * e_Tau + D[27] * Ts * u2 - D[27] * Ts
+			* u2_in)) * Ts_e_Tau2R;
+	P[23] = (e_Tau * (D[23] * Ts + D[23] * e_Tau + D[27] * Ts * u3 - D[27] * Ts
+			* u3_in)) * Ts_e_Tau2R;
+	P[24] = D[24];
+	P[25] = D[25];
+	P[26] = D[26];
+	P[27] = D[27] + Q[9];
+	P[28] = D[28] - Ts * (D[32] * e_b1 - D[29] * e_b1 + D[30] * e_b1 * (bias1
+			- u1));
+	P[29] = (e_Tau * (D[29] * Ts + D[29] * e_Tau + D[31] * Ts * u1 - D[31] * Ts
+			* u1_in)) * Ts_e_Tau2R;
+	P[30] = D[30];
+	P[31] = D[31];
+	P[32] = D[32] + Q[10];
+	P[33] = D[33] - Ts * (D[37] * e_b2 - D[34] * e_b2 + D[35] * e_b2 * (bias2
+			- u2));
+	P[34] = (e_Tau * (D[34] * Ts + D[34] * e_Tau + D[36] * Ts * u2 - D[36] * Ts
+			* u2_in)) * Ts_e_Tau2R;
+	P[35] = D[35];
+	P[36] = D[36];
+	P[37] = D[37] + Q[11];
+	P[38] = D[38] - Ts * (D[42] * e_b3 - D[39] * e_b3 + D[40] * e_b3 * (bias3
+			- u3));
+	P[39] = (e_Tau * (D[39] * Ts + D[39] * e_Tau + D[41] * Ts * u3 - D[41] * Ts
+			* u3_in)) * Ts_e_Tau2R;
+	P[40] = D[40];
+	P[41] = D[41];
+	P[42] = D[42] + Q[12];
+
+	// ******** this is the update part of the equation **********
+
+	real32 SR[3];
+	for (i = 0; i < 3; i++)
+		SR[i] = 1.0f / (P[i] + s_a);
+
+	X[0] = w1 + (P[0] * (gyro_x - w1)) * SR[0];
+	X[1] = w2 + (P[1] * (gyro_y - w2)) * SR[1];
+	X[2] = w3 + (P[2] * (gyro_z - w3)) * SR[2];
+	X[3] = u1 + (P[3] * (gyro_x - w1)) * SR[0];
+	X[4] = u2 + (P[5] * (gyro_y - w2)) * SR[1];
+	X[5] = u3 + (P[7] * (gyro_z - w3)) * SR[2];
+	X[6] = b1 + (P[9] * (gyro_x - w1)) * SR[0];
+	X[7] = b2 + (P[12] * (gyro_y - w2)) * SR[1];
+	X[8] = b3 + (P[15] * (gyro_z - w3)) * SR[2];
+	X[9] = Tau + (P[18] * (gyro_x - w1)) * SR[0] + (P[19] * (gyro_y - w2))
+			* SR[1] + (P[20] * (gyro_z - w3)) * SR[2];
+	X[10] = bias1 + (P[28] * (gyro_x - w1)) * SR[0];
+	X[11] = bias2 + (P[33] * (gyro_y - w2)) * SR[1];
+	X[12] = bias3 + (P[38] * (gyro_z - w3)) * SR[2];
+
+	// update the duplicate cache
+	for (i = 0; i < AF_NUMP; i++)
+		D[i] = P[i];
+
+	// This is an approximation that removes some cross axis uncertainty but
+	// substantially reduces the number of calculations
+	P[0] = -D[0] * (D[0] * SR[0] - 1);
+	P[1] = -D[1] * (D[1] * SR[1] - 1);
+	P[2] = -D[2] * (D[2] * SR[2] - 1);
+	P[3] = -D[3] * (D[0] * SR[0] - 1);
+	P[4] = D[4] - D[3] * D[3] * SR[0];
+	P[5] = -D[5] * (D[1] * SR[1] - 1);
+	P[6] = D[6] - D[5] * D[5] * SR[1];
+	P[7] = -D[7] * (D[2] * SR[2] - 1);
+	P[8] = D[8] - D[7] * D[7] * SR[2];
+	P[9] = -D[9] * (D[0] * SR[0] - 1);
+	P[10] = D[10] - (D[3] * D[9]) * SR[0];
+	P[11] = D[11] - D[9] * D[9] * SR[0];
+	P[12] = -D[12] * (D[1] * SR[1] - 1);
+	P[13] = D[13] - (D[5] * D[12]) * SR[1];
+	P[14] = D[14] - D[12] * D[12] * SR[1];
+	P[15] = -D[15] * (D[2] * SR[2] - 1);
+	P[16] = D[16] - (D[7] * D[15]) * SR[2];
+	P[17] = D[17] - D[15] * D[15] * SR[2];
+	P[18] = -D[18] * (D[0] * SR[0] - 1);
+	P[19] = -D[19] * (D[1] * SR[1] - 1);
+	P[20] = -D[20] * (D[2] * SR[2] - 1);
+	P[21] = D[21] - (D[3] * D[18]) * SR[0];
+	P[22] = D[22] - (D[5] * D[19]) * SR[1];
+	P[23] = D[23] - (D[7] * D[20]) * SR[2];
+	P[24] = D[24] - (D[9] * D[18]) * SR[0];
+	P[25] = D[25] - (D[12] * D[19]) * SR[1];
+	P[26] = D[26] - (D[15] * D[20]) * SR[2];
+	P[27] = D[27] - D[18] * D[18] * SR[0] - D[19] * D[19] * SR[1] - D[20]
+			* D[20] * SR[2];
+	P[28] = -D[28] * (D[0] * SR[0] - 1);
+	P[29] = D[29] - (D[3] * D[28]) * SR[0];
+	P[30] = D[30] - (D[9] * D[28]) * SR[0];
+	P[31] = D[31] - (D[18] * D[28]) * SR[0];
+	P[32] = D[32] - D[28] * D[28] * SR[0];
+	P[33] = -D[33] * (D[1] * SR[1] - 1);
+	P[34] = D[34] - (D[5] * D[33]) * SR[1];
+	P[35] = D[35] - (D[12] * D[33]) * SR[1];
+	P[36] = D[36] - (D[19] * D[33]) * SR[1];
+	P[37] = D[37] - D[33] * D[33] * SR[1];
+	P[38] = -D[38] * (D[2] * SR[2] - 1);
+	P[39] = D[39] - (D[7] * D[38]) * SR[2];
+	P[40] = D[40] - (D[15] * D[38]) * SR[2];
+	P[41] = D[41] - (D[20] * D[38]) * SR[2];
+	P[42] = D[42] - D[38] * D[38] * SR[2];
+
+	// apply limits to some of the tune state variables
+	X[9] = Limit(X[9], -5.0f, -1.5f); // timescale
+
+	X[10] = Limit1(X[10], 0.5f); // bias
+	X[11] = Limit1(X[11], 0.5f);
+	X[12] = Limit1(X[12], 0.5f);
+
+} // af_predict
+
+// Initialize the tune state variable and covariance matrix
+// for the system identification EKF
+
+static void af_init(real32 X[AF_NUMX], real32 P[AF_NUMP]) {
+	const real32 q_init[AF_NUMX] = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.05f,
+			0.05f, 0.005f, 0.05f, 0.05f, 0.05f, 0.05f };
+
+	X[0] = X[1] = X[2] = 0.0f; // assume no rotation
+	X[3] = X[4] = X[5] = 0.0f; // and no net torque
+	X[6] = X[7] = 10.0f; // pitch/roll medium amount of strength
+	X[8] = 7.0f; // yaw
+	X[9] = -4.0f; // and 50 mS time scale TODO: zzz ???? why 50mS
+	X[10] = X[11] = X[12] = 0.0f; // zero bias
+
+	// P initialization
+	P[0] = q_init[0];
+	P[1] = q_init[1];
+	P[2] = q_init[2];
+	P[3] = 0.0f;
+	P[4] = q_init[3];
+	P[5] = 0.0f;
+	P[6] = q_init[4];
+	P[7] = 0.0f;
+	P[8] = q_init[5];
+	P[9] = 0.0f;
+	P[10] = 0.0f;
+	P[11] = q_init[6];
+	P[12] = 0.0f;
+	P[13] = 0.0f;
+	P[14] = q_init[7];
+	P[15] = 0.0f;
+	P[16] = 0.0f;
+	P[17] = q_init[8];
+	P[18] = 0.0f;
+	P[19] = 0.0f;
+	P[20] = 0.0f;
+	P[21] = 0.0f;
+	P[22] = 0.0f;
+	P[23] = 0.0f;
+	P[24] = 0.0f;
+	P[25] = 0.0f;
+	P[26] = 0.0f;
+	P[27] = q_init[9];
+	P[28] = 0.0f;
+	P[29] = 0.0f;
+	P[30] = 0.0f;
+	P[31] = 0.0f;
+	P[32] = q_init[10];
+	P[33] = 0.0f;
+	P[34] = 0.0f;
+	P[35] = 0.0f;
+	P[36] = 0.0f;
+	P[37] = q_init[11];
+	P[38] = 0.0f;
+	P[39] = 0.0f;
+	P[40] = 0.0f;
+	P[41] = 0.0f;
+	P[42] = q_init[12];
+} // af_int
+
+
+void TuneZeroOffsets(void) {
+	int32 a;
+
+	for (a = Pitch; a <= Yaw; a++)
+		tune.T[a].Offset = 0.0f;
+
+} // TuneZeroOffsets
+
+void RawTrace(void) {
+
+	//#define RAW_DUMP
+#if defined(RAW_DUMP)
+	CurrTelType = NoTelemetry;
+	BlackBoxEnabled = true;
+	TxValH16(0, A[Pitch].Out * 1000);
+	TxChar(0, ASCII_HT);
+	TxValH16(0, Rate[Pitch] * 1000);
+	TxNextLine(0);
+	BlackBoxEnabled = false;
+
+#endif
+} // RawTrace
+
+void Tune(void) {
+	const real32 NOISE_ALPHA = 0.99982f; // 10 second time constant at 500 Hz
+	uint16 a;
+	static real32 noise[3] = { 0 };
+	static real32 P[AF_NUMP] = { 0 };
+	static real32 X[AF_NUMX] = { 0 };
+	static uint32 TuneStatePeriodmS = 0;
+	static boolean First = true;
+
+	if (TuningEnabled)
+		switch (TuneState) {
+		case startTuning:
+			if (State == InFlight) {
+
+				if (First) {
+					memset(&tune, 0, sizeof(tuneStruct));
+					TuneAxis = Yaw;
+					First = false;
+				}
+
+				af_init(X, P);
+				if (++TuneAxis > Roll) // Roll
+					TuneAxis = Pitch;
+
+				TuneStatePeriodmS = mSClock() + PREPARE_MS;
+				TuneIteration = 0;
+				TuneState = prepareTuning;
+			}
+			break;
+		case prepareTuning:
+			if (mSClock() > TuneStatePeriodmS) {
+				TuneStatePeriodmS = mSClock() + MEASURE_MS;
+				NextIdentTimemS = mSClock();
+				ZeroPIDIntegrals();
+				TuneState = Tuning;
+			}
+			break;
+		case Tuning:
+			if (State == InFlight) {
+				F.UsingRateControl = false; // force angle mode
+				// 168uSec optimised 160uSec
+				// original KF from OpenPilot/TauLabs "expects" R/P/Y with
+				// embedded constants set for degrees/sec!
+
+				real32 y[3] = { RadiansToDegrees([Roll]),
+						RadiansToDegrees(Rate[Pitch]), RadiansToDegrees(
+								Rate[Yaw]) };
+				real32 u[3] = { A[Roll].Out, A[Pitch].Out, A[Yaw].Out };
+
+				RawTrace();
+
+				af_predict(X, P, u, y, 0.002f); //dT);
+
+				for (a = 0; a <= 2; a++)
+					noise[a] = NOISE_ALPHA * noise[a] + (1.0f - NOISE_ALPHA)
+							* Sqr(y[a] - X[a]);
+
+				tune.T[Roll].logBeta = X[6];
+				tune.T[Pitch].logBeta = X[7];
+				tune.T[Yaw].logBeta = X[8];
+				tune.T[Pitch].logTau = tune.T[Roll].logTau = tune.T[Yaw].logTau
+						= X[9];
+
+				TuneComputePIDCoeffs(TuneAxis);
+
+				TuneApplyOffset();
+			}
+			if (mSClock() > TuneStatePeriodmS)
+				TuneState = stopTuning;
+			break;
+		case stopTuning:
+			if (!Armed() && (State == Starting)) {
+				TuneComputePIDCoeffs( TuneAxis);
+				TuneState = notTuning;
+			}
+			break;
+		case notTuning:
+		default:
+			break;
+		} // switch
+
+} // Tune
+
+
+void TuneApplyOffset(void) {
+	const real32 SCALE_BIAS[3] = { 7.1f, 7.1f, 5.1f };
+	static boolean High = true;
+
+	if (mSClock() > NextIdentTimemS) {
+		NextIdentTimemS = mSClock() + SYSTEM_IDENT_PERIOD_MS;
+
+		tune.T[TuneAxis].Offset = Limit(expf(SCALE_BIAS[TuneAxis]
+				- tune.T[TuneAxis].logBeta), 0.0, 0.25f);
+
+		High = !High;
+	}
+
+	A[TuneAxis].Out += High ? tune.T[TuneAxis].Offset
+			: -tune.T[TuneAxis].Offset;
+
+} // TuneApplyOffset
+
+
+void UpdatePIDCoeffs(int32 a, real32 Kp_O, real32 Kp, real32 Ki, real32 Kd) {
+
+	// Angle
+	tune.T[a].O.Kp = Kp_O / OKp;
+	//Rate
+	tune.T[a].I.Kp = Kp / (IKp * 57.29f); // rescale from deg/sec
+	tune.T[a].I.Ki = Ki / (IKi * 57.29f);
+	tune.T[a].I.Kd = Kd / (IKd * 57.29f);
+
+} // UpdatePIDCoeffs
+
+void TuneComputePIDCoeffs(int32 a) {
+
+	// Kpa	Kia	Kpr	Kpd
+	// 20	3	25	45
+	// 0.25	0.005	0.285	0.0057
+	// 5	0.015	7.125	0.2565
+
+	// FC	5.380491653
+	// Wn	33.81
+	// Beta	4.74 114.98
+	// Tau	0.02958
+
+	real32 Wn, Kp_O, Kp, Ki, Kd;
+	real32 Tau, BetaR;
+
+	Tau = expf(tune.T[Pitch].logTau);
+	Wn = 1.0f / Tau; // TODO: Tau will be different for yaw
+
+	BetaR = 1.0f / expf(tune.T[a].logBeta);
+
+	Kp_O = Wn * 0.1479f; // critically damped
+
+	Kp = Wn * BetaR;
+	Ki = 0.0f;
+	Kd = BetaR;
+
+	tune.T[a].FC = Wn / TWO_PI;
+
+	UpdatePIDCoeffs(a, Kp_O, Kp, Ki, Kd);
+
+} //  TuneComputePIDCoeffs
+
+
+void TuneComputePIDCoeffs_TAULABS(void) {
+	const real32 Zeta_O = 1.3f;
+	uint8 i, a;
+	real32 Tau, Kp_O, Kp, Ki, Kd;
+	real32 Wn, Tau_d, A, B;
+	// explicitly folded subexpressions - gcc should do it probably
+	real32 AB, APlusB, WnSq, DampingSq;
+	real32 Beta, BetaR, TauTau_d, TauPlusTau_d;
+
+	Tau = expf(tune.T[Pitch].logTau);
+
+	if ((Min(tune.T[Roll].logBeta, tune.T[Pitch].logBeta) > 6.0f) && (Tau
+			< 0.15f) && (Tau > 0.05)) {
+
+		DampingSq = Sqr(Damping);
+		for (a = Pitch; a <= Yaw; a++) {
+
+			Wn = 1.0f / Tau;
+			Beta = expf(tune.T[a].logBeta);
+			BetaR = 1.0f / Beta;
+
+			// These three parameters define the desired response properties
+			// - rate scale in the fraction of the natural speed of the system
+			//   to strive for.
+			// - Damping is the amount of damping in the system. higher values
+			//   make oscillations less likely
+			// - HFGain is the amount of high frequency gain and limits the influence
+			//   of noise
+
+			for (i = 0; i < 30; i++) { // TODO: why 30
+				// WARNING: does not converge for Beta < 6 and/or Tau < 0.05
+
+				WnSq = Sqr(Wn);
+				Tau_d = (2.0f * Damping * Tau * Wn - 1.0f) / (4.0f * Tau
+						* DampingSq * WnSq - 2.0f * Damping * Wn - Tau * WnSq
+						+ Beta * HFGain);
+
+				TauTau_d = Tau * Tau_d;
+				TauPlusTau_d = Tau + Tau_d;
+				Wn = TauPlusTau_d / (TauTau_d * (2.0f * Damping + 2.0f));
+			}
+
+			// Calculate the gain for the outer loop by approximating the
+			// inner loop as a first order LPF. Set the outer loop to be
+			// critically damped
+
+			Kp_O = 1.0f / (4.0f * Sqr(Zeta_O) * Tau);
+
+			// Set the real pole position. The first pole is quite slow, which
+			// prevents the integral being too snappy and driving too much
+			// overshoot.
+			const real32 K = 0.05f;
+			APlusB = TauPlusTau_d / TauTau_d - 2.0f * Damping * Wn;
+			A = APlusB * K;
+			B = APlusB * (1.0f - K);
+			AB = A * B;
+
+			WnSq = Sqr(Wn);
+
+			Ki = AB * WnSq * Tau * Tau_d * BetaR;
+			Kp = TauTau_d * (APlusB * WnSq + 2.0f * AB * Damping * Wn) * BetaR
+					- Ki * Tau_d;
+			Kd = (TauTau_d * (AB + WnSq + APlusB * 2.0f * Damping * Wn) - 1.0f)
+					* BetaR - Kp * Tau_d;
+
+			tune.T[a].FC = 1.0f / (TWO_PI * Tau_d);
+
+			UpdatePIDCoeffs(a, Kp_O, Kp, Ki, Kd);
+		}
+	}
+} //  TuneComputePIDCoeffs
+
+
+void CheckTune(void) {
+
+	if (F.EnableTuning) {
+		if (!TuningEnabled)
+			TuneState = startTuning;
+	} else {
+		if (TuningEnabled)
+			TuneState = stopTuning;
+	}
+
+	TuningEnabled = F.EnableTuning;
+
+} // CheckTune
+
+

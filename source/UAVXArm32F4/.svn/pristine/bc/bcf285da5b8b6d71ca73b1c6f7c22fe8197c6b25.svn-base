@@ -1,0 +1,369 @@
+// DO NOT FORMAT  DO NOT FORMAT DO NOT FORMAT DO NOT FORMAT DO NOT FORMAT DO NOT FORMAT DO NOT FORMAT
+// ===============================================================================================
+// =                                UAVX Quadrocopter Controller                                 =
+// =                           Copyright (c) 2008 by Prof. Greg Egan                             =
+// =                 Original V3.15 Copyright (c) 2007 Ing. Wolfgang Mahringer                   =
+// =                     http://code.google.com/p/uavp-mods/ http://uavp.ch                      =
+// ===============================================================================================
+
+//    This is part of UAVX.
+
+//    UAVX is free software: you can redistribute it and/or modify it under the terms of the GNU
+//    General Public License as published by the Free Software Foundation, either version 3 of the
+//    License, or (at your option) any later version.
+
+//    UAVX is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+//    even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+//    See the GNU General Public License for more details.
+
+//    You should have received a copy of the GNU General Public License along with this program.
+//    If not, see http://www.gnu.org/licenses/
+
+
+#ifndef _harness_h
+#define _harness_h
+
+
+enum GPIOSelectors {
+	BeeperSel, ArmedSel, LandingSel,
+	Aux1Sel, Aux2Sel, ProbeSel, Aux4Sel,
+	MPU6XXXIntSel, HMC5XXXRdySel,
+};
+enum GPIOSelectorsBF {
+	BaroXCLRSel = 2, BaroEOCSel = 3
+};
+
+enum ADCSelectors {
+	RangefinderAnalogSel,
+	BattCurrentAnalogSel,
+	BattVoltsAnalogSel,
+	RollAnalogSel,
+	PitchAnalogSel,
+	YawAnalogSel
+};
+
+enum LEDSelectors {
+	LEDYellowSel, LEDRedSel, LEDBlueSel, LEDGreenSel,
+};
+
+typedef struct {
+	TIM_TypeDef *Tim;
+	uint16 Channel;
+	uint16 CC;
+#ifdef STM32F1
+	volatile uint16 * CCR;
+#else
+	volatile uint32 * CCR;
+#endif
+	uint8 TimAF;
+} TIMChannelDef;
+
+extern TIM_ICInitTypeDef TIM_ICInitStructure;
+
+typedef struct {
+	GPIO_TypeDef* Port;
+	uint16 Pin;
+	uint16 PinSource;
+	GPIOMode_TypeDef Mode;
+#ifdef STM32F1
+	uint16 U1, U2;
+#else
+	GPIOOType_TypeDef OType;
+	GPIOPuPd_TypeDef PuPd;
+#endif
+
+	boolean TimerUsed;
+	TIMChannelDef Timer;
+
+	IRQn_Type PinISR;
+
+} PinDef;
+
+typedef struct {
+	ADC_TypeDef* ADCx;
+	GPIO_TypeDef* Port;
+	uint16 Pin;
+	uint32 ADCChannel;
+	uint32 DMAChannel;
+#ifdef STM32F1
+	DMA_Channel_TypeDef * DMAStream;
+#else
+	DMA_Stream_TypeDef* DMAStream;
+#endif
+	uint8 Rank;
+} AnalogPinDef;
+
+#ifdef STM32F1
+
+typedef struct {
+	USART_TypeDef* USART;
+	uint8 USART_AF;
+	GPIO_TypeDef* Port;
+	uint16 TxPin;
+	uint16 TxPinSource;
+	uint16 RxPin;
+	uint16 RxPinSource;
+	//	uint32 Clk;
+	//	uint32 USARTClk;
+	//	uint32 AF;
+	boolean InterruptsUsed;
+	IRQn_Type ISR;
+
+	boolean DMAUsed;
+	uint32 DMAChannel;
+	DMA_Channel_TypeDef * TxDMAStream;
+	IRQn_Type TxDMAISR;
+	DMA_Channel_TypeDef * RxDMAStream;
+	uint32 Baud;
+
+}SerialPortDef;
+
+#else
+
+typedef struct {
+	USART_TypeDef* USART;
+	uint8 USART_AF;
+	GPIO_TypeDef* Port;
+	uint16 TxPin;
+	uint16 TxPinSource;
+	uint16 RxPin;
+	uint16 RxPinSource;
+
+	boolean InterruptsUsed;
+	IRQn_Type ISR;
+
+	boolean DMAUsed;
+	uint32 DMAChannel;
+	DMA_Stream_TypeDef * TxDMAStream;
+	IRQn_Type TxDMAISR;
+	DMA_Stream_TypeDef * RxDMAStream;
+	uint32 Baud;
+
+} SerialPortDef;
+
+#endif // STM32F1
+typedef struct {
+	boolean Used;
+	I2C_TypeDef* I2C;
+	uint8 I2CNo;
+	GPIO_TypeDef* SCLPort;
+	uint16 SCLPin;
+	uint8 SCLPinSource;
+	GPIO_TypeDef* SDAPort;
+	uint16 SDAPin;
+	uint8 SDAPinSource;
+	uint8 I2C_AF;
+} I2CPortDef;
+
+typedef struct {
+	SPI_TypeDef* SPIx;
+	GPIO_TypeDef* Port;
+	struct {
+		int16 Pin;
+		int16 PinSource;
+	} P[3];
+	boolean Used;
+} SPIPortDef;
+
+extern SPIPortDef SPIPorts[];
+extern PinDef SPISelectPins[];
+
+extern const boolean spiDevUsed[];
+
+//extern void pinMode(PinDef * d, GPIOMode_TypeDef m, GPIOPuPd_TypeDef PuPd);
+//extern void pinInit(PinDef * d);
+
+extern void systemReset(boolean toBootloader);
+
+extern void InitHarness(void);
+extern void pinInit(PinDef * d);
+extern void pinInitOutput(PinDef * d);
+extern void serialBaudRate(uint8 s, uint32 BaudRate);
+extern void serialInitSBus(uint8 s);
+extern void InitSerialPort(uint8 s, boolean Enable);
+extern void InitPWMPin(PinDef * u, uint16 pwmprescaler, uint32 pwmperiod, uint32 pwmwidth, boolean usingpwm);
+
+extern void InitPortCombination(void);
+
+extern void i2cInit(uint8 I2CCurr);
+extern void i2cUnstick(uint8 I2CCurr);
+
+extern void spiInitGPIOPins(uint8 spiPort, boolean highClock);
+
+extern void InitClocks(void);
+
+extern boolean digitalRead(PinDef * d);
+extern void digitalWrite(PinDef * d, uint8 m);
+extern void digitalToggle(PinDef * d);
+
+extern PinDef RCPins[];
+extern I2CPortDef I2CPorts[];
+extern AnalogPinDef AnalogPins[];
+extern PinDef LEDPins[];
+extern PinDef GPIOPins[];
+extern PinDef PWMPins[];
+extern SerialPortDef SerialPorts[];
+
+//________________________________________________________________________________________________
+
+
+enum {
+	mpu60xxSel, ms5611Sel, hmc5xxxSel, memSel, gpsSel, rfSel, escSel, flowSel
+};
+
+#define spi_21 			SPI_BaudRatePrescaler_2
+#define spi_10_5 		SPI_BaudRatePrescaler_4
+#define spi_5_250 		SPI_BaudRatePrescaler_8
+#define spi_2_625 		SPI_BaudRatePrescaler_16
+#define spi_1_3125 		SPI_BaudRatePrescaler_32
+#define spi_0_65625 	SPI_BaudRatePrescaler_64
+#define spi_0_3128125 	SPI_BaudRatePrescaler_128
+#define spi_0_15640625 	SPI_BaudRatePrescaler_256
+
+extern const uint8 spiMap[];
+extern const uint16 spiDevBaudRate[];
+extern const uint8 i2cMap[];
+
+/*
+ #define I2CLite 1
+ #define I2CIMU	1
+ #define I2CBaro	1
+ #define I2CMag	1
+ #define I2CTemp	1
+ #define I2CLCD	1
+ #define I2CESC	1
+ #define I2CEEPROM 1
+ */
+
+#define SIOIMU		mpu60xxSel
+#define SIOBaro		ms5611Sel
+#define SIOMag		hmc5xxxSel
+#define SIOMem 		memSel
+#define SIORF		rfSel  // not SPI
+#define SIOESC		escSel // i2c ESCs
+#define SIOFlow		flowSel
+#define MAX_SPI_PORTS 3
+#define MAX_I2C_PORTS 2
+
+#define TelemetrySerial 0
+#define RCSerial 1
+#define I2CSerial 2
+#define USBSerial 3
+#define SoftSerialTx 4
+
+
+// Drives
+
+#define PWM_PS 					TIMER_PS	// 1MHz
+#define PWM_WIDTH				1000 // 1ms pulse width
+#define PWM_MIN					PWM_WIDTH
+#define PWM_MAX					(2000) // must preserve a synchronisation gap for ESCs
+#define PWM_PERIOD    			(1000000L/450) // could go to 490Hz?
+
+#define PWM_PS_SYNC 			TIMER_PS
+#define PWM_WIDTH_SYNC			PWM_WIDTH // 1ms pulse width
+#define PWM_MIN_SYNC			PWM_WIDTH_SYNC
+#define PWM_MAX_SYNC			PWM_MAX // must preserve a synchronisation gap for ESCs
+#define PWM_PERIOD_SYNC    		(PWM_MAX_SYNC*2)
+
+#define PWM_PS_SYNC_DIV8		(TIMER_PS/12)	// 12MHz
+#define PWM_WIDTH_SYNC_DIV8		((PWM_MIN*3)>>1)
+#define PWM_MIN_SYNC_DIV8		PWM_WIDTH_SYNC_DIV8
+#define PWM_MAX_SYNC_DIV8		((PWM_MAX*3)>>1)
+#define PWM_PERIOD_SYNC_DIV8	(PWM_MAX_SYNC_DIV8*2)
+
+#define DC_DRIVE_FREQ_HZ 		12000 // KHz 1000, 2000, 4000, 8000, 12000, 24000, 42000, 84000, 168000
+#define DC_DRIVE_PS				(DC_DRIVE_FREQ_HZ/1000) // increase resolution
+#define PWM_PS_DC				(TIMER_PS/DC_DRIVE_PS)
+#define PWM_WIDTH_DC			1 // so we get a marker for logic analysers - can be zero
+#define PWM_MIN_DC				PWM_WIDTH_DC
+#define PWM_MAX_DC				(1000-PWM_MIN_DC)
+#define PWM_PERIOD_DC    		((1000000*DC_DRIVE_PS)/DC_DRIVE_FREQ_HZ)
+
+// Servos
+
+#define PWM_PERIOD_DIGITAL  (1000000/200) // pulse period for digital servo
+#define PWM_PERIOD_ANALOG  (22500) //1000000/50) // pulse period for analog servo
+#ifdef USE_DIGITAL_SERVOS
+#define PWM_PERIOD_SERVO PWM_PERIOD_DIGITAL
+#else
+#define PWM_PERIOD_SERVO PWM_PERIOD_ANALOG
+#endif
+
+#define PWM_MIN_SERVO	(800)
+#define PWM_WIDTH_SERVO	(1000) // 1ms pulse width
+#define PWM_NEUTRAL		(1500)
+#define PWM_MAX_SERVO	(2200)
+
+//________________________________________________________________________________________________
+
+// V4 Nano Board using SPI sensors
+
+#if defined(V4_BOARD)
+
+#define MAX_RC_INPS 8
+#define ANALOG_CHANNELS 3
+#define MAX_GPIO_PINS 8
+#define MAX_SPI_DEVICES 4
+#if defined(USE_V4_USART3)
+#define MAX_SERIAL_PORTS 3 // plus USB and Soft USART
+#else
+#define MAX_SERIAL_PORTS 2
+#endif
+#define MAX_PWM_OUTPUTS 10
+#define MAX_LEDS 4
+
+//________________________________________________________________________________________________
+
+// V3 Nano Board using I2C sensors
+
+#elif defined(V3_BOARD)
+
+#define MAX_RC_INPS 8
+#define ANALOG_CHANNELS 6
+#define MAX_GPIO_PINS 6
+#define MAX_SPI_DEVICES 0
+#define MAX_SERIAL_PORTS 2
+#define MAX_PWM_OUTPUTS 10
+#define MAX_LEDS 4
+
+//________________________________________________________________________________________________
+
+// V2 Board designed to also act as a UAVP adapter
+
+#elif defined(V2_BOARD)
+
+#define MAX_RC_INPS 8
+#define ANALOG_CHANNELS 6
+#define MAX_GPIO_PINS 6
+#define MAX_SPI_DEVICES 1
+#define MAX_SERIAL_PORTS 2
+#define MAX_PWM_OUTPUTS 10
+#define MAX_LEDS 4
+
+//________________________________________________________________________________________________
+
+// V2 Board with F1 processor designed to also act as a UAVP adapter
+
+#elif defined(V2_F1_BOARD)
+
+#define MAX_RC_INPS 8
+#define ANALOG_CHANNELS 6
+#define MAX_GPIO_PINS 6
+#define MAX_SPI_DEVICES 1
+#define MAX_SERIAL_PORTS 2
+#define MAX_PWM_OUTPUTS 10
+#define MAX_LEDS 4
+
+//________________________________________________________________________________________________
+
+// V1 Board was mbed based - included for a historical note
+
+#else
+
+// mbed
+
+#endif
+
+
+#endif

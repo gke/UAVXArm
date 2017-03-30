@@ -1,0 +1,229 @@
+// ===============================================================================================
+// =                                UAVX Quadrocopter Controller                                 =
+// =                           Copyright (c) 2008 by Prof. Greg Egan                             =
+// =                 Original V3.15 Copyright (c) 2007 Ing. Wolfgang Mahringer                   =
+// =                     http://code.google.com/p/uavp-mods/ http://uavp.ch                      =
+// ===============================================================================================
+
+//    This is part of UAVX.
+
+//    UAVX is free software: you can redistribute it and/or modify it under the terms of the GNU 
+//    General Public License as published by the Free Software Foundation, either version 3 of the 
+//    License, or (at your option) any later version.
+
+//    UAVX is distributed in the hope that it will be useful,but WITHOUT ANY WARRANTY; without
+//    even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+//    See the GNU General Public License for more details.
+
+//    You should have received a copy of the GNU General Public License along with this program.  
+//    If not, see http://www.gnu.org/licenses/
+
+
+// From Dr Ming Liu 2015
+
+const uint32 SYSTEM_IDENT_PERIOD_MS = 75;
+const uint32 PREPARE_MS = 2000;
+const uint32 MEASURE_MS = 60000;
+
+tuneStruct tune;
+
+#define N_EST 2 // no. of parameters to be estimated
+real32 P[N_EST][N_EST] = { { 100.0f, 0.0f }, { 0.0f, 100.0f } };
+real32 theta[N_EST] = { 1.0f, 1.0f }; // parameter vector guess initial values
+real32 w[N_EST]; // observation vector = {gyro_rate_new - gyro_rate_old, pwm_command};
+real32 K[N_EST];
+real32 rateHist[3] = { 0.0f, 0.0f, 0.0f };
+real32 outHist[2] = { 0.0f, 0.0f };
+real32 s[2] = { 0.0f, 0.0f };
+
+void RLS(void) {
+	uint8 i, j;
+	real32 temp[N_EST], temp1;
+
+	rateHist[0] = rateHist[1];
+	rateHist[1] = rateHist[2];
+	rateHist[2] = Rate[Pitch];
+
+	s[0] = rateHist[1] - rateHist[0];
+	s[1] = rateHist[2] - rateHist[1];
+
+	outHist[1] = A[Pitch].Out;
+	w[0] = s[0];
+	w[1] = outHist[0];
+	outHist[0] = outHist[1];
+
+	for (i = 0; i < N_EST; i++) { // calculating Pw
+		temp[i] = 0.0f;
+		for (j = 0; j < N_EST; j++)
+			temp[i] += P[i][j] * w[j];
+	}
+
+	temp1 = 1.0f; // calculate 1 + w^TPw
+	for (i = 0; i < N_EST; i++)
+		temp1 += w[i] * temp[i];
+
+	for (i = 0; i < N_EST; i++) // calculate K = Pw/(1+w^TPw)
+		K[i] = temp[i] / temp1;
+
+	for (i = 0; i < N_EST; i++)
+		for (j = 0; j < N_EST; j++) // calculate P = P - Kw^tP
+			P[i][j] -= K[i] * temp[j];
+
+	temp1 = s[1];
+	for (i = 0; i < N_EST; i++) // prediction error
+		temp1 -= w[i] * theta[i];
+
+	for (i = 0; i < N_EST; i++) // update estimation theta = theta + K * prediction error
+		theta[i] += K[i] * temp1;
+
+} //  RLS
+
+
+void TuneZeroOffsets(void) {
+	int32 a;
+
+	for (a = Pitch; a <= Yaw; a++)
+		tune.T[a].Offset = 0.0f;
+
+} // TuneZeroOffsets
+
+void Tune(void) {
+	static boolean First = true;
+
+	static uint32 TuneStatePeriodmS = 0;
+
+	switch (TuneState) {
+	case startTuning:
+		if (State == InFlight) {
+
+			if (First) {
+				memset(&tune, 0, sizeof(tuneStruct));
+				TuneZeroOffsets();
+				First = false;
+			}
+
+			TuneAxis = Pitch;
+			TuneStatePeriodmS = mSClock() + PREPARE_MS;
+			TuneIteration = 0;
+			TuneState = prepareTuning;
+		}
+		break;
+	case prepareTuning:
+		if (mSClock() > TuneStatePeriodmS) {
+			TuneStatePeriodmS = mSClock() + MEASURE_MS;
+			NextIdentTimemS = mSClock();
+			ZeroPIDIntegrals();
+			TuneState = Tuning;
+		}
+		break;
+	case Tuning:
+		if (State == InFlight) {
+			F.UsingRateControl = false; // force angle mode
+
+			// 23uSec 1 axis
+			RLS();
+
+			TuneApplyOffset();
+
+			TuneComputePIDCoeffs(TuneAxis); // watch tuning progress
+
+		}
+		if (mSClock() > TuneStatePeriodmS)
+			TuneState = stopTuning;
+		break;
+	case stopTuning:
+		if (!Armed() && (State == Starting)) {
+			TuneState = notTuning;
+			TuneComputePIDCoeffs(TuneAxis);
+		}
+		break;
+	case notTuning:
+	default:
+		break;
+	} // switch
+
+} // Tune
+
+
+void TuneApplyOffset(void) {
+	static boolean High = true;
+
+	if (mSClock() > NextIdentTimemS) {
+		NextIdentTimemS = mSClock() + SYSTEM_IDENT_PERIOD_MS;
+
+		tune.T[TuneAxis].Offset = 0.15f;
+		High = !High;
+	}
+
+	A[TuneAxis].Out += High ? tune.T[TuneAxis].Offset
+			: -tune.T[TuneAxis].Offset;
+
+} // TuneApplyOffset
+
+
+void UpdatePIDCoeffs(int32 a, real32 Kp_O, real32 Kp, real32 Ki,
+		real32 Kd) {
+
+#if defined(USE_DIRECT_PID_UPDATE)
+	// Angle
+	A[a].O.Kp = Kp_O / OKp;
+
+	//Rate
+	A[a].I.Kp = Kp / IKp;
+	A[a].I.Ki = Kp / IKi;
+	A[a].I.Kd = Kd / IKd;
+#else
+	// Angle
+	tune.T[a].O.Kp = Kp_O / OKp;
+	//Rate
+	tune.T[a].I.Kp = Kp / IKp;
+	tune.T[a].I.Ki = Kp / IKi;
+	tune.T[a].I.Kd = Kd / IKd;
+#endif
+
+} // UpdatePIDCoeffs
+
+void TuneComputePIDCoeffs(int32 a) {
+
+	real32 Wn, Kp_O, Kp, Ki, Kd;
+	const real32 Ts = 0.002f; // cycle time
+	real32 zzz, K, B, Tm;
+
+	B = -logf(theta[0]) / Ts;
+	K = theta[1] / (1.0f - theta[0]);
+
+	Wn = B;
+	Tm = 1.0f / B;
+
+	// approximate to continuous domain
+
+	Kp = Sqr(Wn) / (K * Tm);
+
+	zzz = 1.0f;
+	Kd = (2 * zzz * Wn * Tm - 1.0f) / K;
+
+	Kp_O = Ki = 0.0f;
+
+	UpdatePIDCoeffs(Pitch, Kp_O, Kp, Ki, Kd);
+
+	tune.T[Pitch].logTau = logf(Tm);
+	tune.T[Pitch].logBeta = K;
+
+} //  TuneComputePIDCoeffs
+
+
+void CheckTune(void) {
+
+	if (F.EnableTuning) {
+		if (!TuningEnabled)
+			TuneState = startTuning;
+	} else {
+		if (TuningEnabled)
+			TuneState = stopTuning;
+	}
+
+	TuningEnabled = F.EnableTuning;
+
+} // CheckTune
+
+
