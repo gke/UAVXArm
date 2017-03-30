@@ -762,7 +762,7 @@ namespace UAVXGUI
 
           // FrSkycheckBox1.Checked = UAVXGUI.Properties.Settings.Default.IsFrSky;
        
-          string sAppLogDir = GetDocumentsDir() + System.IO.Path.DirectorySeparatorChar + "UAVXLogs";
+          string sAppLogDir = GetDocumentsDir();
 
           if (!(Directory.Exists(sAppLogDir))) 
           {
@@ -777,9 +777,11 @@ namespace UAVXGUI
             // Returns the application specific data directory
             string appdir;
 
-            appdir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            appdir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+                + System.IO.Path.DirectorySeparatorChar + "UAVXLogs";
             return appdir;
         }
+
         private void timer_telemetry_Tick(object sender, EventArgs e)
         {
             TelemetryActive = false;
@@ -888,7 +890,7 @@ namespace UAVXGUI
              else
             {
                 OpenLogFileDialog.Filter = "UAVX Log File (*.log)|*.log";
-                OpenLogFileDialog.InitialDirectory = UAVXGUI.Properties.Settings.Default.LogDirectory;
+                OpenLogFileDialog.InitialDirectory = GetDocumentsDir();
 
                 if (OpenLogFileDialog.ShowDialog() == DialogResult.OK)
                 {
