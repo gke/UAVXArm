@@ -760,18 +760,26 @@ namespace UAVXGUI
 
           ReplayDelay = 20 - Convert.ToInt16(ReplayNumericUpDown.Text);
 
-         // FrSkycheckBox1.Checked = UAVXGUI.Properties.Settings.Default.IsFrSky;
+          // FrSkycheckBox1.Checked = UAVXGUI.Properties.Settings.Default.IsFrSky;
        
-          string AppLogDir = UAVXGUI.Properties.Settings.Default.LogDirectory;
-          if (!(Directory.Exists(AppLogDir))) {
-            string sProgFilesLogDir = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-            sProgFilesLogDir += "\\" + "UAVXLogs"; // " + vrs.Major + "." + vrs.Minor;
-            if (!(Directory.Exists(sProgFilesLogDir))) {
-              Directory.CreateDirectory(sProgFilesLogDir);
-            }
-            UAVXGUI.Properties.Settings.Default.LogDirectory = sProgFilesLogDir;
-          }
+          string sAppLogDir = GetDocumentsDir();
 
+          if (!(Directory.Exists(sAppLogDir))) 
+          {
+               Directory.CreateDirectory(sAppLogDir);
+          }
+          UAVXGUI.Properties.Settings.Default.LogDirectory = sAppLogDir;
+        }
+
+        private string GetDocumentsDir()
+        {
+            //
+            // Returns the application specific data directory
+            string appdir;
+
+            appdir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+                + System.IO.Path.DirectorySeparatorChar + "UAVXLogs";
+            return appdir;
         }
 
         private void timer_telemetry_Tick(object sender, EventArgs e)
@@ -882,7 +890,7 @@ namespace UAVXGUI
              else
             {
                 OpenLogFileDialog.Filter = "UAVX Log File (*.log)|*.log";
-                OpenLogFileDialog.InitialDirectory = UAVXGUI.Properties.Settings.Default.LogDirectory;
+                OpenLogFileDialog.InitialDirectory = GetDocumentsDir();
 
                 if (OpenLogFileDialog.ShowDialog() == DialogResult.OK)
                 {
