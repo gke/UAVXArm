@@ -319,7 +319,7 @@ int main() {
 						F.DrivesArmed = CurrESCType == DCMotorsWithIdle;
 						DesiredThrottle = F.DrivesArmed ? IdleThrottle : 0.0f;
 						if (Tuning)
-							SetP(CurrTuningSel, TuningParamIndex);
+							SetP(TuningParamIndex, OldUntunedParam);
 						UpdateNV(); // also captures stick programming
 						mSTimer(mSClock(), ArmedTimeout, ARMED_TIMEOUT_MS);
 						LEDOn(LEDGreenSel);

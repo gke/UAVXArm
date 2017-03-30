@@ -460,10 +460,11 @@ namespace UAVXGUI
 
                 nps = Convert.ToInt32(sw.ReadLine());
                 for (s = 0; s < nps; s++)
-                    for (p = 0; p < FormMain.MAX_PARAMS; p++) {
+                    for (p = 0; p < nps; p++)
+                    {
                         P[s, p].Value = Convert.ToInt32(sw.ReadLine());
-                    P[s, p].Changed = true;
-                }
+                        P[s, p].Changed = true;
+                    }
 
                 CurrPS = Convert.ToByte(ParamSetNumericUpDown.Text);
 
@@ -527,8 +528,8 @@ namespace UAVXGUI
                     StreamWriter sw = new StreamWriter(parameterSaveFileDialog.FileName, false, Encoding.GetEncoding("windows-1252"));
 
                    sw.WriteLine(FormMain.MAX_PARAM_SETS);
-                   for (s = 0; s <FormMain.MAX_PARAM_SETS; s++)
-                       for (p = 0; p < FormMain.MAX_PARAMS; p++) 
+                   for (s = 0; s < FormMain.MAX_PARAM_SETS; s++)
+                       for (p = 0; p < FormMain.MAX_PARAMS; p++)
                            sw.WriteLine(P[s, p].Value);
 
                    sw.Flush();

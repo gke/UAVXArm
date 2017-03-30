@@ -269,9 +269,12 @@ void DoAltitudeControl(void) {
 
 void DetermineControl(void) {
 
-	A[Pitch].Control = Threshold(A[Pitch].Desired, THRESHOLD_STICK) * MaxAttitudeAngleRad;
-	A[Roll].Control = Threshold(A[Roll].Desired, THRESHOLD_STICK) * MaxAttitudeAngleRad;
-	A[Yaw].Control = Threshold(A[Yaw].Desired, YawStickThreshold) * YawStickScaleRadPS;
+	A[Pitch].Control = Threshold(A[Pitch].Desired, THRESHOLD_STICK)
+			* MaxAttitudeAngleRad;
+	A[Roll].Control = Threshold(A[Roll].Desired, THRESHOLD_STICK)
+			* MaxAttitudeAngleRad;
+	A[Yaw].Control = Threshold(A[Yaw].Desired, YawStickThreshold)
+			* YawStickScaleRadPS;
 
 	F.YawActive = IsFixedWing ? Max(Abs(A[Yaw].Control), Abs(A[Roll].Control))
 			> 0.0f : Abs(A[Yaw].Control) > 0.0f;
@@ -327,12 +330,12 @@ void DoRateControl(int32 a) {
 		Pa = AngleE * C->O.Kp;
 		C->O.IntE = 0.0f; // for flip back to angle mode
 
-		DesiredRate = Pa + C->Control
-				* (RollPitchStickScaleRadPS/MaxAttitudeAngleRad) * (1.0f - AngleRateMix);
+		DesiredRate = Pa + C->Control * (RollPitchStickScaleRadPS
+				/ MaxAttitudeAngleRad) * (1.0f - AngleRateMix);
 	} else
 		// pure rate control
-		DesiredRate = C->Control
-				* RollPitchStickScaleRadPS/MaxAttitudeAngleRad;
+		DesiredRate = C->Control * RollPitchStickScaleRadPS
+				/ MaxAttitudeAngleRad;
 
 	RateE = Rate[a] - Limit1(DesiredRate, C->I.Max);
 
