@@ -187,7 +187,6 @@ void VersanoCompensation(void) {
 
 void InitMadgwick(void) {
 
-
 	GetIMU();
 
 	real32 normR = 1.0f / sqrtf(Sqr(Acc[BF]) + Sqr(Acc[LR]) + Sqr(Acc[UD]));
@@ -513,6 +512,21 @@ void MadgwickUpdate(boolean AHRS, real32 gx, real32 gy, real32 gz, real32 ax,
 } // MadgwickUpdate
 
 
+void TrackPitchAttitude(void) {
+	static uint32 GlidingTimemS = 0;
+	static real32 PitchAngle = 0.0f;
+
+	if (IsFixedWing && (DesiredThrottle < IdleThrottle) && (State == InFlight)) {
+		if (mSClock() > GlidingTimemS) {
+			PitchAngle
+					= HardFilter(PitchAngle, RadiansToDegrees(A[Pitch].Angle));
+			SetP(FWGlideAngleOffset, (uint8)(PitchAngle * 10.0f)); // *(int8 *)
+		}
+	} else
+		GlidingTimemS = mSClock() + 5000;
+} // TrackPitchAttitude
+
+
 void UpdateInertial(void) {
 	int32 a;
 
@@ -549,7 +563,7 @@ void UpdateInertial(void) {
 	if (!IsMulticopter)
 		UpdateAirspeed();
 
-	SetP(FWGlideAngleOffset, 0.0f);
+	TrackPitchAttitude();
 
 }// UpdateInertial
 
