@@ -8,9 +8,9 @@ First before connecting power put a link on the **Boot0** pins. This places the 
 
 Set the baud rate to 115K and the COM port as necessary.
 
-https://github.com/gke/UAVXArm/tree/master/wiki/graphics/STM1.JPG
+![https://github.com/gke/UAVXArm/tree/master/wiki/graphics/STM1.JPG]
 
-https://github.com/gke/UAVXArm/tree/master/wiki/graphics/STM2.JPG
+![https://github.com/gke/UAVXArm/tree/master/wiki/graphics/STM2.JPG]
 
 Select the STM32F4-1024K.
 
