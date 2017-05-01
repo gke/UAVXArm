@@ -7,8 +7,8 @@ UAVX has several flight modes most of which are associated with navigation. Thes
 There are three channels which condition these modes the principal one being the three position "RTH" switch defaulting to Ch5. The first position is pilot in control (PIC), the second activates position hold (HoldingPosition) or waypoint navigation and the third is always return to home (RTH).
 
 
-* HoldingStation: Aicraft is attempting to hold the GPS position captured.
-* ReturningHome: Aircraft is attempting to return to the launch point.
+ * HoldingStation: Aicraft is attempting to hold the GPS position captured.
+ * ReturningHome: Aircraft is attempting to return to the launch point.
 	AtHome: Aircraft is at or close to the launch point and will either orbit or land.
 	Descending: Aircraft is attempting and autolanding.
 	Touchdown: Aircraft has landed.
