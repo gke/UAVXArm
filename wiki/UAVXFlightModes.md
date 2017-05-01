@@ -6,9 +6,9 @@ UAVX has several flight modes most of which are associated with navigation and g
 
 There are three channels which condition these modes. Once initiated the aircraft will move to other modes as required. The three channels below override any intermediate nodes. For example "Bypass" is meant to immediately give full control of the aircraft to the pilot. 
 
- * "Nav/RTH" switch defaulting to a three position switch Ch5 . The first position is pilot in control (PIC), the second activates position hold (HoldingStation) or waypoint navigation and the third is always return to home (RTH). 
- * "Ctrl. Mode" defaulting to channel 6 selects between angle or rate control. With angle control the aircraft's pitch/roll angle is proportional to stick deflection. With rate control the aircraft's roll/pitch rate is proportional to stick deflection. The transition point from angle control to rate control can be further qualified using the "Horizon" parameter. 
-  * "Bypass" defaulting to channel 8 allows you to bypass both angle and rate control completely in all aircraft except multicopters. 
+ * The "Nav/RTH" uses a three position switch and defaults to Ch5 . The first position is pilot in control (PIC), the second activates position hold (HoldingStation) or waypoint navigation and the third is always return to home (RTH). 
+ * The "Ctrl. Mode" switch, defaulting to channel 6, selects between angle or rate control. With angle control the aircraft's pitch/roll angle is proportional to stick deflection. With rate control the aircraft's roll/pitch rate is proportional to stick deflection. The transition point from angle control to rate control can be further qualified using the "Horizon" parameter. 
+  * The "Bypass" switch, defaulting to channel 8, allows you to bypass both angle and rate control completely in all aircraft except multicopters. 
 
 ## Modes ##
 
