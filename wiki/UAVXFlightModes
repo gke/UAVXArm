@@ -1,4 +1,4 @@
-# UAVX Flight Modes #
+### UAVX Flight Modes ###
 
 UAVX has several flight modes most of which are associated with navigation. These are displayed on UAVXGUI and MavLink telemetry typically inflight on minimOSD.
 
