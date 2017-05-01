@@ -1,10 +1,10 @@
 # UAVX Flight Modes #
 
-UAVX has several flight modes most of which are associated with navigation. These are displayed on UAVXGUI and MavLink telemetry typically inflight on minimOSD.
+UAVX has several flight modes most of which are associated with navigation and general control of the aircraft's attitude. These are displayed on UAVXGUI and MavLink telemetry typically inflight on minimOSD.
 
 ## How are Modes Controlled ##
 
-There are three channels which condition these modes:
+There are three channels which condition these modes. Once initiated the aircraft will move to other modes as required. The three channels below override any intermediate nodes. For example "Bypass" is meant to immediately give full control of the aircraft to the pilot. 
 
  * "Nav/RTH" switch defaulting to a three position switch Ch5 . The first position is pilot in control (PIC), the second activates position hold (HoldingStation) or waypoint navigation and the third is always return to home (RTH). 
  * "Ctrl. Mode" defaulting to channel 6 selects between angle or rate control. With angle control the aircraft's pitch/roll angle is proportional to stick deflection. With rate control the aircraft's roll/pitch rate is proportional to stick deflection. The transition point from angle control to rate control can be further qualified using the "Horizon" parameter. 
