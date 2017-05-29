@@ -34,7 +34,7 @@ This only applies if you have a GPS fitted.
 
 Normally you will not be able to throttle up, even if armed, until an acceptable GPS position has been obtained to record the home or launch location. You should arm to enable the acquisition of the home position when you are positioned at the desired launch point. The home position will normally be reacquired when you return to the Landed mode. A single longish beep will be heard if you have a beeper when home is acquired replacing the eight beeps previously.
 
-You may choose to check the "No GPS" in which case the home position will be wherever the aircraft is located when you ##first## select other than PIC using the Nav/RTH switch. The intention is of course to allow you to fly the aircraft out to a convenient position in front of your launch point to avoid having it return on an RTH to orbit over the top of yourself and other flyers which can be very annoying.
+You may choose to check the "No GPS" in which case the home position will be wherever the aircraft is located when you **FIRST** select other than PIC using the Nav/RTH switch. The intention is of course to allow you to fly the aircraft out to a convenient position in front of your launch point to avoid having it return on an RTH to orbit over the top of yourself and other flyers which can be very annoying.
 
 The choice to use "No GPS" is entirely at your own risk as there is of course the potential to be a long way away and select RTH!!!!  The aircraft will do a RTH by descending right there which may be anywhere. 
 
