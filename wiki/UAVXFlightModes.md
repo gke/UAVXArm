@@ -6,9 +6,27 @@ UAVX has several flight modes most of which are associated with navigation and g
 
 There are three channels which condition these modes. Once initiated the aircraft will move to other modes as required. The three channels below override any intermediate nodes. For example "Bypass" is meant to immediately give full control of the aircraft to the pilot. 
 
- * The "Nav/RTH" three position switch and defaults to Ch5 . The first position is pilot in control (PIC), the second activates position hold (HoldingStation) or waypoint navigation and the third is always return to home (RTH). 
- * The "Ctrl. Mode" switch, defaulting to channel 6, selects between angle or rate control. With angle control the aircraft's pitch/roll angle is proportional to stick deflection. With rate control the aircraft's roll/pitch rate is proportional to stick deflection. The transition point from angle control to rate control can be further qualified using the "Horizon" parameter. 
-  * The "Bypass" switch, defaulting to channel 8, allows you to bypass both angle and rate control completely in all aircraft except multicopters. 
+ * The "Nav/RTH" three position switch and defaults to Ch5 . The first position is pilot in control (PIC), the second activates position hold (HoldingStation) or waypoint navigation (involving several navigation states/modes) and the third is always return to home (RTH). Altitude hold is active in all switch positions if the throttle has not moved for several seconds and the rate of climb/descent is sufficiently low (typically <1M/S).
+ * The "Ctrl. Mode" switch, defaulting to channel 6, selects between angle or rate control. With angle control the aircraft's pitch/roll angle is proportional to stick deflection. With rate control the aircraft's roll/pitch rate is proportional to stick deflection. The transition point from angle control to rate control can be further qualified using the "Horizon" parameter. Rate mode is overriden if the Nav/RTH switch is in any position other than PIC. The selected control mode is restored if the Nav/RTH switch returns to PIC. 
+  * The "Bypass" switch, defaulting to channel 8, allows you to bypass both angle and rate control completely in all aircraft except multicopters. Altitude hold is disabled irrespective of the Nav/RTH switch position.
+  
+ There are several parameters and checkboxes associated with flight modes and navigation. It is important to note the functions when checked of the following checkboxes.
+ 
+  * Failsafes: enables all failsafe functions. 
+  * No GPS: disables the requirement for a good GPS signal before permitting throttle up.
+  * Autoland: enables autolanding with multicopters.
+  * Fast Desc: enables fast descents in all aircraft types. For multicopters this forces the aircraft to orbit while descending in an attempt to avoid VRS.
+  * Glider:  enables glider functions including boost then glide behaviours associated with thermal and other soaring (EXPERIMENTAL).
+  * Fast Start: disables gyro recalibration at each launch and relies on values for gyro offset obtained during initial IMU calibration. Should be used for hand launced aircraft.
+  
+The following are not directly associated with flight control:
+
+  * Emulation: enables the emulation/simulation of aircraft in conjunction with UAVXGUI. The physics is naive so it should not be used for PID tuning.
+  * Reboot: enables auto reboot of the flight controller (FC) after writing parameters which change the aircraft configuration. This avoids the need to power cycle the FC.
+  * Mag Inv: enables the use of magnetometers integrated with some GPS units.
+  * Brd Inv: enables the FC to be mounted upside down in the aircraft.
+  * LEDs: enables WS2812 type multi colour LED displays.
+  * BLHeli: enables pass-through programming of BLHeli/SimonK ESCs when used in conjunction with BLHeliSuite. 
 
 ## Modes ##
 
