@@ -6,14 +6,14 @@ UAVX has several flight modes most of which are associated with navigation and g
 
 There are three channels which condition these modes. Once initiated the aircraft will move to other modes as required. The three channels below override any intermediate nodes. For example "Bypass" is meant to immediately give full control of the aircraft to the pilot. 
 
- * The "Nav/RTH" three position switch and defaults to Ch5 . The first position is pilot in control (PIC), the second activates position hold (HoldingStation) or waypoint navigation (involving several navigation states/modes) and the third is always return to home (RTH). Altitude hold is active in all switch positions if the throttle has not moved for several seconds and the rate of climb/descent is sufficiently low (typically <1M/S).
+ * The "Nav/RTH" three position switch and defaults to Ch5 . The first position is pilot in control (PIC), the second activates position hold (HoldingStation) or waypoint navigation (involving several navigation states/modes) and the third is always return to home (RTH). Altitude hold is active in all switch positions if the throttle has not moved for several seconds and the rate of climb/descent is sufficiently low (typically <1M/S). If you don't have a GPS and a valid home position recorded then all switch positions give PIC (see Capture of the Home or Launch Position below).
  * The "Ctrl. Mode" switch, defaulting to channel 6, selects between angle or rate control. With angle control the aircraft's pitch/roll angle is proportional to stick deflection. With rate control the aircraft's roll/pitch rate is proportional to stick deflection. The transition point from angle control to rate control can be further qualified using the "Horizon" parameter. Rate mode is overriden if the Nav/RTH switch is in any position other than PIC. The selected control mode is restored if the Nav/RTH switch returns to PIC. 
   * The "Bypass" switch, defaulting to channel 8, allows you to bypass both angle and rate control completely in all aircraft except multicopters. Altitude hold is disabled irrespective of the Nav/RTH switch position.
   
- There are several parameters and checkboxes associated with flight modes and navigation. It is important to note the functions when checked of the following checkboxes.
+There are several parameters and checkboxes associated with flight modes and navigation. It is important to note the functions when checked of the following checkboxes.
  
   * Failsafes: enables all failsafe functions. 
-  * No GPS: disables the requirement for a good GPS signal before permitting throttle up.
+  * No GPS: disables the requirement for a good GPS signal before permitting throttle up. 
   * Autoland: enables autolanding with multicopters.
   * Fast Desc: enables fast descents in all aircraft types. For multicopters this forces the aircraft to orbit while descending in an attempt to avoid VRS.
   * Glider:  enables glider functions including boost then glide behaviours associated with thermal and other soaring (EXPERIMENTAL).
@@ -28,9 +28,18 @@ The following are not directly associated with flight control:
   * LEDs: enables WS2812 type multi colour LED displays.
   * BLHeli: enables pass-through programming of BLHeli/SimonK ESCs when used in conjunction with BLHeliSuite. 
 
+## Capture of the Home or Launch Position ##
+
+This only applies if you have a GPS fitted. Normally you will not be able to throttle up, even if armed, until an acceptable GPS position has been obtained to record the home or launch location. You should arm to enable the acquisition of the home position when you are psitioned at the desired launch point. The home position will normally be reacquired when you return to the Landed mode. 
+
+You may choose to check the "No GPS" in which case the home position will be wherever the aircraft is located when you first select other than PIC using the Nav/RTH switch. The intention is of course to allow you to fly the aircraft out to a convenient position in front of your launch point to avoid having it return on an RTH to orbit over the top of yourself and other flyers which can be very annoying.
+
+The choice to use "No GPS" is entirely at your own risk as there is of course the potential to be a long way away and select RTH!!!!  The aircraft will do a RTH by descending right there which may be anywhere. 
+
+
 ## Modes ##
 
-The modes displayed in UAVXGUI and on a (minimOSD) are then:
+The modes or navigation states are displayed in UAVXGUI and on a (minimOSD).
 
  * HoldingStation (hold): Aircraft is attempting to hold the GPS position captured before selecting this mode using the "Nav/RTH" switch.
  * ReturningHome (rth): Aircraft is attempting to return to the launch point.
