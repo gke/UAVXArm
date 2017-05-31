@@ -9,7 +9,9 @@ There are three channels which condition these modes. Once initiated the aircraf
  * The "Nav/RTH" three position switch and defaults to Ch5 . The first position is pilot in control (PIC), the second activates position hold (HoldingStation) or waypoint navigation (involving several navigation states/modes) and the third is always return to home (RTH). Altitude hold is active in all switch positions if the throttle has not moved for several seconds and the rate of climb/descent is sufficiently low (typically <1M/S). If you don't have a GPS and a valid home position recorded then all switch positions give PIC (see Capture of the Home or Launch Position below).
  * The "Ctrl. Mode" switch, defaulting to channel 6, selects between angle or rate control. With angle control the aircraft's pitch/roll angle is proportional to stick deflection. With rate control the aircraft's roll/pitch rate is proportional to stick deflection. The transition point from angle control to rate control can be further qualified using the "Horizon" parameter. Rate mode is overriden if the Nav/RTH switch is in any position other than PIC. The selected control mode is restored if the Nav/RTH switch returns to PIC. 
   * The "Bypass" switch, defaulting to channel 8, allows you to bypass both angle and rate control completely in all aircraft except multicopters. Altitude hold is disabled irrespective of the Nav/RTH switch position.
-  
+ 
+You may reassign these functions to other channels should you desire.
+
 There are several parameters and checkboxes associated with flight modes and navigation. It is important to note the functions when checked of the following checkboxes.
  
   * Failsafes: enables all failsafe functions. 
