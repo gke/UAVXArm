@@ -16,7 +16,7 @@ There are several parameters and checkboxes associated with flight modes and nav
   * No GPS: disables the requirement for a good GPS signal before permitting throttle up. 
   * Autoland: enables autolanding with multicopters.
   * Fast Desc: enables fast descents in all aircraft types. For multicopters this forces the aircraft to orbit while descending in an attempt to avoid VRS.
-  * Glider:  enables glider functions including boost then glide behaviours associated with thermal and other soaring (all modes associated with gliding are EXPERIMENTAL).
+  * Glider:  enables glider functions including boost then glide behaviours associated with thermal and other soaring (all modes associated with gliding are EXPERIMENTAL @ May 2017).
   * Fast Start: disables gyro recalibration at each launch and relies on values for gyro offset obtained during initial IMU calibration. Should be used for hand launced aircraft.
   
 The following are not directly associated with flight control:
