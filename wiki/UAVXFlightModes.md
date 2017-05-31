@@ -4,7 +4,7 @@ UAVX has several flight modes most of which are associated with navigation and g
 
 ## How are Modes Controlled ##
 
-There are three channels which condition these modes. Once initiated the aircraft will move to other modes as required. The three channels below override any intermediate nodes. For example "Bypass" is meant to immediately give full control of the aircraft to the pilot. 
+There are three channels which condition these modes. Once initiated the aircraft will move to other modes as required. The three channels below override any intermediate modes. For example RTH will usually trigger a sequence of modes including Transiting, AtHome, Loitering, Descending and Touchdown. "Bypass" however is meant to immediately give full control of the aircraft to the pilot. 
 
  * The "Nav/RTH" three position switch and defaults to Ch5 . The first position is pilot in control (PIC), the second activates position hold (HoldingStation) or waypoint navigation (involving several navigation states/modes) and the third is always return to home (RTH). Altitude hold is active in all switch positions if the throttle has not moved for several seconds and the rate of climb/descent is sufficiently low (typically <1M/S). If you don't have a GPS and a valid home position recorded then all switch positions give PIC (see Capture of the Home or Launch Position below).
  * The "Ctrl. Mode" switch, defaulting to channel 6, selects between angle or rate control. With angle control the aircraft's pitch/roll angle is proportional to stick deflection. With rate control the aircraft's roll/pitch rate is proportional to stick deflection. The transition point from angle control to rate control can be further qualified using the "Horizon" parameter. Rate mode is overriden if the Nav/RTH switch is in any position other than PIC. The selected control mode is restored if the Nav/RTH switch returns to PIC. 
@@ -16,7 +16,7 @@ There are several parameters and checkboxes associated with flight modes and nav
   * No GPS: disables the requirement for a good GPS signal before permitting throttle up. 
   * Autoland: enables autolanding with multicopters.
   * Fast Desc: enables fast descents in all aircraft types. For multicopters this forces the aircraft to orbit while descending in an attempt to avoid VRS.
-  * Glider:  enables glider functions including boost then glide behaviours associated with thermal and other soaring (EXPERIMENTAL).
+  * Glider:  enables glider functions including boost then glide behaviours associated with thermal and other soaring (all modes associated with gliding are EXPERIMENTAL).
   * Fast Start: disables gyro recalibration at each launch and relies on values for gyro offset obtained during initial IMU calibration. Should be used for hand launced aircraft.
   
 The following are not directly associated with flight control:
@@ -32,11 +32,11 @@ The following are not directly associated with flight control:
 
 This only applies if you have a GPS fitted. 
 
-Normally you will not be able to throttle up, even if armed, until an acceptable GPS position has been obtained to record the home or launch location. You should arm to enable the acquisition of the home position when you are positioned at the desired launch point. The home position will normally be reacquired when you return to the Landed mode. A single longish beep will be heard if you have a beeper when home is acquired replacing the eight beeps previously.
+Normally you will not be able to throttle up, even if armed, until an acceptable GPS position has been obtained to record the home or launch location. You should arm to enable the acquisition of the home position when you are positioned at the desired launch point. The home position will normally be reacquired when you when you are "Landed". A single longish beep will be heard if you have a beeper when home is acquired replacing the eight beeps previously.
 
 You may choose to check the "No GPS" in which case the home position will be wherever the aircraft is located when you **FIRST** select other than PIC using the Nav/RTH switch. The intention is of course to allow you to fly the aircraft out to a convenient position in front of you and record a launch point there to avoid having it return on an RTH to orbit over the top of yourself and other flyers which can be very annoying.
 
-The choice to use "No GPS" is entirely at your own risk as there is of course the potential to be a long way away and select RTH!!!!  The aircraft will do a RTH by descending right there which may be anywhere. 
+The choice to use "No GPS" is entirely at your own risk as there is the distinct possibility of forgetting to record a launch point. In this case you could be a long way away and select RTH!!!!  The aircraft will capture the current position as the launch point and do a RTH by descending right there which may be anywhere. 
 
 
 ## Modes ##
@@ -59,7 +59,7 @@ The modes or navigation states are displayed in UAVXGUI and on a (minimOSD).
  * UsingRidge (ridg): FW aircraft has detected ridge lift and is attempting to exploit it.
  * UsingWave (wave): FW aircraft has detected wave lift and is attempting to exploit it.
  * BoostClimb (bst): FW aircraft is using glider strategies and is boost climbing to a safe altitude from which to glide.
- * AltitudeLimiting (alim): FW aircraft has exceeded the maximum permissible altitude and is deploying spoilers and has cut thorttle.
+ * AltitudeLimiting (alim): FW aircraft has exceeded the maximum permissible altitude and is deploying spoilers and has cut throttle.
  * JustGliding (glid): FW aicraft is autonomously hunting for explotable lift.
  * RateControl (rate): Aircraft roll pitch and yaw rates are proportional to Tx stick deflection. Autonomous navigation is not available in this mode however selecting RTH/RTL will force the aircraft to attititude or angle control. Also referred to as Acro mode.
  * BypassControl (man): Configuration only mixing is applied to the Rx commands and routed directly to the throttle and control surfaces i.e. direct MANUAL control.
