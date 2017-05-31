@@ -21,7 +21,7 @@ There are several parameters and checkboxes associated with flight modes and nav
   
 The following are not directly associated with flight control:
 
-  * Emulation: enables the emulation/simulation of aircraft in conjunction with UAVXGUI. The physics is naive so it should not be used for PID tuning.
+  * Emulation: enables the emulation/simulation of aircraft in conjunction with UAVXGUI. The physics is **naive** so it should not be used for PID tuning.
   * Reboot: enables auto reboot of the flight controller (FC) after writing parameters which change the aircraft configuration. This avoids the need to power cycle the FC.
   * Mag Inv: enables the use of magnetometers integrated with some GPS units.
   * Brd Inv: enables the FC to be mounted upside down in the aircraft.
