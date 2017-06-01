@@ -15,7 +15,7 @@ You may reassign these functions to other channels should you desire.
 There are several parameters and checkboxes associated with flight modes and navigation. It is important to note the functions when checked of the following checkboxes.
  
   * Failsafes: enables all failsafe functions. 
-  * No GPS: disables the requirement for a good GPS signal before permitting throttle up. 
+  * Req. GPS: disables the requirement for a good GPS signal before permitting throttle up. 
   * Autoland: enables autolanding with multicopters (Fixed wing aircraft orbit the home position).
   * Fast Desc: enables fast descents in all aircraft types. For multicopters this forces the aircraft to orbit while descending in an attempt to avoid VRS.
   * Glider:  enables glider functions including boost then glide behaviours associated with thermal and other soaring (all modes associated with gliding are EXPERIMENTAL @ May 2017).
@@ -34,11 +34,11 @@ The following are not directly associated with flight control:
 
 This only applies if you have a GPS fitted. 
 
-Normally you will not be able to throttle up, even if armed, until an acceptable GPS position has been obtained to record the home or launch location. You should arm to enable the acquisition of the home position when you are positioned at the desired launch point. The home position will normally be reacquired when you when you are "Landed". A single longish beep will be heard if you have a beeper when home is acquired replacing the eight beeps previously.
+If you do not select "Req. GPS" the home position will be wherever the aircraft is located when you FIRST select other than PIC using the Nav/RTH switch. The intention is of course to allow you to fly the aircraft out to a convenient position in front of you and record a launch point there to avoid having it return on an RTH to orbit over the top of yourself and other flyers which can be very annoying.
 
-You may choose to check the "No GPS" in which case the home position will be wherever the aircraft is located when you **FIRST** select other than PIC using the Nav/RTH switch. The intention is of course to allow you to fly the aircraft out to a convenient position in front of you and record a launch point there to avoid having it return on an RTH to orbit over the top of yourself and other flyers which can be very annoying.
+If you select the "Req. GPS" checkbox you will not be able to throttle up, even if armed, until an acceptable GPS position has been obtained to record the home or launch location. You should arm to enable the acquisition of the home position when you are positioned at the desired launch point. The home position will normally be reacquired when you return to the Landed mode. A single longish beep will be heard if you have a beeper when home is acquired replacing the eight beeps previously.
 
-The choice to use "No GPS" is entirely at your own risk as there is the distinct possibility of forgetting to record a launch point. In this case you could be a long way away and select RTH!!!!  The aircraft will capture the current position as the launch point and do a RTH by descending right there which may be anywhere. 
+The choice not to use "Req. GPS" is entirely at your own risk as there is the distinct possibility of forgetting to record a launch point. In this case you could be a long way away and select RTH!!!!  The aircraft will capture the current position as the launch point and do a RTH by descending right there which may be anywhere. 
 
 
 ## Modes ##
