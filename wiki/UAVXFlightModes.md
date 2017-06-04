@@ -12,10 +12,12 @@ There are three channels which condition these modes. Once initiated the aircraf
  
 You may reassign these functions to other channels should you desire.
 
+You may choose to use the "Nav Sens" channel (default Ch7) to reduce the Pvel in flight. Pvel controls the pitch/roll angle for a given position error. The minimimum value is 0.5 and the maximum 1.0. If you do not use this channel then the default is 1.0. 
+
 There are several parameters and checkboxes associated with flight modes and navigation. It is important to note the functions when checked of the following checkboxes.
  
   * Failsafes: enables all failsafe functions. 
-  * Req. GPS: disables the requirement for a good GPS signal before permitting throttle up. 
+  * Req. GPS: enables the requirement for a good GPS signal before permitting throttle up. 
   * Autoland: enables autolanding with multicopters (Fixed wing aircraft orbit the home position).
   * Fast Desc: enables fast descents in all aircraft types. For multicopters this forces the aircraft to orbit while descending in an attempt to avoid VRS.
   * Glider:  enables glider functions including boost then glide behaviours associated with thermal and other soaring (all modes associated with gliding are EXPERIMENTAL @ May 2017).
