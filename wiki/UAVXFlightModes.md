@@ -12,7 +12,7 @@ There are three channels which condition these modes. Once initiated the aircraf
  
 You may reassign these functions to other channels should you desire.
 
-You may choose to use the "Nav Sens" channel (default Ch7) to reduce the Pvel in flight. Pvel controls the pitch/roll angle for a given position error. The minimimum value is 0.5 and the maximum 1.0. If you do not use this channel then the default is 1.0. 
+You may choose to use the "Nav Sens" channel (default Ch7) to reduce the Pvel in flight. Pvel controls the pitch/roll angle for a given position error. The minimimum value is 25% and the maximum 1--%. If you do not use this channel then the default is 100% which means Pvel is used directly. 
 
 There are several parameters and checkboxes associated with flight modes and navigation. It is important to note the functions when checked of the following checkboxes.
  
