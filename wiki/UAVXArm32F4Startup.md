@@ -66,11 +66,19 @@ Get a decent spirit level and even then turn it around to make sure it reads lev
 
 Lock the quadrocopter down so it does not move and recheck it is level.
 
-Power up with UAVGUI connected.  Select the CalIMU button which will be Red. You will see the blue LED start to flash - it has already taken the first set of readings and is waiting for the temperature to rise to take the second set.  Get a hair dryer and SLOWLY warm up the board - put your hand close to the board to sense how hot the air is. If it is too hot for your hand it is too hot for the board! You only need to change its temperature by 20 Celsius all up so don't melt the board!  There is a delay as the heat gets into the MPU6xxx package so slowly/slowly until the blue LED stops flashing and you are done. The CalIMU button should go Green. Obviously it is better to do the calibration so it covers the range of temperatures you are likely to be flying in.
+Power up with UAVGUI connected.  Select the CalIMU button which will be Red. You will see the blue LED start to flash - it has already taken the first set of readings and is waiting for the temperature to rise to take the second set.  Get a hair dryer and VERY SLOWLY warm up the board - put your hand close to the board to sense how hot the air is. If it is too hot for your hand it is too hot for the board! You only need to change its temperature by 20 Celsius all up so don't melt the board!  There is a delay as the heat gets into the MPU6xxx package so slowly/slowly until the blue LED stops flashing and you are done. The CalIMU button should go Green. Obviously it is better to do the calibration so it covers the range of temperatures you are likely to be flying in.
 
 Once again you only need to do this once or when loading the defaults or if you change the gyro selection pulldown - it should be on UAVXArm32 unless you are using analog gyros.
 
 The Green LED and Yellow LEDs should be on.
+
+*** 6 Point Accelerometer Calibration ***
+
+Accelerometers may have slightly different sensitivity on their three axes. This means that while the zero angle measurement may be OK angles away from zero may be out by a few degrees which in most practical cases does not matter. You may choose to do an optional 6 point calibration which will determine the sensitivity scaling factors. Select the Acc6Pt button and the Blue LED only should be on. Then position the aircraft in the six possible primary orientations. For a quadcopter this will be top up, top down, left arm/arms down, right arm/arms down, front arms down, rear arms down. These are all at 90 degrees to each other.  Do this as smoothly as possible. For a fixed wing aircraft this is flat, inverted, nose up, nose down, left wing down, right wing down. The order you do this is not important but you must do all six directions.
+
+If the orientation is correct you will get a green LED for about a second then red indicating you should move to the next position. If you see a yellow LED then you have not positioned the aircraft within what is necessary. The completion of each positions readings is accompanied by a beep. Once the calibration is complete you will hear two beeps and the Blue LED will go out.
+
+_What is happening? The calibration is taking a few hundred readings of the three accelerometers which will be on the surface of an ellipsoid (Australian/US football shaped) which will be offset from zero. It then computes what the sensitivity scaling and offsets need to be applied to make it a sphere centred on zero.  
 
 _Note: See Accelerometer Neutral Fine Tuning below._
 
@@ -80,7 +88,9 @@ There is no temperature measurement available should you choose to use external 
 
 ### Step 5 (Magnetometer Calibration) ###
 
-Select the CalMag button and rotate the aircraft in all the directions you can think of including upside down and on edge. This captures the sensor offsets for the X,Y and Z axes using a little tricky math including fitting points to a sphere. You do not need to re-run the calibration unless it is clearly giving crazy answers for the computed compass heading. The offsets are stored in non-volatile memory where they are retained after disconnecting the battery. The magnetometer test should show the Neg/Pos values as being roughly equal. These values show how well you have rocked the aircraft around and correspond to visits to the octants around the axes.
+Select the CalMag button and rotate the aircraft in all the directions you can think of including upside down and on edge. This captures the sensor offsets for the X,Y and Z axes and uses the same math as the six point accelerometer calibration to fit the points to a sphere. When you start the calibration the Blue LED will start blinking and the Green LED should be on. If you see a yellow LED on then you have enough measuements with that orientation you should try another. You will get a single long beep when tha calibration is finished and the Blue LED will go off. THis can take a while if you don't get the tumpling in all directions done well enough! 
+
+You do not need to re-run the calibration unless it is clearly giving crazy answers for the computed compass heading. The offsets are stored in non-volatile memory where they are retained after disconnecting the battery. 
 
 If they are you are almost ready to fly but don't put the props on yet.
 
