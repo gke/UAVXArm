@@ -72,13 +72,15 @@ Once again you only need to do this once or when loading the defaults or if you 
 
 The Green LED and Yellow LEDs should be on.
 
-### Optional Additional 6 Point Accelerometer Calibration ###
+#### Optional Additional 6 Point Accelerometer Calibration ####
 
-Accelerometers may have slightly different sensitivity on their three axes. This means that while the zero angle measurement may be OK angles away from zero may be out by a few degrees which in most practical cases does not matter. You may choose to do an optional 6 point calibration which will determine the sensitivity scaling factors. Select the Acc6Pt button and the Blue LED only should be on. Then position the aircraft in the six possible primary orientations. For a quadcopter this will be top up, top down, left arm/arms down, right arm/arms down, front arms down, rear arms down. These are all at 90 degrees to each other.  Do this as smoothly as possible. For a fixed wing aircraft this is flat, inverted, nose up, nose down, left wing down, right wing down. The order you do this is not important but you must do all six directions.
+Accelerometers may have slightly different sensitivity on their three axes. This means that while the zero angle measurement may be OK angles away from zero may be out by a few degrees which in most practical cases does not matter. You may choose to do an optional 6 point calibration which will determine the sensitivity scaling factors. Select the Acc6Pt button and the Blue LED only should be on. Then position the aircraft in the six possible primary orientations. For a quadcopter this will be top up, top down, left arm(s) down, right arms down, front arms down, rear arms down. These are all at 90 degrees to each other +/- 10 degrees so try to be precise.  Do this as smoothly as possible so you minimise the shakes when you get to the measurement position although several hundred readings are taken in each position and the average used! For a fixed wing aircraft this is flat, inverted, nose up, nose down, left wing down, right wing down. The order you do this is not important but you must do all six directions.
 
-If the orientation is correct you will get a green LED for about a second then red indicating you should move to the next position. If you see a yellow LED then you have not positioned the aircraft within what is necessary. The completion of each positions readings is accompanied by a beep. Once the calibration is complete you will hear two beeps and the Blue LED will go out.
+If the orientation is correct you will get a green LED for about a second then red indicating you should move to the next position. If you see a yellow LED then you have not positioned the aircraft within the 10 degrees necessary. The completion of each positions readings is accompanied by a beep. Once the calibration is complete you will hear two beeps and the Blue LED will go out.
 
-_What is happening? The calibration is taking a few hundred readings of the three accelerometers which will be on the surface of an ellipsoid (Australian/US football shaped) which will be offset from zero. It then computes what the sensitivity scaling and offsets need to be applied to make it a sphere centred on zero.  
+So what is happening? The calibration is taking several hundred readings of the three accelerometers which will be on the surface of an ellipsoid (think Australian/US football shaped) and be offset from zero. It then computes what the sensitivity scaling and offsets need to be applied to make it a sphere (think basketball) centred on zero. 
+
+Once again you only need to do this once so it is worth doing well.
 
 _Note: See Accelerometer Neutral Fine Tuning below._
 
@@ -88,7 +90,9 @@ There is no temperature measurement available should you choose to use external 
 
 ### Step 5 (Magnetometer Calibration) ###
 
-Select the CalMag button and rotate the aircraft in all the directions you can think of including upside down and on edge. This captures the sensor offsets for the X,Y and Z axes and uses the same math as the six point accelerometer calibration to fit the points to a sphere. When you start the calibration the Blue LED will start blinking and the Green LED should be on. If you see a yellow LED on then you have enough measuements with that orientation you should try another. You will get a single long beep when tha calibration is finished and the Blue LED will go off. THis can take a while if you don't get the tumpling in all directions done well enough! 
+First it is EXTREMELY IMPORTANT that you be as far as possible away from any ferrous metal and magnetic effects so do not do this with the aircraft sitting on a bench near your computer etc. 
+
+Select the CalMag button and rotate the aircraft in all the directions you can think of including upside down and on edge. This captures the sensor offsets for the X,Y and Z axes and as with the six point accelerometer calibration fits the points to a sphere. When you start the calibration the Blue LED will start blinking and the Green LED should be on. If you see a yellow LED on then you have enough measuements with that orientation you should try another. You will get a single long beep when tha calibration is finished and the Blue LED will go off. THis can take a while if you don't get the tumpling in all directions done well enough! 
 
 You do not need to re-run the calibration unless it is clearly giving crazy answers for the computed compass heading. The offsets are stored in non-volatile memory where they are retained after disconnecting the battery. 
 
