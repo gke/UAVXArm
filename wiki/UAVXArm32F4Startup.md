@@ -72,7 +72,7 @@ Once again you only need to do this once or when loading the defaults or if you 
 
 The Green LED and Yellow LEDs should be on.
 
-*** 6 Point Accelerometer Calibration ***
+### Optional Additional 6 Point Accelerometer Calibration ###
 
 Accelerometers may have slightly different sensitivity on their three axes. This means that while the zero angle measurement may be OK angles away from zero may be out by a few degrees which in most practical cases does not matter. You may choose to do an optional 6 point calibration which will determine the sensitivity scaling factors. Select the Acc6Pt button and the Blue LED only should be on. Then position the aircraft in the six possible primary orientations. For a quadcopter this will be top up, top down, left arm/arms down, right arm/arms down, front arms down, rear arms down. These are all at 90 degrees to each other.  Do this as smoothly as possible. For a fixed wing aircraft this is flat, inverted, nose up, nose down, left wing down, right wing down. The order you do this is not important but you must do all six directions.
 
