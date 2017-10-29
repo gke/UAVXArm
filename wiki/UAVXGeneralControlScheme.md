@@ -58,6 +58,6 @@ By default we use asynchronous PWM at 490Hz although a number of other protocols
 
 Latency is approximately 5mS for each filter pole leading to a current loop latency of 4x5 or 20mS for gyro filter at 100Hz. The rate D term has an additional 3mS delay. The accelerometer filter delay at 20Hz is approximately 21mS.
 
-The RC lag is an additional 9 to 18mS plus a single pole filter.
+The RC lag is an additional 9 to 18mS plus a single pole filter. It could be made significantly less. 
 
 G.K. Egan Oct 2017
