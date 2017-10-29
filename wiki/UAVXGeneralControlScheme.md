@@ -8,7 +8,7 @@ RC stick data packets arrive at either 9mS intervals for SBus or 18mS for CPPM. 
 
 ## Gyros and Accelerometers ##
 
-The gyros and accelerometers are sampled at 500Hz for V3 I2C sensor based boards and 1KHz for V4 SPI based boards. Of course the V4 boards can comfortably support loop times of 8MHz or more but we have not found this to be necessary. The gyro and accelerometer data is very very noisy as may be expected. The noise may be reduced by judicious use of compliant mounts for motors and flight controller as long at does not itself resonate.
+The gyros and accelerometers are sampled at 500Hz for V3 I2C sensor based boards and 1KHz for V4 SPI based boards. Of course the V4 boards can comfortably support loop times of 8MHz or more but we have not found this to be necessary. The gyro and accelerometer data is very very noisy as may be expected. 
 
 The gyro data is  filtered typically to 100Hz using a simple second order digital low pass filter.  Gyro data is also slew limited typically to 2000 deg/s/s.
 
@@ -24,9 +24,15 @@ There are no gyro notch filters or any other special actions to remove prop wash
 
 Prop wash mainly occurs as blades cross motor arms causing “rocking” impulses.  With larger quads and 12” props will be around 4500 RPM  at hover or 150 arm crossings per second.  For racers the motor RPM is much higher and with typically 3 blade props. At that point we enter the domain/debate of apparently requiring astronomical sampling rates currently at 32KHz.
 
+There is a danger of attempting to respond to propwash as it can lead to regenerative feedback. 
+
+The propwash and other aircraft generated noise may be reduced by judicious use of compliant mounts for motors and flight controller as long at does not itself resonate.
+
 ## Control Modes ##
 
-The attitude controllers generally are updated at the gyro/acc sampling rates.
+The attitude controllers generally are updated at the gyro/acc sampling rates although it is possible to reduce this rate and probably still obtain the same performance. For now we keep it simple.
+
+We do not use any form of static scheduling or other RTOS. We spin on the microsecond clock until the loop start time. When this is reached the motor setpoints are updated with the values computed on the previous loop incurring a delay of 1-2mS. The sensors are then sampled and the next setpoint computed.  Other housekeeping tasks are then computed. The worst case time for housekeeping is well within the loop time budget. Overall this reduces jitter and leads to good control over loop time. However no assumptions are made for I and D terms where the actual dT is used. 
 
 ### Roll and Pitch ###
 
