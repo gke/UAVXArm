@@ -52,7 +52,7 @@ Yaw stick controls rate using a PD controller.  The heading estimate is obtained
 
 Motor outputs are filtered at the same frequency as the gyro filters to prevent higher frequency signals being dissipated as heat. Motor rise times are typically now down to less than 50mS  compared to around 100mS a decade back. This excludes lag.
 
-By default we use asynchronous PWM at 490Hz although a number of other protocols are available. Digital transmission would far more preferable to avoid the madness of pulse widthe measurement by the ESCs. We have supported I2C forever but it is no longer commonly supported. It is unfortunate that DShot is upon us along with faster is better gyro sampling rates ;).
+By default we use asynchronous PWM at 490Hz although a number of other protocols are available. Digital transmission would far more preferable to avoid the madness of pulse widthe measurement by the ESCs. We have supported I2C forever but it is no longer commonly supported. It is unfortunate that DShot is upon us along with faster is better gyro sampling rates rather than something sane like broadcast SPI or CAN using the dedicated hardware on the Arms ;).
 
 ## Latency ##
 
