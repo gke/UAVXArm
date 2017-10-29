@@ -28,11 +28,13 @@ There is a danger of attempting to respond to propwash as it can lead to regener
 
 The propwash and other aircraft generated noise may be reduced by judicious use of compliant mounts for motors and flight controller as long at does not itself resonate.
 
-## Control Modes ##
+## Loop Time Synchronisation ##
 
 The attitude controllers generally are updated at the gyro/acc sampling rates although it is possible to reduce this rate and probably still obtain the same performance. For now we keep it simple.
 
-We do not use any form of static scheduling or other RTOS. We spin on the microsecond clock until the loop start time. When this is reached the motor setpoints are updated with the values computed on the previous loop incurring a delay of 1-2mS. The sensors are then sampled and the next setpoint computed.  Other housekeeping tasks are then computed. The worst case time for housekeeping is well within the loop time budget. Overall this reduces jitter and leads to good control over loop time. However no assumptions are made for I and D terms where the actual dT is used. 
+We do not use any form of static scheduling or other RTOS. Interrupts to the main loop are the main cause of jitter. This includes receivers with CPPM or parallel inputs. These are now less commonly used and all other inputs are polled. DMA transfers are the remaining disruption.  
+
+We spin on the microsecond clock until the loop start time. When this is reached the motor setpoints are updated with the values computed on the previous loop incurring a delay of 1-2mS. The sensors are then sampled and the next motor setpoint computed.  Other housekeeping tasks are then computed. The worst case time for housekeeping is well within the loop time budget. With the interrupt caveats this reduces jitter and leads to good control over loop time. However no assumptions are made for I and D terms where the actual dT is used. 
 
 ### Roll and Pitch ###
 
