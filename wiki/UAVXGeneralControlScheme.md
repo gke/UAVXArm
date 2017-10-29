@@ -14,7 +14,7 @@ The gyro data is  filtered typically to 100Hz using a simple second order digita
 
 The accelerometer data is also filtered using a second order filter typically at 15Hz.  The MPU6xxx sensor DLPFs are not used.
 
-The attitude angle estimate is is obtained by integrating the gyro data and fusing it with the accelerometer data (Madgwick IMU). The accelerometer weighting is reduced using a bell shaped decay as the acceleration magnitude moves away from 1G.
+The attitude angle estimate is is obtained by integrating the gyro data and fusing it with the accelerometer data (Madgwick). The accelerometer weighting is reduced using a bell shaped decay as the acceleration magnitude moves away from 1G.
 
 The gyro data is temperature compensated. Drift is very low after using a once off two temperature calibration procedure. As a consequence the attitude angle estimates are adequate even if the accelerometer weighting falls to zero.
 
