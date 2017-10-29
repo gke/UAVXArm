@@ -1,43 +1,46 @@
-# UAVX Failsafe Operation #
+# UAVX General Control Scheme #
 
-UAVX monitors the signals from the Rx to UAVX **NOT** from the Tx to the Rx.
+RC stick data packets arrive at either 9mS intervals for SBus or 18mS for CPPM. A few older systems update at  every 22.5mS.
 
-UAVX requires the signals from the Rx to meet minimum and maximum pulse width requirements which mean the endpoint adjustments (EPAs) for each channel must be adjusted properly - see the UAVXSetup Wiki.
+The gyros and accelerometers are sampled at 1KHz. The data is very very noisy as may be expected. The noise may be reduced by judicious use of compliant mounts for motors and flight controller as long at does not itself resonate.
 
-## Modern Receivers with Failsafe ##
+The gyro data is  filtered typically to 100Hz using a simple second order digital low pass filter.  Gyro data is also slew limited typically to 2000 deg/s/s.
 
-Modern receivers usually maintain sensible channel values when the link between the Tx and the Rx fails for some reason.
+The accelerometer data is also filtered using a second order filter typically at 15Hz.  The MPU6xxx sensor DLPFs are not used.
 
-### Rx Failsafes not set correctly ###
+The attitude angle estimate is is obtained by integrating the gyro data  and fusing it with the accelerometer data (Madgwick IMU). The accelerometer weighting is reduced using a bell shaped decay as the acceleration magnitude moves away from 1G.
 
-If you have not set failsafe values for the Rx and adjusted the EPAs so they too pass the Rx test in UAVPSet the behaviour will be unpredicable. If your EPAs violate the UAVX setup limits then it likely the Rx packets will be rejected as bad and the behaviour will be as for older non-failsafe receivers (see Older Receivers below).
+The gyro data is temperature compensated. Drift is very low after using a once off two temperature calibration procedure. As a consequence the attitude angle estimates are adequate even if the accelerometer weighting falls to zero.
 
-### How do I set the Rx Failsafes ###
+### Prop Wash and External Disturbances ###
 
-You should set  the failsafes so that roll/pitch and yaw go to neutral, throttle goes to well under hover (1/2 - 2/3) and Channel 5 selects RTH. Nav sensitivity should be what you have determined to work well for position hold and the camera trim should be so your camera is tilted to a safe position. The amount of throttle required to achieve hover obviously depends on any changes in aircraft weight, battery condition, changes to propellors, motors etc and  also on the **weather**.
+There are no gyro notch filters or any other special actions to remove prop wash.
 
-It is very important to note that the aircraft will do exactly what the Rx settings tell it to do. If you have programmed the Rx hold last setting then that is what UAVX will do - all the way **into the ground** in a NASA styled "controlled impact with terrain" or **up up and away** if the throttle is too high and it will continue to do this until the fact that the sticks are not changing is detected ( see No GPS ). If you selected Channel 5 to be RTH as suggested there will be no delay and and the aircraft should return to the launch point at the desired altitude.
+Prop wash mainly occurs as blades cross motor arms causing “rocking” impulses.  With larger quads and 12” props will be around 4500 RPM  at hover or 150 arm crossings per second.  For racers the motor RPM is much higher and with typically 3 blade props. At that point we enter the domain/debate of apparently requiring astronomical sampling rates currently at 32KHz.
 
-### What Happens with no GPS ###
 
-If you do not have GPS installed and operating  with the origin set then and the Rx goes to failsafe then this can normally be detected by UAVX **as the controls do not change**, which they would do when controlling the aircraft without position hold.  If the controls are not moved for 20 seconds then the aircraft will sound a **failsafe alarm** which at about **2 beeps per second** and attempt to land. When it believes it has landed it sounds the **lost model alarm** (See Lost Model).
+## Control Modes ##
 
-If it is not actually a real Rx failsafe and you were simply not moving the sticks then moving them cancels the UAVX failsafe but only while you are still hearing the **failsafe alarm**.
+### Roll and Pitch ###
 
-### What happens with GPS ###
+Roll and pitch “stick” control can be angle, rate or a mix of both (horizon). The controller is formulated as PI-PD.
 
-If your GPS is **installed**, working **and** the Origin recorded the aircraft should return to the origin and, with no further intervention, attempt to land after the time delay set in UAVPSet. You MUST have RTH set as your Rx failsafe if you expect the aircraft to return. If you do not then the aircraft will hold position until its battery runs out at which time it will land/crash. It is simply to difficult to resolve between an aircraft navigating or holding position with no control input or a genuine Rx failsafe.
+The outer angle PI loop is relatively insensitive to tuning changes. The inner rate PD loop is a different situation. The D term may be used to achieve quite high P parameters but as a consequence will be susceptible to prop wash effects.  Currently we use low P parameters and reserve D for damping external disturbances which means it is relatively low as well.
 
-## Older Receivers ##
+To compute D the gyro data is smoothed using a MA filter, differentiated and filtered again using a single pole LPF typically at 40Hz. We also using Pavel’s differentiator as an alternative.
 
-With older PPM style receivers the signal from the Rx becomes just noise if the Tx link fails.
 
-If the Rx signal fails and does not fully recover within 2 seconds then the aircraft will attempt to perform a RTH if GPS is set up properly or if GPS is not available land where it is sound the **failsafe alarm** followed by the **lost model alarm** when it has landed.
+### Yaw ###
 
-## Lost Model Alarm ##
+Yaw stick controls rate using a PD controller.  The heading estimate can computed directly using the magnetometer or by fusing the magnetometer with gyro and acc (Madgwick AHRS).  The controller is P only and feeds the rate loop.  Tuning is usually quite “gentle” as the magnetometer updates are at 75Hz.
 
-If your aircraft is armed but not flying ( the throttle has closed or the Rx failsafe throttle setting is closed) and the sticks have not moved for 2-3 minutes the **lost model alarm** will sound.  The alarm is a **beep every 6 seconds**. This is independent of throttle setting and whether your Tx is on or off and may be of use if your aircraft goes down and is difficult to locate. The lost model alarm can only be reset by doing a **disarm/arm cycle**.
+## Motors ##
 
-## Flight Statistics ##
+Motor outputs are filtered at the same frequency as the gyro filters to prevent higher frequency signals being dissipated as heat. Motor rise times are typically now down to less than 50mS  compared to around 100mS a decade back. This excludes lag.
 
-Routinely check your flight (X stats test) after flights to see if there have been more than a handful of **glitches** or whether there have been any other sensor failures. The stats are kept from when you disarm to when re-arm even if the battery is unplugged so you can check this at home if that is where your computer is as long as you do not re-arm.
+By default we use asynchronous PWM at 490Hz although a number of other protocols are available. Digital transmission would far more preferable to avoid the madness of pulse widthe measurement by the ESCs. We have supported I2C forever but it is no longer commonly supported. It is unfortunate that DShot is upon us along with faster is better gyro sampling rates ;).
+
+## Latency ##
+
+Latency is approximately 3mS for each filter pole leading to a currentl loop latency of 4x3 or 12mS. The RC lag is an additional 9 to 18mS.
+
