@@ -1,6 +1,6 @@
 # UAVX General Control Scheme #
 
-These are short notes on the overall control schem used by UAVX.
+These are short notes on the overall control schemes used by UAVX. The emphasis is on keeping it simple. Various incarnations have been flying for around a decade.
 
 ## RC Input ##
 
