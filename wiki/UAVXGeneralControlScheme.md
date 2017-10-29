@@ -10,19 +10,19 @@ RC stick data packets arrive at either 9mS intervals for SBus or 18mS for CPPM. 
 
 The gyros and accelerometers are sampled at 500Hz for V3 I2C sensor based boards and 1KHz for V4 SPI based boards. Of course the V4 boards can comfortably support loop times of 8MHz or more but we have not found this to be necessary. The gyro and accelerometer data is very very noisy as may be expected. 
 
-The gyro data is  filtered typically to 100Hz using a simple second order digital low pass filter.  Gyro data is also slew limited typically to 2000 deg/s/s.
+The gyro data is  filtered typically to 100Hz using a simple second order digital low pass filter (DLPF).  Gyro data is also slew limited typically to 2000 deg/s/s.
 
 The accelerometer data is also filtered using a second order filter typically at 15Hz.  The MPU6xxx sensor DLPFs are not used.
 
-The attitude angle estimate is is obtained by integrating the gyro data and fusing it with the accelerometer data (Madgwick). The accelerometer weighting is reduced using a bell shaped decay as the acceleration magnitude moves away from 1G.
+The attitude angle estimate is is obtained by integrating the gyro data and fusing it with the accelerometer data (Madgwick). The accelerometer weighting is reduced using a bell shaped decay as the acceleration magnitude moves away from 1G. The distributions SDev can be set as desired but is typically 0.4.
 
-The gyro data is temperature compensated. Drift is very low after using a once off two temperature calibration procedure. As a consequence the attitude angle estimates are adequate even if the accelerometer weighting falls to zero.
+The gyro data is temperature compensated. Drift is very low after using a once off two temperature calibration procedure. As a consequence the attitude angle estimates are adequate even if the accelerometer weighting falls close to zero.
 
 ### Prop Wash and External Disturbances ###
 
 There are no gyro notch filters or any other special actions to remove prop wash.
 
-Prop wash mainly occurs as blades cross motor arms causing “rocking” impulses.  With larger quads and 12” props will be around 4500 RPM  at hover or 150 arm crossings per second.  For racers the motor RPM is much higher and with typically 3 blade props. At that point we enter the domain/debate of apparently requiring astronomical sampling rates currently at 32KHz.
+Prop wash mainly occurs as blades cross motor arms causing “rocking” impulses.  With larger traditional quads and 12” props hover be around 4500 RPM or 150 arm crossings per second.  For racers the motor RPM is much higher and with typically 3 blade props. At that point we enter the domain/debate of apparently "requiring" astronomical sampling rates currently at up to 32KHz.
 
 There is a danger of attempting to respond to propwash as it can lead to regenerative feedback. 
 
