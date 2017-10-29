@@ -1,5 +1,7 @@
 # UAVX General Control Scheme #
 
+These are short notes on the overall control schem used by UAVX.
+
 ## RC Input ##
 
 RC stick data packets arrive at either 9mS intervals for SBus or 18mS for CPPM. A few older systems update at  every 22.5mS.
@@ -50,4 +52,4 @@ Latency is approximately 3mS for each filter pole leading to a current loop late
 
 The RC lag is an additional 9 to 18mS plus a single pole filter.
 
-
+G.K. Egan Oct 2017
