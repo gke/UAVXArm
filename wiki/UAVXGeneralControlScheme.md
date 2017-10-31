@@ -22,7 +22,7 @@ The gyro data is temperature compensated. Drift is very low after using a once o
 
 There are no gyro notch filters or any other special actions to remove prop wash.
 
-Prop wash occurs as blades cross motor arms causing “rocking” impulses and when a multicopter flies into its own wash. This is akin to Vortex rotor stall (VRS) that full size heli pilots are acutely aware of.  With larger traditional quads and 12” props hover be around 4500 RPM or 150 arm crossings per second.  For racers the motor RPM is much higher and with typically 3 blade props. At that point we enter the domain/debate of apparently "requiring" astronomical sampling rates currently at up to 32KHz. Some of us believe this is solid gold speaker wire territory https://www.youtube.com/watch?v=1ZE2m6Kf6L8&t=2620s.
+Prop wash occurs as blades cross motor arms causing “rocking” impulses and when a multicopter flies into its own wash. This is akin to Vortex rotor stall (VRS) that full size heli pilots are acutely aware of.  With larger traditional quads and 12” props hover be around 4500 RPM or 150 arm crossings per second.  For racers the motor RPM is much higher and with typically 3 blade props. At that point we enter the domain/debate of apparently "requiring" astronomical sampling rates currently at up to 32KHz. Some of us believe this is solid gold speaker wire territory https://www.youtube.com/watch?v=1ZE2m6Kf6L8&t=2617s.
 
 There is a danger of attempting to respond to propwash as it can lead to regenerative feedback. 
 
