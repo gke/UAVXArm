@@ -1,6 +1,6 @@
 # UAVX General Control Scheme #
 
-These are short notes on the overall control schemes used by UAVX. The emphasis is on keeping it simple. Various incarnations of UAVX have been flying for around a decade.
+These are short notes on the overall control scheme used by UAVX. The emphasis is on keeping it simple. Various incarnations of UAVX have been flying for around a decade. The original motivation was camera platforms from Wolfgang Mahringer's UAVP.
 
 ## RC Input ##
 
@@ -34,30 +34,32 @@ The attitude controllers generally are updated at the gyro/acc sampling rates al
 
 We do not use any form of static scheduling or other RTOS. Interrupts to the main loop are the main cause of jitter. This includes receivers with CPPM or parallel inputs. These are now less commonly used and all other inputs are polled. DMA transfers are the remaining disruption.  
 
-We spin on the microsecond clock until the loop start time. When this is reached the motor setpoints are updated with the values computed on the previous loop incurring a delay of 1-2mS. The sensors are then sampled and the next motor setpoint computed.  Other housekeeping tasks are then computed. The worst case time for housekeeping is well within the loop time budget. With the interrupt caveats this reduces jitter and leads to good control over loop time. However no assumptions are made for I and D terms where the actual dT is used. 
+We spin on the microsecond clock until the loop start time. When this is reached the motor setpoints are updated with the values computed on the previous loop incurring a delay of 1 or 2mS. The sensors are then sampled and the next motor setpoint computed.  Other housekeeping tasks are then computed. The worst case time for housekeeping is well within the loop time budget. With the interrupt caveats above this reduces jitter and leads to good control over loop time. No assumptions, however, are made for I and D terms where the actual dT is used. 
 
 ### Roll and Pitch ###
 
 Roll and pitch “stick” control can be angle, rate or a mix of both (horizon). The controller is formulated as PI-PD.
 
-The outer angle PI loop is relatively insensitive to tuning changes. The inner rate PD loop is a different situation. The D term may be used to achieve quite high P parameters but as a consequence will be susceptible to prop wash effects.  Currently we use low P parameters and reserve D for damping external disturbances which means it is relatively low as well.
+The outer angle PI loop is relatively insensitive to tuning changes. The inner rate PD loop is a different situation. The D term may be used to achieve quite high P parameters but as a consequence will be susceptible to prop wash effects.  Currently we use modest/low P parameters and reserve D for damping external disturbances which means it is relatively modest as well.
 
 To compute D the gyro data is smoothed using a 4 stage MA filter, differentiated and filtered again using a single pole LPF typically at half the gyro filter cutoff. We also using Pavel’s differentiator as an alternative.
 
 ### Yaw ###
 
-Yaw stick controls rate using a PD controller.  The heading estimate is obtained by fusing the magnetometer with gyro and acc (Madgwick AHRS) or directly using only the magnetometer.  The controller is P only and feeds the rate loop.  Tuning is usually quite “gentle” as the magnetometer updates are at 75Hz. For Fixed wing aircraft, or multicopters travelling faster than 1M/S we use the GPS heading made good if available. We do not currently attempt to fuse the magnetometer and GPS derived headings.
+Yaw stick controls rate using a PD controller.  The heading estimate is obtained by fusing the magnetometer with gyro and acc (Madgwick AHRS) or directly using only the magnetometer.  The controller is P only and feeds the rate loop.  Tuning is usually quite “gentle” as the magnetometer updates are at 75Hz. As an aside for fixed wing aircraft, or multicopters travelling faster than 1M/S we use the GPS heading made good if available. We do not currently attempt to fuse the magnetometer and GPS derived headings.
 
 ## Motors ##
 
-Motor outputs are filtered at the same frequency as the gyro filters to prevent higher frequency signals being dissipated as heat. Motor rise times are typically now down to less than 50mS  compared to around 100mS a decade back. This excludes lag.
+Motor outputs are filtered at the same frequency as the gyro filters to prevent higher frequency signals being dissipated as heat. Motor rise times are typically now down to less than 50mS  compared to around 100mS a decade back (http://www.miniquadtestbench.com/). This excludes lag.
 
-By default we use asynchronous PWM at 490Hz although a number of other protocols are available. Digital transmission would far more preferable to avoid the madness of pulse widthe measurement by the ESCs. We have supported I2C forever but it is no longer commonly supported. It is unfortunate that DShot is upon us along with faster is better gyro sampling rates rather than something sane like broadcast SPI or CAN using the dedicated hardware on the Arms ;).
+Motor setpoints are not permitted to fall below the idle setting; rescaling is used.
 
-## Latency ##
+By default we use asynchronous PWM at 490Hz although a number of other protocols are available. Digital transmission would far more preferable to avoid the madness of pulse width measurement by the ESCs. We have supported I2C forever but it is no longer commonly available. It is unfortunate that DShot is upon us along with "faster is better" gyro sampling rates rather than something sane like broadcast SPI or CAN using the dedicated hardware in the Arms ;).
 
-Latency is approximately 5mS for each filter pole leading to a current loop latency of 4x5 or 20mS for gyro filter at 100Hz. The rate D term has an additional 3mS delay. The accelerometer filter delay at 20Hz is approximately 21mS.
+## Latency/Lag ##
 
-The RC lag is an additional 9 to 18mS plus a single pole filter. It could be made significantly less. 
+Latency is approximately 5mS for each filter pole leading to a current loop latency of 4x5 or 20mS for gyro filter at 100Hz. The rate D term has an additional (5+2)mS delay. The accelerometer filter delay at 20Hz is approximately 21mS.
+
+The RC lag is an additional 9 to 18mS plus a single pole filter so SBus is preferable. The lag could be made significantly less.
 
 G.K. Egan Oct 2017
