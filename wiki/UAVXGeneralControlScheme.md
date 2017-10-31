@@ -22,11 +22,11 @@ The gyro data is temperature compensated. Drift is very low after using a once o
 
 There are no gyro notch filters or any other special actions to remove prop wash.
 
-Prop wash occurs as blades cross motor arms causing “rocking” impulses, and when a multicopter flies into its own wash. The latter situation is akin to Vortex rotor stall (VRS) that full size heli pilots are acutely aware of.  With larger traditional quads and 12” props hover is around 4500 RPM or 150 arm crossings per second.  For racers the motor RPM is much higher and with typically 3 blade props. At that point we enter the domain/debate of apparently "requiring" astronomical sampling rates currently at up to 32KHz. Some of us believe this is solid gold speaker wire territory (Chad Nowak https://www.youtube.com/watch?v=1ZE2m6Kf6L8&t=2618s).
+Prop wash occurs as blades cross motor arms causing “rocking” impulses, and when a multicopter flies into its own wash. The latter situation is akin to Vortex rotor stall (VRS) that full size heli pilots are acutely aware of.  Motor arms are most commonly formed from flat (cheap) CF plates. With larger traditional quads and 12” props hover is around 4500 RPM or 150 arm crossings per second.  For racers the motor RPM is much higher and with typically 3 blade props. At that point we enter the domain/debate of apparently "requiring" astronomical sampling rates currently at up to 32KHz. Some of us believe this is solid gold speaker wire territory (Chad Nowak https://www.youtube.com/watch?v=1ZE2m6Kf6L8&t=2618s).
 
 There is a danger in attempting to respond to propwash as it can lead to regenerative feedback. 
 
-The propwash and other aircraft generated noise may be reduced by judicious use of compliant mounts for motors and flight controller as long at does not itself resonate. It also helps if you do not, wherever possible, deliberately fly into your own wash!
+The propwash and other aircraft generated noise, as we have known for over a decade in this domain, may be reduced by judicious use of compliant mounts for motors and flight controller as long at does not itself resonate. It also helps if you do not, wherever possible, deliberately fly into your own wash!
 
 ## Loop Time Synchronisation ##
 
@@ -43,6 +43,8 @@ Roll and pitch “stick” control can be angle, rate or a mix of both (horizon)
 The outer angle PI loop is relatively insensitive to tuning changes. The inner rate PD loop is a different situation. The D term may be used to achieve quite high P parameters but as a consequence will be susceptible to prop wash effects.  Currently we use modest/low P parameters and reserve D for damping external disturbances which means it is relatively modest as well.
 
 To compute D the gyro data is smoothed using a 4 stage MA filter, differentiated and filtered again using a single pole LPF typically at half the gyro filter cutoff. We also using Pavel’s differentiator as an alternative.
+
+As an observation very little consideration is currently being given to mass distribution. Batteries are almost always well away from the prop plane.
 
 ### Yaw ###
 
