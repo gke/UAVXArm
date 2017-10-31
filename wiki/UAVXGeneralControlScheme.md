@@ -4,7 +4,7 @@ These are short notes on the overall control scheme used by UAVX. The emphasis i
 
 ## RC Input ##
 
-RC stick data packets arrive at either 9mS intervals for SBus or 18mS for CPPM. A few older systems update every 22.5mS. Large delays here dominate the feel of multicopters. On the face of it there is no reason that the packet rate could not be much higher.
+RC stick data packets arrive at either 9mS intervals for SBus or 18mS for CPPM. A few older systems update every 22.5mS. Large delays here dominate the feel of multicopters. On the face of it there is no reason that the packet rate from the Tx could not be much higher.
 
 ## Gyros and Accelerometers ##
 
