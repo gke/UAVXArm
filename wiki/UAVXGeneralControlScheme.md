@@ -1,6 +1,6 @@
 # UAVX General Control Scheme #
 
-These are short notes on the overall control scheme used by UAVX. The emphasis is on keeping it simple. Various incarnations of UAVX have been flying for around a decade. The original motivation was camera platforms from Wolfgang Mahringer's UAVP.
+These are short notes on the overall control scheme used by UAVX. The emphasis is on keeping it simple. Various incarnations of UAVX have been flying for around a decade. The original motivation was camera platforms from Wolfgang Mahringer's UAVP. 
 
 ## RC Input ##
 
