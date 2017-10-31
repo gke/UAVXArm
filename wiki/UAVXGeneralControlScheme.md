@@ -26,7 +26,7 @@ Prop wash occurs as blades cross motor arms causing “rocking” impulses and w
 
 There is a danger of attempting to respond to propwash as it can lead to regenerative feedback. 
 
-The propwash and other aircraft generated noise may be reduced by judicious use of compliant mounts for motors and flight controller as long at does not itself resonate.
+The propwash and other aircraft generated noise may be reduced by judicious use of compliant mounts for motors and flight controller as long at does not itself resonate. It also helps if you do not, wherever possible, deliberately fly into your own wash!
 
 ## Loop Time Synchronisation ##
 
