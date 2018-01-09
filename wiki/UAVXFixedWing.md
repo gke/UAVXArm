@@ -13,8 +13,8 @@ There only a few parameters specific to non-multicopter aircraft including fixed
 
 The RollPitchMix parameter provides anticipatory, or feedforward, up-elevator in rolls and should be used carefully. Perhaps start with 20%.
 
-The Horizon parameter controls determines at what stick deflection the aircraft goes to full rate control behaviour when 
-rate control mode is selected. This could be reduced to say 5%.
+The Horizon parameter controls determines at what stick deflection the aircraft goes from rate control to direct control (i.e. no stabilisation)
+rate control mode is selected. 
 
 The default RTH Alt parameter is probably too low and could be doubled. When RTH is engaged the aircraft will return and **orbit** at this altitude, not hover obviously, so it needs to be clear of obstacles like trees, flag poles and buildings.
  
