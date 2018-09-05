@@ -17,6 +17,8 @@
 
 #pragma once
 
+#define USE_TARGET_HARDWARE_DESCRIPTORS
+
 #ifdef UAVXF4V4
 #define TARGET_BOARD_IDENTIFIER "UAVX"
 #define USBD_PRODUCT_STRING     "UAVXArmF4V4 Quadrocopter"
@@ -25,13 +27,13 @@
 #define USBD_PRODUCT_STRING     "UAVXArmF4V3 Quadrocopter"
 #endif
 
+#define DISABLE_RX_PWM_FEATURE // do not use parallel Rx input
+
 // Features
 
-#define DEFAULT_RX_FEATURE      FEATURE_RX_PPM
-#define DEFAULT_FEATURES        (FEATURE_BLACKBOX|FEATURE_VBAT|FEATURE_SOFTSERIAL)
+#define DEFAULT_FEATURES        (FEATURE_VBAT)
 
-//#define SPEKTRUM_BIND
-//#define BIND_PIN                PB11 // USART3 RX
+#define RX_CHANNELS_TAER
 
 //#define USE_SERIAL_4WAY_BLHELI_INTERFACE
 
@@ -45,9 +47,6 @@
 #define TARGET_IO_PORTB         0xffff
 #define TARGET_IO_PORTC         0xffff
 
-#define USABLE_TIMER_CHANNEL_COUNT 7
-#define USED_TIMERS ( TIM_N(1) | TIM_N(2) | TIM_N(3) | TIM_N(4) )
-
 #define YELLOW_LED			PB3
 #define RED_LED				PB4
 #define BLUE_LED			PC11
@@ -56,18 +55,13 @@
 #define LED0                BLUE_LED
 #define LED1                GREEN_LED
 #define LED2				RED_LED
-#define LED3				YELLO_LED
+#define LED3				YELLOW_LED
 
 #define LED0_INVERTED
 #define LED1_INVERTED
 #define LED2_INVERTED
 #define LED3_INVERTED
 
-#ifdef UAVXF4V4
-#define BEEPER                  PA4
-#else
-#define BEEPER                  PA12
-#endif
 //#define BEEPER_INVERTED
 
 //#define LED_STRIP
@@ -80,25 +74,9 @@
 
 //#define INVERTER_PIN_UART1      PC0 // PC0 used as inverter select GPIO
 
-#ifdef UAVXF4V4
-
-#define USE_SPI
-#define USE_SPI_DEVICE_2
-#define SPI2_SCK_PIN            PB13
-#define SPI2_MISO_PIN           PB14
-#define SPI2_MOSI_PIN           PB15
-
-#else
-
-#define USE_I2C
-#define USE_I2C_DEVICE_2
-#define I2C_DEVICE              (I2CDEV_2)
-#define I2C2_SCL                PB10
-#define I2C2_SDA                PB11
-
-#endif
 
 #define USE_ADC
+#define ADC1_DMA_STREAM             DMA2_Stream0
 #define ADC_CHANNEL_1_PIN       	PC0
 #define ADC_CHANNEL_2_PIN       	PC1
 #define ADC_CHANNEL_3_PIN       	PC2
@@ -120,77 +98,90 @@
 
 #ifdef UAVXF4V4
 
+#define USE_SPI
+#define USE_SPI_DEVICE_2
+
+#define SPI2_SCK_PIN            PB13
+#define SPI2_MISO_PIN           PB14
+#define SPI2_MOSI_PIN           PB15
+
+#define SENSORS_SET (SENSOR_ACC|SENSOR_BARO|SENSOR_GPS)
+
+#define USE_GYRO
+#define USE_GYRO_MPU6000
+
+#define USE_ACC
+#define USE_ACC_MPU6000
+
+#define USE_BARO
+#define USE_BARO_MS5611
+
+//#define TARGET_CONFIG
+// NO SPI MAG IN INAV!
+#define USE_MAG
+#define USE_MAG_HMC5883
+
+//#define ENABLE_BLACKBOX_LOGGING_ON_SPIFLASH_BY_DEFAULT
+//#define USE_FLASHFS
+//#define USE_FLASH_M25P16
+//#define M25P16_SPI_BUS         BUS_SPI2
+//#define M25P16_CS_PIN          PC3
+
 #define USE_UART3
 #define UART3_RX_PIN            PB11
 #define UART3_TX_PIN            PB10
 
 #define SERIAL_PORT_COUNT       3 //USART1, USART2, USART3
 
-#else
+#define BEEPER                  PA4
 
-#define USE_SOFTSERIAL1
-#define SOFTSERIAL_1_TX_PIN     PC7
-#define SOFTSERIAL_1_RX_PIN     PC8
+#define GPS
+#define GPS_UART				SERIAL_PORT_USART3
 
+#define DEFAULT_RX_TYPE         RX_TYPE_SERIAL
+#define SERIALRX_PROVIDER       SERIALRX_SBUS
+#define SERIALRX_UART           SERIAL_PORT_USART2
 
-#define SERIAL_PORT_COUNT       3 //USART1, USART2, SOFTSERIAL1
-
-#endif
-
-// Sensors
-
-#define SENSORS_SET (SENSOR_ACC|SENSOR_MAG|SENSOR_BARO|SENSOR_GPS)
-
-
-#ifdef UAVXF4V4
-
-#define USE_GYRO
-#define USE_GYRO_SPI_MPU6500
-#define USE_ACC
-#define USE_ACC_SPI_MPU6500
-
-#define MPU6500_SPI_INSTANCE    SPI2
-#define MPU6500_CS_PIN			PB12
-
-#define USE_BARO
-#define USE_BARO_MS5611
-#define USE_BARO_SPI_MS5611
-#define MS56XX_SPI_INSTANCE		SPI2
-#define MS56XX_CS_PIN			PC5
-
-// NO SPI MAG IN INAV!
-//#define USE_MAG
-//#define USE_MAG_HMC5883
-//#define HMC5883_SPI_INSTANCE    SPI2
-//#define HMC5883_CS_PIN			PC4
-
-
-//#define ENABLE_BLACKBOX_LOGGING_ON_SPIFLASH_BY_DEFAULT
-//#define ENABLE_BLACKBOX_LOGGING_ON_SDCARD_BY_DEFAULT
-//#define USE_FLASHFS
-//#define USE_FLASH_M25P16
-//#define M25P16_SPI_BUS          BUS_SPI2
-//#define M25P16_CS_PIN           PC3
+#define TELEMETRY_UART          SERIAL_PORT_USART1
 
 #else
+
+#define USE_I2C
+#define USE_I2C_DEVICE_2
+#define I2C2_SCL                PB10
+#define I2C2_SDA                PB11
+
+#define SENSORS_SET (SENSOR_ACC|SENSOR_BARO|SENSOR_MAG|SENSOR_GPS)
 
 #define USE_GYRO
 #define USE_GYRO_MPU6050
 #define USE_ACC
 #define USE_ACC_MPU6050
-#define MPU6050_I2C_BUS BUS_I2C2
 
 #define USE_BARO
 #define USE_BARO_MS5611
-#define BARO_I2C_BUS BUS_I2C2
 
 #define USE_MAG
 #define USE_MAG_HMC5883
-#define MAG_I2C_BUS BUS_I2C2
 
 //#define USE_FLASHFS
 //#define USE_FLASH_M25P16
 //#define ENABLE_BLACKBOX_LOGGING_ON_SPIFLASH_BY_DEFAULT
+
+#define USE_SOFTSERIAL1
+#define SOFTSERIAL_1_TX_PIN     PC7
+#define SOFTSERIAL_1_RX_PIN     PC8
+
+#define SERIAL_PORT_COUNT       3 //USART1, USART2, SOFTSERIAL1
+
+#define BEEPER                  PA12
+
+#define GPS
+#define GPS_UART				SERIAL_PORT_USART2
+
+#define DEFAULT_RX_TYPE         RX_TYPE_PPM
+
+#define TELEMETRY_UART          SERIAL_PORT_SOFTSERIAL1
 
 #endif
 
@@ -201,13 +192,6 @@
 //#define USE_PITOT_ADC
 //#define USE_PITOT_MS4525
 //#define PITOT_I2C_INSTANCE      I2C_DEVICE
-
-#define GPS
-#ifdef UAVXF4V4
-#define GPS_UART				SERIAL_PORT_USART3
-#else
-#define GPS_UART				SERIAL_PORT_USART2
-#endif
 
 //#define MAG_GPS_ALIGN			CW180_DEG_FLIP
 
