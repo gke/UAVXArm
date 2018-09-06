@@ -27,7 +27,7 @@ void targetConfiguration(void)
 {
     //batteryMetersConfigMutable()->current.scale = 20;
 
-    GPIOC->BSRRL = GPIO_Pin_3 | GPIO_Pin_4;
+    //GPIOC->BSRRL = GPIO_Pin_3 | GPIO_Pin_4;
 
 }
 #endif

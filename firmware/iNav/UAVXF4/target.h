@@ -66,11 +66,11 @@
 
 //#define LED_STRIP
 // LED Strip can run off Pin 5 (PA1) of the MOTOR outputs.
-//#define WS2811_GPIO_AF                  GPIO_AF_TIM5
+//#define WS2811_GPIO_AF                  GPIO_AF_TIM8
 //#define WS2811_PIN                      PC6
-//#define WS2811_DMA_STREAM               DMA1_Stream4
-//#define WS2811_DMA_CHANNEL              DMA_Channel_6
-//#define WS2811_DMA_HANDLER_IDENTIFER    DMA1_ST4_HANDLER
+//#define WS2811_DMA_STREAM               DMA2_Stream2
+//#define WS2811_DMA_CHANNEL              DMA_Channel_0
+//#define WS2811_DMA_HANDLER_IDENTIFER    DMA2_ST2_HANDLER
 
 //#define INVERTER_PIN_UART1      PC0 // PC0 used as inverter select GPIO
 
@@ -96,36 +96,37 @@
 #define UART2_RX_PIN            PA3
 #define UART2_TX_PIN            PA2
 
+#define SENSORS_SET (SENSOR_ACC|SENSOR_MAG|SENSOR_BARO|SENSOR_GPS)
+
 #ifdef UAVXF4V4
 
 #define USE_SPI
 #define USE_SPI_DEVICE_2
 
+#define SPI2_NSS_PIN            NONE
 #define SPI2_SCK_PIN            PB13
 #define SPI2_MISO_PIN           PB14
 #define SPI2_MOSI_PIN           PB15
 
-#define SENSORS_SET (SENSOR_ACC|SENSOR_BARO|SENSOR_GPS)
+//#define USE_EXTI
 
 #define USE_GYRO
 #define USE_GYRO_MPU6000
+#define GYRO_MPU6000_ALIGN      CW90_DEG
 
 #define USE_ACC
 #define USE_ACC_MPU6000
+#define ACC_MPU6000_ALIGN       CW90_DEG
 
 #define USE_BARO
 #define USE_BARO_MS5611
 
-//#define TARGET_CONFIG
-// NO SPI MAG IN INAV!
 #define USE_MAG
 #define USE_MAG_HMC5883
 
 //#define ENABLE_BLACKBOX_LOGGING_ON_SPIFLASH_BY_DEFAULT
 //#define USE_FLASHFS
 //#define USE_FLASH_M25P16
-//#define M25P16_SPI_BUS         BUS_SPI2
-//#define M25P16_CS_PIN          PC3
 
 #define USE_UART3
 #define UART3_RX_PIN            PB11
@@ -151,12 +152,13 @@
 #define I2C2_SCL                PB10
 #define I2C2_SDA                PB11
 
-#define SENSORS_SET (SENSOR_ACC|SENSOR_BARO|SENSOR_MAG|SENSOR_GPS)
-
 #define USE_GYRO
 #define USE_GYRO_MPU6050
+#define GYRO_MPU6050_ALIGN      CW90_DEG
+
 #define USE_ACC
 #define USE_ACC_MPU6050
+#define ACC_MPU6050_ALIGN       CW90_DEG
 
 #define USE_BARO
 #define USE_BARO_MS5611
@@ -185,8 +187,7 @@
 
 #endif
 
-#define GYRO_MPU6050_ALIGN      CW90_DEG
-#define ACC_MPU6050_ALIGN       CW90_DEG
+
 #define MAG_HMC5883_ALIGN       CW90_DEG
 
 //#define USE_PITOT_ADC
