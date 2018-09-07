@@ -19,6 +19,8 @@
 
 #define USE_TARGET_HARDWARE_DESCRIPTORS
 
+// iNav does not support the Adesto FLASH UAVX uses - use serial Black Box
+
 #ifdef UAVXF4V4
 #define TARGET_BOARD_IDENTIFIER "UAVX"
 #define USBD_PRODUCT_STRING     "UAVXArmF4V4 Quadrocopter"
@@ -64,16 +66,22 @@
 
 //#define BEEPER_INVERTED
 
+// LED Strip is a waste of CPU cycles!
 //#define LED_STRIP
-// LED Strip can run off Pin 5 (PA1) of the MOTOR outputs.
 //#define WS2811_GPIO_AF                  GPIO_AF_TIM8
 //#define WS2811_PIN                      PC6
 //#define WS2811_DMA_STREAM               DMA2_Stream2
 //#define WS2811_DMA_CHANNEL              DMA_Channel_0
 //#define WS2811_DMA_HANDLER_IDENTIFER    DMA2_ST2_HANDLER
 
-//#define INVERTER_PIN_UART1      PC0 // PC0 used as inverter select GPIO
-
+#if defined(LED_STRIP)
+#define MAX_PWM_OUTPUT_PORTS 	4
+#define TARGET_MOTOR_COUNT      4
+#else
+#define MAX_PWM_OUTPUT_PORTS 	6
+#define TARGET_MOTOR_COUNT      6
+#endif
+#define USE_SERVOS
 
 #define USE_ADC
 #define ADC1_DMA_STREAM             DMA2_Stream0
@@ -98,7 +106,16 @@
 
 #define SENSORS_SET (SENSOR_ACC|SENSOR_MAG|SENSOR_BARO|SENSOR_GPS)
 
-#ifdef UAVXF4V4
+#define USE_GYRO
+#define USE_ACC
+
+#define USE_BARO
+#define USE_BARO_MS5611
+
+#define USE_MAG
+#define USE_MAG_HMC5883
+
+#if defined(UAVXF4V4)
 
 #define USE_SPI
 #define USE_SPI_DEVICE_2
@@ -110,23 +127,11 @@
 
 //#define USE_EXTI
 
-#define USE_GYRO
 #define USE_GYRO_MPU6000
 #define GYRO_MPU6000_ALIGN      CW90_DEG
 
-#define USE_ACC
 #define USE_ACC_MPU6000
 #define ACC_MPU6000_ALIGN       CW90_DEG
-
-#define USE_BARO
-#define USE_BARO_MS5611
-
-#define USE_MAG
-#define USE_MAG_HMC5883
-
-//#define ENABLE_BLACKBOX_LOGGING_ON_SPIFLASH_BY_DEFAULT
-//#define USE_FLASHFS
-//#define USE_FLASH_M25P16
 
 #define USE_UART3
 #define UART3_RX_PIN            PB11
@@ -152,19 +157,11 @@
 #define I2C2_SCL                PB10
 #define I2C2_SDA                PB11
 
-#define USE_GYRO
 #define USE_GYRO_MPU6050
 #define GYRO_MPU6050_ALIGN      CW90_DEG
 
-#define USE_ACC
 #define USE_ACC_MPU6050
 #define ACC_MPU6050_ALIGN       CW90_DEG
-
-#define USE_BARO
-#define USE_BARO_MS5611
-
-#define USE_MAG
-#define USE_MAG_HMC5883
 
 //#define USE_FLASHFS
 //#define USE_FLASH_M25P16
@@ -186,7 +183,6 @@
 #define TELEMETRY_UART          SERIAL_PORT_SOFTSERIAL1
 
 #endif
-
 
 #define MAG_HMC5883_ALIGN       CW90_DEG
 
