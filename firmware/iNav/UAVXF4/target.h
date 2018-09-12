@@ -139,8 +139,6 @@
 
 #define SERIAL_PORT_COUNT       3 //USART1, USART2, USART3
 
-#define BEEPER                  PA4
-
 #define GPS
 #define GPS_UART				SERIAL_PORT_USART3
 
@@ -173,8 +171,6 @@
 
 #define SERIAL_PORT_COUNT       3 //USART1, USART2, SOFTSERIAL1
 
-#define BEEPER                  PA12
-
 #define GPS
 #define GPS_UART				SERIAL_PORT_USART2
 
@@ -183,6 +179,8 @@
 #define TELEMETRY_UART          SERIAL_PORT_SOFTSERIAL1
 
 #endif
+
+#define BEEPER                  PA12
 
 #define MAG_HMC5883_ALIGN       CW90_DEG
 
