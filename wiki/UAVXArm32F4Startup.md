@@ -38,21 +38,21 @@ The default parameters were obtained from flights by Ken & Jim. These are a good
 
 From now on any changes you make to parameters in UAVXGUI must be followed by selecting the **Write Config** icon. Some parameter changes involve an electrical reconfiguration of the board so you will occasionally see all LEDs flashing - cycle the power and this should allow the board to complete the reconfiguration.
 
-Connect the front motor control lead to M1. This will power your Rx as centre pins of all of the M and Rx pins are connected together.
+Connect a 5V supply to any of the M or Rx centre pins. This will power your Rx as centre pins of all of the M and Rx pins are connected together. In the past this would have been ONE of the ESC BECs. More recently a seperate 5V switching UBEC is used.
 
 If you have a a Rx (e.g. FrSky) that supports Compound PPM (CPPM) connect it to Rx1. For CPPM you must specify the number of channels your Rx is receiving using UAVXGUI.
 
-If you have an Rx that uses parallel PPM then connect it to Rx1 up to Rx8 in the order Throttle, Aileron, Elevator, Rudder, Gear, Aux1, Aux2, Aux3. You need a minimum of 7 channels for full functionality.
+If you have an Rx that uses parallel PPM then connect it to Rx1 upwards USUALLY in the order Throttle, Aileron, Elevator, Rudder, Gear, Aux1, Aux2 etc.. You need a minimum of 7 channels for full functionality.
 
-For parallel PPM using UAVXGUI set number of channels you have actually connected.
+For parallel PPM using UAVXGUI set the number of Rx channels you have actually connected to a maximum of 8. If you are using a CPPM or UART connected Rx protocol such as as SBus (Preferred) then more channels are available.
 
 You can fly with a minimum of 4 channels Throttle, Aileron, Elevator, Rudder. If you do so then you will have altitude hold but no navigation capability.
 
 You may re-assign the channels using the selectors in UAVXGUI. So if your throttle is on Channel 3 for example then setup the pulldowns appropriately.
 
+Some channels have multiple functions. You should read UAVXFlightModes.
+ 
 Go to the main UAVXGUI page and turn on your Tx. Stir the Tx sticks and adjust the endpoints and neutral values of those channels that turn orange.
-
-As well as adjusting the navigation sensitivity NavS or Channel 7 (normally a potentiometer/knob) is used to enable altitude hold.  Initially you should fly with altitude hold off. Altitude hold is switched OFF below 10% and ON above 10%. The knob does not control altitude hold sensitivity.
 
 The Green LED should be on and Yellow LED flashing every second.
 
@@ -64,7 +64,7 @@ Put the aircraft on a level surface. If it is on the slightest of angles then th
 
 Get a decent spirit level and even then turn it around to make sure it reads level both ways.
 
-Lock the quadrocopter down so it does not move and recheck it is level.
+Lock the aircraft down so it does not move and recheck it is level.
 
 Power up with UAVGUI connected.  Select the CalIMU button which will be Red. You will see the blue LED start to flash - it has already taken the first set of readings and is waiting for the temperature to rise to take the second set.  Get a hair dryer and VERY SLOWLY warm up the board - put your hand close to the board to sense how hot the air is. If it is too hot for your hand it is too hot for the board! You only need to change its temperature by 20 Celsius all up so don't melt the board!  There is a delay as the heat gets into the MPU6xxx package so slowly/slowly until the blue LED stops flashing and you are done. The CalIMU button should go Green. Obviously it is better to do the calibration so it covers the range of temperatures you are likely to be flying in.
 
@@ -100,7 +100,9 @@ If they are you are almost ready to fly but don't put the props on yet.
 
 ### Step 6 (Motors) ###
 
-Disconnect the centre leads of the rest of your ESC control leads and make sure they are taped back and insulated.
+This applies to multicopters only. See elsewhere fo fixed wing aircraft.
+
+Most ESCs for multicopters do not have BEC capabilty. If yours do then make sure only one BEC is connected to the board.
 
 We have assumed XMode so the K1 motor (ACW) is front left. Now connect the other motors:
 
@@ -130,14 +132,13 @@ http://www.rcgroups.com/forums/showthread.php?t=1093510
 
 ## Next Steps ##
 
-### GPS Connection and Initialisation ###
+### GPS Connection ###
 
-The GPS is connected to the I2C/Rangefinder connector. The connector is configured for serial communication at 115KBaud. The GPS Rx line should be connected to SDA and the Tx to CLK. If you intend connecting an I2C capable GPS then we will try to get it done.
+This is where it gets messy. 
 
-In what follows you may wish to set your GPS unit's parameters using the manufacturer's tools. In this case leave the GPS Rx pin disconnected so that UAVX does not use its default configuration.
-
-If using the NMEA protocol you should choose the $GPGGA and $GPRMC sentences at a minimum update rate of 5Hz.
-
+  * V3 Boards: With a CPPM Rx connect the GPS to Rx3 and Rx4. For other Rx types use the wiring harness described elsewhere.
+  * V4 Boards. Connect the GPS to Serial/I2C/Rangefinder combo connector. 
+ 
 You must have a solid Green LED and a Blue LED flashing at the GPS rate which is normally 5Hz to fly. If you have a Red LED flashing intermittently **do not fly using GPS navigation** as you have poor GPS reception or there is some other fault.
 
 ### Accelerometer Neutral Fine Tuning ###
@@ -154,6 +155,17 @@ You should do this when there is no wind and you only need to do it once. It is 
 You should never need yaw trim.
 
 ## Appendices ##
+
+### GPS Waypoint Navigation ###
+ 
+The most likely GPS functions you will want to use are position hold (PH) and return to home (RTH) almost always in conjunction with altitude hold (AH). Altitude hold is only active if the sticks do not move for a few seconds. 
+
+Waypoint navigation where missions are set up through the GUI Nav panel can be enabled in one of two ways.
+
+  *  Aux3 to ground
+  *  Selecting Nav with the Arm/AH/Nav channel
+
+If there is a mission loaded (more than zero waypoints) then the centre position of the Fun/PH/RTH channel starts/resumes a mission. 
 
 ### Pin Allocations ###
 
