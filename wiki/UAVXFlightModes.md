@@ -4,10 +4,10 @@ UAVX has several flight modes most of which are associated with navigation and g
 
 ## How are Modes Controlled ##
 
-Some channel assignments deserve special mention. The first two are ALTERNATIVES and would normally use a potentiometer. 
+Some channel assignments deserve special mention. The first two are ALTERNATIVES and would normally use a potentiometer. AHNavSens ALWAYS overrides ArmAHNav therefore you should choose one or the other but not both.
 
   * ArmAHNav: Above 25% motors are ARMED. Above 50% altitude hold is enabled. Above 75% Waypoint navigation is enabled (See below). 
-  * AHNavSens: Below 10% altitude hold and is disabled.  Above 10% altitude hold is enabled and as you increase further the control action for position hold and waypoint navigation increase.
+  * AHNavSens: Below 10% altitude hold and is disabled.  Above 10% altitude hold is enabled and as you increase further the control action for position hold and waypoint navigation increase. You would normally use stick or switch ARMING if you use this and the Aux3 pin to enable or disable WP navigation. 
   
   * Fun/PH/RTH: The first position selects "Fun Fly" with all GPS navigation actions are disabled. In the middle position Position Hold is enabled. In the last position Return to Home is enabled. 
   * Ang/Hrz/Rate: Selects Angle, Horizon or Rate mode respectively (Google elsewhere).   
@@ -15,7 +15,7 @@ Some channel assignments deserve special mention. The first two are ALTERNATIVES
  
 You may reassign these functions to other channels should you desire.
 
-You may choose to use the "Nav Sens" channel (default Ch7) to reduce the Pvel in flight. Pvel controls the pitch/roll angle for a given position error. The minimimum value is 25% and the maximum 1--%. If you do not use this channel then the default is 100% which means Pvel is used directly. 
+You may choose to use the "AHNavSens" channel (default Ch7) to reduce the Pvel in flight. Pvel controls the pitch/roll angle for a given position error. The minimimum value is 25% and the maximum 100%. If you do not use this channel then the default is 100% which means Pvel is used directly. 
 
 There are several parameters and checkboxes associated with flight modes and navigation. It is important to note the functions when checked of the following checkboxes.
  
