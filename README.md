@@ -51,6 +51,7 @@ Up to 10 drives or servos:
   * SyncPWM (400Hz)
   * SyncPWM/8 OneShot 
   * I2C @ 400KHz
+  * SPI @ 10MHz
   * DC Motors (with optional 6 channel external adapter)
 
 We have used SimonK and BLHeli ESC codes with FastPWM being the sensible minimum for good performance.
@@ -68,7 +69,7 @@ Attitude Control:
   * Rate (commonly called gyro mode)
   * a mix of the above
 
-###Videos and Builds###
+### Videos and Builds ###
 
 There are many many many videos of UAVX on our RCG thread and elsewhere:
 
