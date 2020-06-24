@@ -4,7 +4,7 @@ Your board will come with the appropriate firmware loaded. To load new firmware 
 
 The following sequence of screen shots is self explanatory.
 
-First before connecting power put a link on the **Boot0** pins. This places the Arm processor in bootloader mode when powered up.
+Use UAVXGUI to put the board in bootloader mode or connect the boot pins before powering up the board.
 
 Set the baud rate to 115K and the COM port as necessary.
 
