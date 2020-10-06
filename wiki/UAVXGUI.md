@@ -6,15 +6,9 @@ You should also refer to the Wikis for the old separate tools.
 
 The actual layout of the windows changes over time and will not match those used as examples here.
 
-## GPS Connected to COM or Telemetry Port ##
-
-If you have GPS connected to the COM port Rx pin then you will have full downlink telemetry but you will not be able to change any parameters in flight including navigation missions. You arming switch needs to switch the between the Tx line from the GPS and the Tx line from your PC or RF link. UAVXGUI assumes this will be the case and will be looking for GPS packets when the aircraft is armed.
-
-If your Rx uses CPPM you should definitely be using RC3&4 for your GPS connection. In this case you will have full bi-directional telemetry and can change mission and most other parameters in flight providing you have an appropriate wireless link of course.
-
 ## Voice Feedback ##
 
-Selectable voice feedback is available for those who like to look at the aircraft in flight rather than hopefully where it is on a screen. You may enable/disable reporting - bottom right of the main Ground Station window.
+Selectable voice feedback is available for those who like to look at the aircraft in flight rather than hopefully where it is on a screen. 
 
 # Groundstation #
 
@@ -42,15 +36,7 @@ that your aircraft matches the one selected.
 
 ## A Reminder on Failsafes ##
 
-Failsafes are enabled/disabled using the Failsafe Checkbox. By default they are enabled. You should **always** set your Rx failsafes to have RTH enabled and Nav Sensitivity to mid-range.
-
-### Failsafes Enabled ###
-
-If you are using GPS then the aircraft will attempt a RTH if the battery low alarm is active or the Tx controls have not moved in around 20 seconds. If you are not using GPS the aircraft will land immediately.
-
-### Failsafes Disabled ###
-
-Low battery and sticks not moving are ignored. If your Tx has failed the aircraft will use the Rx failsafe settings whatever these may be!
+UAVX will do whatever you have set on your Rx failsafes. Carefully set them to the action you desire. Usually this is sticks neutral and RTH selected.
 
 # Navigation #
 
@@ -58,23 +44,13 @@ Low battery and sticks not moving are ignored. If your Tx has failed the aircraf
 
 Open this page using the button top right of the Ground Station page. You may close and reopen this page as you desire.
 
+Navigation including hold is disabled for the first approximately 15 seconds of flight.  Selecting Nav Mode other than PIC will result in an autoland. You can abort this by reversing the switch action. This has been adopted to reduce the possibility of engaging waypoint navigation while standing close to or over the aircraft immediately after arming.
+
 ## General ##
 
 Missions may be accessed as files using the Load and Save buttons. An image of the current map is also saved when using the Save button.
 
 Changes to the mission on the map must be uploaded to the aircraft using the Write button. The current mission stored in the aircraft (if any) is downloaded using the Read button.
-
-## Tx setup ##
-
-By default the Nav Mode selected by Tx Channel 5 are:
-
-  * PIC, Hold assist and RTH.
-
-If you check the WP navigation enabled checkbox the Nav Mode selected becomes:
-
-  * Hold assist, Navigate and RTH.
-
-Navigation including hold is disabled for the first approximately 15 seconds of flight.  Selecting Nav Mode other than PIC will result in an autoland. You can abort this by reversing the switch action. This has been adopted to reduce the possibility of engaging waypoint navigation while standing close to or over the aircraft immediately after arming.
 
 ## Emulation ##
 
@@ -112,7 +88,9 @@ The waypoint types are currently:
   * ORBIT - orbits the waypoint at the radius (R) with a velocity (V). UAVX will point an camera at the waypoint.
   * PERCH - lands at the waypoint then takes off and resumes mission.
   * Set POI - this is not a waypoint as such just a point that the aircraft will point to for the rest of the mission or until another Set POI is encountered.
-  * Although not displayed RTH is always the default last waypoint. If there is no mission then selecting Navigate results in RTH.
+  * SURVEY - this allows you emit a pulse of a fixed width on the Aux1 pin repeated at periodically commencing at the next waypoint.
+  
+Although not displayed RTH is always the default last waypoint. If there is no mission then selecting Navigate results in RTH.
 
 If you do not designate a POI then the normal Turn To WP or hold heading configuration applies.
 

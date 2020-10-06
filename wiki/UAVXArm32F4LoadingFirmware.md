@@ -4,10 +4,12 @@ Your board will come with the appropriate firmware loaded. To load new firmware 
 
 The following sequence of screen shots is self explanatory.
 
-Use UAVXGUI to put the board in bootloader mode or connect the boot pins before powering up the board.
+There are two ways to proceed:
+
+* If you are updating firmware use the UAVXGUI and the "BOOTLOAD" button to place the Arm processor into bootload mode. Don't power cycle the Arm board. This far more convenient than the second option especially if the board is buried inside a FW aircraft.
+* Put a link on the **Boot0** pins and power up the board. This places the Arm processor in bootloader mode when powered up.
 
 Set the baud rate to 115K and the COM port as necessary.
-
 
 ![https://github.com/gke/UAVXArm/blob/master/wiki/graphics/STM1.JPG](https://github.com/gke/UAVXArm/blob/master/wiki/graphics/STM1.JPG)
 

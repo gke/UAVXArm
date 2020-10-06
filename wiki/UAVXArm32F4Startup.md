@@ -134,12 +134,9 @@ http://www.rcgroups.com/forums/showthread.php?t=1093510
 
 ### GPS Connection ###
 
-This is where it gets messy. 
+Connect the GPS to the former Rx3 and Rx4. 
 
-  * V3 Boards: With a CPPM Rx connect the GPS to Rx3 and Rx4. For other Rx types use the wiring harness described elsewhere.
-  * V4 Boards. Connect the GPS to Serial/I2C/Rangefinder combo connector. 
- 
-You must have a solid Green LED and a Blue LED flashing at the GPS rate which is normally 5Hz to fly. If you have a Red LED flashing intermittently **do not fly using GPS navigation** as you have poor GPS reception or there is some other fault.
+If you have a GPS selected in UAVXGUI the aircraft will not fly until a stable GPS signal is received.
 
 ### Accelerometer Neutral Fine Tuning ###
 
@@ -150,7 +147,7 @@ It is inevitable that the accelerometer neutrals will require small adjustments 
   * land and, with the throttle closed but still armed, hold the aileron or elevator stick at maximum in direction opposite to the drift until you hear a beep - there is a delay of 2 seconds to the first beep.
   * Fly again repeating until there is no drift.
 
-You should do this when there is no wind and you only need to do it once. It is always better to adjust the neutrals rather than use the Tx trims if you want the flight controller to work properly.
+You should do this when there is no wind and you only need to do it once. You should never adjust the Tx trims other than to get them as close as possible to NEUTRAL. For FW airctraft adjust the servo linkages as in any case it is bad (although now common) practice to use Tx trims.
 
 You should never need yaw trim.
 
@@ -165,7 +162,7 @@ Waypoint navigation where missions are set up through the GUI Nav panel can be e
   *  Aux3 to ground
   *  Selecting Nav with the Arm/AH/Nav channel
 
-If there is a mission loaded (more than zero waypoints) then the centre position of the Fun/PH/RTH channel starts/resumes a mission. 
+If there is a mission loaded (more than zero waypoints) then the centre position of the Fun/PH/RTH channel starts/resumes a mission but at the next waypoint - this is useful if you wish to abort attempts to get to the current waypoint due to wind or thermal influence. 
 
 ### Pin Allocations ###
 
